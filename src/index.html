@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src data:; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:,">
+<title>Beam</title>
+<link rel="stylesheet" href="./app.css">
+<script type="module" src="./app.js"></script>
+</head>
+<body>
+<header>
+<div class="beam-identity">
+<button type="button" id="workSidebarToggle" class="beam-mark" aria-label="작업 사이드바" title="작업 사이드바" aria-controls="beamSidebar" aria-expanded="false">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false">
+<path d="M4 5h16v14H4z M9 5v14"/>
+</svg>
+</button>
+<span class="beam-save-wrap">
+<span class="sr-only saved" id="saved" role="status">저장 전</span>
+<button hidden type="button" id="beamSaveHint" aria-label="변경사항 저장" title="변경사항 저장">
+<span class="beam-save-full" data-ko="저장 필요" data-en="Save changes">저장 필요</span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 3v11m-4-4 4 4 4-4M5 15v5h14v-5"/>
+</svg>
+</button>
+</span>
+<button type="button" id="beamBack" hidden aria-controls="beamSearch" aria-label="ASN 검색으로 돌아가기">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="m14 6-6 6 6 6"/>
+</svg>
+<span data-ko="ASN 검색" data-en="ASN search">ASN 검색</span>
+</button>
+<div class="beam-modes" role="group" aria-label="검색 방식">
+<button type="button" data-beam-mode="b2b" aria-pressed="true">B2B</button>
+<button type="button" data-beam-mode="b2c" aria-pressed="false">B2C</button>
+</div>
+</div>
+<div class="header-identity">
+<div class="inspection-presence-line">
+</div>
+<span class="tag" hidden="">오프라인</span>
+</div>
+<div class="toolbar">
+<div class="availability-setting header-availability">
+<button id="availabilityToggle" type="button" role="switch" aria-checked="false" aria-describedby="availabilityNote">
+<span>피킹 위치 안내</span>
+<b id="availabilityState">OFF</b>
+</button>
+<p id="availabilityNote">켜짐: 설정한 피킹 위치 표시<br>위치 안내만 제공 · 실제 재고 이동 없음</p>
+</div>
+<button id="theme" type="button" aria-pressed="false" aria-label="다크 모드">다크 모드</button>
+<div class="file-menu" id="fileMenu">
+<button id="fileMenuButton" type="button" aria-label="Settings" title="Settings" aria-expanded="false" aria-controls="fileMenuPanel">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<path d="m12 3 8 4.6v8.8L12 21l-8-4.6V7.6z"/>
+<circle cx="12" cy="12" r="2.7"/>
+</svg>
+</button>
+<div id="fileMenuPanel" class="file-menu-panel" role="group" aria-label="Settings" hidden>
+<span class="settings-section-label" data-ko="데이터" data-en="DATA">데이터</span>
+<button id="dataLauncher" type="button" aria-haspopup="dialog" aria-controls="dataDialog">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<path d="M4 7c0 2 3.6 3.5 8 3.5S20 9 20 7s-3.6-3.5-8-3.5S4 5 4 7v10c0 2 3.6 3.5 8 3.5s8-1.5 8-3.5V7M4 12c0 2 3.6 3.5 8 3.5s8-1.5 8-3.5"/>
+</svg>기준 데이터</button>
+<span class="settings-section-label" data-ko="작업" data-en="WORK">작업</span>
+<button id="restore">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<path d="M3 7h7l2 2h9v10H3zM3 7V5h7l2 2h7v2"/>
+</svg>작업 불러오기</button>
+<button id="save" class="primary">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-6h8v6"/>
+</svg>작업파일 저장</button>
+<button id="newWork" type="button" aria-haspopup="dialog" aria-controls="newWorkDialog">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<path d="M12 5v14M5 12h14"/>
+</svg>새 작업</button>
+<span class="settings-section-label" data-ko="환경 · 도움말" data-en="PREFERENCES · HELP">환경 · 도움말</span>
+<button id="language" class="settings-language" type="button" aria-label="현재 한국어 · 영어로 변경" title="현재 한국어 · 영어로 변경">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c4 4 4 14 0 18-4-4-4-14 0-18z"/>
+</svg>KR</button>
+<button id="helpLauncher"  type="button" aria-label="도움말 · 예제" title="도움말 · 예제" aria-haspopup="dialog">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01"/>
+</svg>도움말 · 예제</button>
+</div>
+</div>
+</div>
+</header>
+<aside hidden inert id="beamSidebar" aria-labelledby="beamJobsTitle">
+<div class="beam-drawer-head">
+<h2 id="beamJobsTitle" data-ko="작업" data-en="Work">작업</h2>
+<button type="button" id="beamSidebarClose" aria-label="사이드바 접기" title="사이드바 접기">‹</button>
+</div>
+<button type="button" id="beamNewWork" data-ko="+ 새 작업" data-en="+ New work">+ 새 작업</button>
+<nav id="beamJobs" aria-label="작업 및 ASN 시트">
+</nav>
+</aside>
+<section id="beamSearch" aria-labelledby="beamSearchTitle">
+ <h1 id="beamSearchTitle" class="beam-sr">반품 ASN 검색</h1>
+ <div class="beam-find-fold" id="beamFindFold">
+<div class="beam-find-clip">
+<div class="beam-find">
+  
+  <div class="beam-input">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+<circle cx="10.5" cy="10.5" r="5.5"/>
+<path d="m15 15 4 4"/>
+</svg>
+<label class="beam-sr" id="beamQueryLabel" for="beamQuery">매장명 또는 반송장번호</label>
+<input id="beamQuery" type="search" spellcheck="false" autocomplete="off" placeholder="매장명 또는 반송장번호" aria-describedby="beamSearchStatus">
+</div>
+  <div class="beam-narrow" id="beamNarrow" hidden>
+<label for="beamSku" data-ko="SKU 또는 반송장번호로 좁히기" data-en="Narrow by SKU or return tracking">SKU 또는 반송장번호로 좁히기</label>
+<input id="beamSku" type="search" autocomplete="off" spellcheck="false" placeholder="SKU / 반송장번호" aria-describedby="beamSearchStatus">
+</div>
+ </div>
+</div>
+</div>
+ <div id="beamRawAnnounce" class="beam-sr" role="status" aria-live="polite">
+</div>
+ <div id="beamRawStatus" class="beam-raw-status" hidden>
+<p id="beamRawMessage" role="status" aria-live="polite">
+</p>
+<progress id="beamRawProgress" aria-label="통합 RAW 불러오기" max="100">
+</progress>
+<small id="beamRawCount" aria-hidden="true">
+</small>
+</div>
+ <div class="beam-selection-line">
+<button type="button" id="beamEditSearch" hidden>
+<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+<circle cx="8.25" cy="8.25" r="4.25"/>
+<path d="m11.5 11.5 4 4"/>
+</svg>
+<span>
+</span>
+</button>
+<p id="beamSearchStatus" role="status" aria-live="polite">
+</p>
+</div>
+ <div class="beam-stage" id="beamStage" role="group" aria-label="반품 ASN 후보">
+</div>
+ <div class="beam-empty" id="beamEmpty" hidden>
+<i aria-hidden="true">
+</i>
+<strong id="beamEmptyTitle">
+</strong>
+<p id="beamEmptyText">
+</p>
+<button id="beamConnect" type="button" data-ko="기준 자료 연결" data-en="Connect reference data">기준 자료 연결</button>
+</div>
+ <div class="beam-start-area" id="beamStartArea" hidden>
+  <button id="beamStart" type="button">
+<span>Start</span>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+<path d="M6 18 18 6M9 6h9v9"/>
+</svg>
+</button>
+  <div id="beamBrowse" hidden>
+<button id="beamPrev" type="button" aria-label="이전 ASN">←</button>
+<span id="beamPage">
+</span>
+<button id="beamNext" type="button" aria-label="다음 ASN">→</button>
+</div>
+ </div>
+<p id="beamRailLabel" hidden>
+</p>
+</section>
+<div id="sheetWorkspace" class="order-sheet-workspace" hidden inert>
+<div id="workTopbar">
+<nav class="work-deck" id="workDeck" aria-label="반품 작업 시트">
+<div id="workTabs">
+</div>
+<button id="newWorkTab" type="button">+ 새 작업</button>
+</nav>
+<div id="workScopeBar" role="group" aria-label="현재 작업 검수 대상">
+<div class="search-mode" role="group" aria-label="검색 방식">
+<button id="searchB2B" type="button" aria-pressed="true">B2B · 매장</button>
+<button id="searchB2C" type="button" aria-pressed="false">B2C · 고객</button>
+</div>
+<section class="header-store" id="storeSearchField" aria-label="매장 검색">
+<div class="target-fields">
+<div class="target-field">
+<label for="store">매장명</label>
+<div class="store-combobox">
+<input id="store" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="storeList" autocomplete="off" placeholder="예: 가상 매장">
+<div id="storeList" role="listbox" aria-label="매장 추천" class="store-list hidden">
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="header-store" id="customerSearchField" hidden>
+<div class="target-fields">
+<div class="target-field">
+<label for="customerQuery">고객명</label>
+<input id="customerQuery" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="receiptList" autocomplete="off" placeholder="고객명 또는 오더번호">
+</div>
+</div>
+</section>
+</div>
+</div>
+<section id="orderWorkspace" aria-label="현재 작업 안의 ASN">
+<div class="order-workspace-top">
+<section id="activeOrderSheet" class="overview-asn order-selector" aria-labelledby="overviewAsnLabel">
+<div class="overview-asn-heading">
+<label id="overviewAsnLabel" class="asn-status-accessible" for="receipt">
+<strong id="asnProgressStatus" aria-live="polite">
+</strong>
+</label>
+</div>
+<div class="overview-asn-controls">
+<div class="asn-control">
+<div class="asn-combobox">
+<span id="selectedInternalLabel" class="asn-key-label">Order ID · —</span>
+<div class="receipt-entry">
+<input id="receipt" role="combobox" aria-label="External order ID" aria-describedby="selectedExternalKey" aria-expanded="false" aria-controls="receiptList" aria-autocomplete="list" autocomplete="off" placeholder="주문번호 또는 고객명 검색">
+<span id="activeAsnMark">
+</span>
+<button id="newreceipt" class="header-target-lock" hidden type="button" aria-pressed="false">검수 대상 고정</button>
+<button type="button" class="order-sheet-action order-info-button" id="activeOrderInfo" data-order-info="" aria-label="오더 검수 정보" aria-haspopup="dialog" aria-controls="orderInfoPopover">
+<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+<circle cx="12" cy="12" r="8"/>
+<path d="M12 11v6M12 7v1"/>
+</svg>
+</button>
+<button id="receiptToggle" type="button" aria-label="ASN 목록" aria-haspopup="listbox" aria-controls="receiptList" aria-expanded="false">
+<img src="data:image/svg+xml;base64,PHN2ZyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgc3R5bGU9ImRpc3BsYXk6IGJsb2NrOyIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiB2aWV3Qm94PSIwIDAgMTYgMTYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxnIGlkPSJGcmFtZSI+CjxwYXRoIGlkPSJWZWN0b3IiIGQ9Ik00IDZMOCAxMEwxMiA2IiBzdHJva2Utd2lkdGg9IjEuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2U9IiM5OTk5OTkiLz4KPC9nPgo8L3N2Zz4K" alt="" width="16" height="16" aria-hidden="true">
+</button>
+<button id="receiptBarcode" type="button" aria-label="Order ID PDA 바코드" title="Order ID PDA 바코드" aria-haspopup="dialog" aria-controls="receiptBarcodeDialog" disabled>
+<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+<path d="M3 4h2v16H3zm4 0h1v16H7zm3 0h3v16h-3zm5 0h1v16h-1zm3 0h3v16h-3z"/>
+</svg>
+</button>
+<div id="currentAsnActions" role="group" aria-label="현재 ASN 검수 작업" hidden>
+<button id="confirmInspection" type="button" aria-describedby="confirmHint" disabled>Confirm</button>
+<button id="directReport" type="button" aria-haspopup="dialog" aria-controls="reportDialog" hidden>ASN Report</button>
+<button id="orderMixReview" type="button" aria-haspopup="dialog" aria-controls="allocationDialog" hidden>배정 검토</button>
+<button id="asnShare" type="button" title="PDF 저장" aria-label="현재 ASN PDF 저장" aria-haspopup="dialog" aria-controls="asnShareDialog">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 15V3m-4 4 4-4 4 4M8 11H5v10h14V11h-3"/>
+</svg>
+</button>
+<span id="confirmHint" role="status">
+</span>
+</div>
+</div>
+<span id="selectedExternalKey" class="asn-external-key">
+</span>
+<div id="receiptList" role="listbox" aria-label="ASN 목록" class="hidden">
+</div>
+</div>
+</div>
+</div>
+<small id="asnNavigationReason">
+</small>
+</section>
+<div id="orderTabs" aria-label="다른 오더 시트">
+</div>
+<span id="orderWorkspaceHint">
+</span>
+</div>
+</section>
+<div class="beam-inspect-identity">
+<h1 id="beamWorkName" hidden>
+</h1>
+<div id="overviewTracking" hidden>
+<span id="overviewTrackingLabel">반송장번호</span>
+<span id="overviewTrackingValues">
+</span>
+</div>
+</div>
+<div class="layout">
+<main id="orderInspectionPanel">
+<div id="message" role="alert">
+</div>
+<div id="beamTerminal">
+<div class="beam-term-bar">
+<strong data-ko="검수 콘솔" data-en="INSPECTION CONSOLE">검수 콘솔</strong>
+<span>
+<span data-ko="예정 수량" data-en="Expected quantities">예정 수량</span> <kbd>F2</kbd>
+</span>
+</div>
+<section class="work-overview" aria-label="검수 대상과 진행 현황">
+<div class="overview-context">
+<div class="overview-status" id="overviewStatus" tabindex="0" role="region" aria-label="ASN 검수 현황 · 좌우 방향키로 탐색">
+<button class="overview-arrow" id="asnPrevious" type="button" aria-label="이전 ASN">
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+<path d="m15 5-7 7 7 7"/>
+</svg>
+</button>
+<div class="overview-content">
+<div class="receipt-title">
+<div>
+<div class="eyebrow">반품 검수</div>
+<p id="externalRef" hidden>
+</p>
+<p id="subtitle" class="hidden">
+</p>
+</div>
+</div>
+<section class="scan">
+<label for="barcode">Barcode / SKU</label>
+<form id="scanform">
+<svg class="beam-scan-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+<path d="M8 4H5a1 1 0 0 0-1 1v3m12-4h3a1 1 0 0 1 1 1v3M4 16v3a1 1 0 0 0 1 1h3m8 0h3a1 1 0 0 0 1-1v-3M7 12h10"/>
+</svg>
+<input id="barcode" autocomplete="off" spellcheck="false" placeholder="Barcode 또는 SKU · 스캔하거나 입력" disabled>
+<button id="scanbutton" class="primary" disabled>스캔</button>
+<button id="undo" type="button" aria-label="최근 입력 취소" title="최근 입력 취소" disabled>
+<svg class="undo-icon" viewbox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<path d="M9 5 4 10l5 5">
+</path>
+<path d="M4 10h9a5 5 0 0 1 0 10h-2">
+</path>
+</svg>
+</button>
+</form>
+<section id="scanSuggestions" class="scan-suggestions hidden" aria-labelledby="suggestionHeading">
+<div id="suggestionHeading">
+</div>
+<p id="suggestionNote">
+</p>
+<ul id="suggestedProducts">
+</ul>
+</section>
+<div id="feedback" class="feedback" role="status" aria-live="polite">
+</div>
+<div class="scanresult" id="scanresult" hidden aria-hidden="true">
+<div class="verdict">
+<div class="eyebrow">이번 입력 · 검수 판정</div>
+<div id="laststatus" aria-live="polite">상품을 스캔해 주세요</div>
+<div id="lastcount" class="compare">
+</div>
+<div id="itemdelta" class="mono small">
+</div>
+</div>
+<div class="remaining">
+<span id="remaininglabel">실물 − 예정</span>
+<b id="remaining">—</b>
+</div>
+<div class="inspected-product">
+<div>
+<div class="eyebrow">검수한 상품</div>
+<p id="lastname">
+</p>
+<div class="sku" id="lastsku">—</div>
+<div class="mono small" id="lastbarcode">
+</div>
+</div>
+<div id="location" class="location mono">
+</div>
+</div>
+</div>
+</section>
+<div class="asn-progress-row">
+<section id="asnProgress" class="asn-progress" aria-label="ASN 전체 검수" role="status" aria-live="polite" aria-atomic="true">
+<div hidden>
+<div id="asnProgressScope" class="asn-scope">
+</div>
+</div>
+<div id="scanReadout" hidden>
+<div id="lastScanned" class="last-scanned" hidden aria-live="polite" aria-atomic="true">
+<span class="last-scanned-label">Last Scanned</span>
+<span id="lastScannedStoreWarning" class="last-scanned-store-warning" hidden>
+</span>
+<div class="last-scanned-item-layout">
+<div class="last-scanned-item-copy">
+<div class="last-scanned-product-line">
+<strong id="lastScannedName">
+</strong>
+<span id="lastScannedProgress">
+</span>
+<progress id="lastScannedBar" max="100" value="0" aria-label="Last scanned SKU progress" hidden>
+</progress>
+</div>
+<div class="last-scanned-codes">
+<span id="lastScannedSku">
+</span>
+<span id="lastScannedAltsku">
+</span>
+<span id="lastScannedContext">
+</span>
+</div>
+</div>
+</div>
+</div>
+<aside id="overviewPutaway" hidden aria-label="적치 위치">
+<div class="putaway-label">
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<path d="M12 22s7-7 7-13a7 7 0 0 0-14 0c0 6 7 13 7 13Z"/>
+<circle cx="12" cy="9" r="2.4"/>
+</svg>
+<strong id="putawayLabel">적치 위치</strong>
+</div>
+<section id="lastScannedPicking" class="last-scanned-picking" aria-label="피킹 위치 안내 피킹 위치">
+</section>
+</aside>
+</div>
+<div class="asn-coverage">
+<progress id="asnProgressBar" max="100" value="0" aria-label="ASN 예정 수량 확인 진행률">
+</progress>
+<span id="asnCoverage">
+</span>
+</div>
+</section>
+</div>
+<span id="asnPosition" role="status">
+</span>
+<span id="actual" hidden>0</span>
+<span id="expected" hidden>0</span>
+<button id="overviewDetailsToggle" type="button" aria-expanded="false" aria-controls="overviewExtra">검수 상세</button>
+<div id="overviewExtra">
+<p id="mobileBatchCount" class="mobile-batch-count">
+</p>
+<div class="count-exceptions" role="group" aria-label="확인할 항목">
+<button class="metric discrepancy-trigger" id="missingDetails" type="button" aria-expanded="false" aria-controls="discrepancyPopover">
+<span>부족 수량</span>
+<span class="metric-quantity">
+<b id="missing">0</b>
+<span class="metric-unit">EA</span>
+</span>
+</button>
+<button class="metric discrepancy-trigger" id="excessDetails" type="button" aria-expanded="false" aria-controls="discrepancyPopover">
+<span>초과 수량</span>
+<span class="metric-quantity">
+<b id="excess">0</b>
+<span class="metric-unit">EA</span>
+</span>
+</button>
+<button class="metric" id="otherAsnDetails" type="button" aria-haspopup="dialog" aria-controls="otherAsnDialog" hidden>
+<span>다른 ASN 추정</span>
+<span class="metric-quantity">
+<b id="otherAsnCount">0</b>
+<span class="metric-unit">EA</span>
+</span>
+</button>
+<button class="metric discrepancy-trigger" id="outsideDetails" type="button" aria-expanded="false" aria-controls="discrepancyPopover">
+<span>WMS 확인 불가<small id="unverifiedScope" class="sheet-scope-note">
+</small>
+</span>
+<span class="metric-quantity">
+<b id="unregistered">0</b>
+<span class="metric-unit">EA</span>
+</span>
+</button>
+</div>
+</div>
+</div>
+<button class="overview-arrow" id="asnNext" type="button" aria-label="다음 ASN">
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+<path d="m9 5 7 7-7 7"/>
+</svg>
+</button>
+</div>
+</div>
+</section>
+<section id="discrepancyPopover" class="hidden" aria-labelledby="discrepancyTitle">
+<div class="discrepancy-top">
+<strong id="discrepancyTitle">
+</strong>
+<button id="discrepancyClose" type="button" aria-label="닫기" title="닫기">×</button>
+</div>
+<div id="discrepancyProducts">
+</div>
+</section>
+<section id="allocationNotice" class="hidden" role="status">
+<span id="allocationHint">
+</span>
+</section>
+<div class="inspection-workbench" aria-label="입력 기록과 검수 대조">
+<section id="scanActivitySection" class="scan-activity" aria-labelledby="scanActivityTitle">
+<div class="scan-activity-head">
+<div class="activity-heading-text">
+<span id="scanActivityTitle">최근 입력 5건</span>
+</div>
+<button type="button" id="activityMinimize" aria-expanded="true" aria-controls="scanActivityViewport" aria-label="최근 입력 최소화" title="최근 입력 최소화">−</button>
+</div>
+<div id="recentActivityBar" class="tablebar">
+<span id="recentActivityRef">
+</span>
+<div class="recent-tools">
+<button type="button" id="unassignedActivity" hidden aria-controls="activityDialog" aria-haspopup="dialog">매장 미배정</button>
+<button type="button" id="activityExpand" aria-expanded="false" aria-controls="activityDialog" aria-haspopup="dialog" aria-label="입력 기록 펼치기" title="입력 기록 펼치기">
+<svg width="16" height="16" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+<path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5M3 3l6 6M21 3l-6 6M21 21l-6-6M3 21l6-6">
+</path>
+</svg>
+</button>
+</div>
+</div>
+<div id="scanActivityViewport" tabindex="0" role="region" aria-label="입력 기록">
+<div id="scanActivity" aria-live="off">
+</div>
+</div>
+</section>
+<details class="tablepanel" id="results" open>
+<summary>현재 오더 대조 결과</summary>
+<div class="tablebar">
+<div>
+<strong>예정 · 실물 대조</strong>
+<span id="rowcount" class="small">
+</span>
+</div>
+<select id="filter" aria-label="검수 결과 필터">
+<option value="all">전체</option>
+<option value="mismatch">불일치만</option>
+<option value="ok">일치만</option>
+</select>
+</div>
+<div class="tablewrap" tabindex="0" role="region" aria-label="현재 오더 대조 결과">
+<table>
+<thead>
+<tr>
+<th>상태</th>
+<th>바코드 / SKU</th>
+<th>상품명 · Loc</th>
+<th class="num">전산 수량</th>
+<th class="num">실물</th>
+<th class="num">차이량</th>
+</tr>
+</thead>
+<tbody id="rows">
+</tbody>
+</table>
+<div class="data-pager" id="resultPager" hidden>
+<button id="resultPrev" type="button">이전</button>
+<span id="resultPageLabel" role="status" aria-live="polite">
+</span>
+<button id="resultNext" type="button">다음</button>
+</div>
+<div class="empty" id="empty">
+<strong>검수할 ASN을 기다리고 있어요.</strong>Settings에서 기준 데이터를 불러와 주세요.</div>
+</div>
+</details>
+</div>
+<div class="toolbar output-tools">
+<button id="reset" class="danger" disabled>스캔 초기화</button>
+</div>
+</div>
+</main>
+</div>
+</div>
+<div id="orderSummarySource" hidden>
+<div class="asn-numbers">
+<b id="asnProgressCount">
+</b>
+<div id="asnBatchCount" class="asn-scope">
+</div>
+</div>
+<details id="skuQuest" class="sku-quest" hidden>
+<summary aria-keyshortcuts="F2" title="클릭해서 펼치기 · F2를 누르는 동안 미리보기">
+<span id="questTitle">반품 입고 예정 수량</span>
+<span id="questSummary" hidden>
+</span>
+<div class="count-summary" role="group" aria-label="검수 현황">
+<div class="metric normal-metric" role="group" aria-label="예정 수량과 정확히 일치한 SKU의 수량 합계 · 부족·초과·미등록 제외" title="예정 수량과 정확히 일치한 SKU의 수량 합계 · 부족·초과·미등록 제외">
+<span>정상 확인</span>
+<div class="normal-value">
+<span id="normalTypes">0 / 0 SKU</span>
+<span class="normal-total">
+<span class="total-label">정상확인 합계</span>
+<b id="normal">0</b>
+<span id="normalUnit">EA</span>
+</span>
+</div>
+</div>
+</div>
+</summary>
+<div class="quest-meta">
+<span id="questNote">
+</span>
+<span id="questAlerts" role="status">
+</span>
+</div>
+<ul id="questList">
+</ul>
+</details>
+</div>
+<section id="orderInfoPopover" role="dialog" aria-modal="false" aria-labelledby="orderInfoTitle" tabindex="-1" hidden>
+<div class="order-info-heading">
+<strong id="orderInfoTitle">
+</strong>
+<button id="orderInfoClose" type="button" aria-label="닫기">×</button>
+</div>
+<p id="orderInfoCounts">
+</p>
+<p id="orderInfoComplete">
+</p>
+<h2 id="orderInfoListTitle">반품 입고 예정 수량</h2>
+<ul id="orderInfoList" tabindex="0" aria-label="오더 예정 상품 목록">
+</ul>
+</section>
+<aside id="questPeek" class="quest-peek" hidden tabindex="0" aria-label="반품 입고 예정 수량 미리보기">
+<h2 id="questPeekTitle">
+</h2>
+<ul id="questPeekList" tabindex="0" aria-label="예정 상품 목록">
+</ul>
+</aside>
+<dialog id="receiptBarcodeDialog" aria-labelledby="receiptBarcodeTitle">
+<div class="barcode-dialog-head">
+<strong id="receiptBarcodeTitle" data-ko="반품 입고전표" data-en="Return receipt">반품 입고전표</strong>
+<button id="receiptBarcodeClose" autofocus type="button" aria-label="닫기">×</button>
+</div>
+<div id="receiptBarcodeTicket">
+</div>
+</dialog>
+<dialog id="confirmDifferenceDialog" aria-labelledby="confirmDifferenceTitle">
+<div class="dialog-heading">
+<h2 id="confirmDifferenceTitle">ASN과 실제 입고 SKU 또는 수량이 상이한 상황이 맞나요?</h2>
+</div>
+<div class="confirm-difference-actions">
+<button id="confirmDifferenceClose" type="button" autofocus>Cancel</button>
+<button id="confirmDifferenceAccept" type="button">Yes</button>
+</div>
+</dialog>
+<dialog id="reportDialog" aria-labelledby="reportDialogTitle">
+<div class="dialog-heading">
+<h2 id="reportDialogTitle">고객 안내문</h2>
+<button id="reportClose" type="button" aria-label="닫기" title="닫기">×</button>
+</div>
+<div id="confirmationPanel">
+<label for="confirmationText">고객 안내문</label>
+<p id="reportNotice" role="status">
+</p>
+<textarea id="confirmationText" readonly rows="8">
+</textarea>
+<div class="report-actions">
+<button id="copyConfirmation" type="button" disabled>안내문 복사</button>
+</div>
+</div>
+</dialog>
+<dialog id="activityDialog" aria-labelledby="activityDialogTitle">
+<div class="dialog-heading">
+<h2 id="activityDialogTitle">입력 기록</h2>
+<button type="button" id="activityClose" aria-label="닫기" title="닫기">×</button>
+</div>
+<div class="sheet-history-controls">
+<label for="historyScope">기록 범위</label>
+<select id="historyScope">
+<option value="order">선택 오더</option>
+<option value="pending">매장 미배정</option>
+<option value="all">이 작업 전체</option>
+</select>
+<button type="button" id="historyPendingUndo" hidden>매장 미배정 최근 입력 취소</button>
+</div>
+<div id="activityHistoryViewport" tabindex="0" role="region" aria-label="입력 기록">
+<div id="activityHistory" aria-live="off">
+</div>
+</div>
+<div class="data-pager" id="historyPager" hidden>
+<button id="historyPrev" type="button">이전</button>
+<span id="historyPageLabel" role="status" aria-live="polite">
+</span>
+<button id="historyNext" type="button">다음</button>
+</div>
+</dialog>
+<dialog id="dataDialog" aria-labelledby="dataDialogTitle">
+<div class="dialog-heading">
+<h2 id="dataDialogTitle">기준 데이터</h2>
+<button type="button" id="dataClose" aria-label="닫기" title="닫기">×</button>
+</div>
+<div id="dialogNotice" role="alert">
+</div>
+<div class="panel" id="dataPanel">
+<div class="workbook-import">
+<button id="openWorkbook" type="button">통합 파일 불러오기</button>
+<p class="small data-privacy" data-ko="XLSX · XLSM / 파일은 이 브라우저에서만 읽어요." data-en="XLSX · XLSM / Files are read only in this browser.">XLSX · XLSM / 파일은 이 브라우저에서만 읽어요.</p>
+<input id="workbookFile" type="file" accept=".xlsx,.xlsm" hidden>
+<label class="raw-import-mode" for="rawImportMode">
+<span id="rawImportModeLabel">예정 자료 적용</span>
+<select id="rawImportMode">
+<option value="replace">교체</option>
+<option value="append">오더 추가 · 중복 키 거절</option>
+</select>
+</label>
+</div>
+<details class="data-disclosure" id="dataProfileDetails">
+<summary>
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<path d="M4 5h16v14H4z M8 5v14 M11 9h6 M11 13h5"/>
+</svg>
+<span data-ko="연결 프로필" data-en="Connection profile">연결 프로필</span>
+</summary>
+</details>
+<details class="data-disclosure" id="dataManualDetails">
+<summary>
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<path d="M9 5H5v15h14v-4 M13 4h6v8 M12 12l7-8"/>
+</svg>
+<span data-ko="자료별 추가 · 붙여넣기" data-en="Add or paste individual datasets">자료별 추가 · 붙여넣기</span>
+</summary>
+<input id="kind" type="hidden" value="raw">
+<div class="data-row">
+<div>
+<strong>원주문 조회 자료</strong>
+<span id="phoneOrdersDataCount" class="data-note">
+</span>
+<span class="data-note">통합 RAW의 원주문 시트 연결 · 고객 전화번호는 반품 예정 자료에서 연결 · 현재 세션 전용</span>
+</div>
+<button id="addPhoneOrders" type="button" aria-label="원주문 조회 자료 추가" aria-controls="dataEditor" aria-expanded="false">+</button>
+</div>
+<div class="data-groups">
+
+<section aria-labelledby="inboundDataTitle">
+<h3 id="inboundDataTitle">반품 예정</h3>
+<div class="data-row">
+<div>
+<strong>반품 예정 자료</strong>
+<span id="rawDataCount" class="data-note">
+</span>
+</div>
+<button id="addRaw" type="button" aria-label="반품 예정 자료 추가" aria-controls="dataEditor" aria-expanded="false">+</button>
+</div>
+</section>
+<section aria-labelledby="commonDataTitle">
+<h3 id="commonDataTitle">공통</h3>
+<div class="data-row">
+<div>
+<strong>상품 자료</strong>
+<span id="skuDataCount" class="data-note">
+</span>
+</div>
+<button id="addSku" type="button" aria-label="상품 자료 추가" aria-controls="dataEditor" aria-expanded="false">+</button>
+</div>
+<div class="data-row">
+<div>
+<strong>위치 자료</strong>
+<span id="locDataCount" class="data-note">
+</span>
+<span class="data-note">피킹 위치는 설정한 유형만 표시 · 재고 변경 없음</span>
+</div>
+<button id="addLoc" type="button" aria-label="위치 자료 추가" aria-controls="dataEditor" aria-expanded="false">+</button>
+</div>
+</section>
+</div>
+<section id="dataEditor" class="hidden" aria-labelledby="dataEditorTitle">
+<div class="data-editor-heading">
+<h3 id="dataEditorTitle">반품 예정 자료</h3>
+<button id="dataEditorClose" type="button" aria-label="추가 영역 닫기">×</button>
+</div>
+<button id="open" type="button" class="full">파일 업로드</button>
+<p id="dataFileNote" class="small">
+</p>
+<label for="paste">또는 데이터 붙여넣기</label>
+<textarea aria-describedby="dataEditorFeedback" id="paste" spellcheck="false" placeholder="열 제목 포함 · Ctrl+V">
+</textarea>
+<button id="apply" class="full primary" type="button" disabled>적용 · 결과 갱신</button>
+<p id="dataEditorFeedback" class="small" role="alert">
+</p>
+<p class="small">선택한 데이터만 교체 · 다른 기준 데이터와 검수 기록 유지</p>
+</section>
+</details>
+<div id="sources" hidden>
+</div>
+</dialog>
+<dialog id="allocationDialog" aria-labelledby="allocationTitle">
+<div class="dialog-heading">
+<h2 id="allocationTitle">입력 ASN 배정</h2>
+<button id="allocationClose" type="button" aria-label="닫기">×</button>
+</div>
+<p id="allocationProduct">
+</p>
+<div id="allocationCandidates">
+</div>
+<p id="allocationError" role="alert">
+</p>
+<button id="allocationReport" type="button" hidden>현재 ASN 차이 보고</button>
+</dialog>
+<dialog id="newWorkDialog" aria-labelledby="newWorkTitle">
+<div class="dialog-heading">
+<h2 id="newWorkTitle">새 작업 시작</h2>
+<button id="newWorkClose" type="button" aria-label="닫기">×</button>
+</div>
+<p>현재 시트의 입력은 그대로 두고, 새 작업 시트를 비어 있는 상태로 엽니다.</p>
+<p>파일에 보관하려면 먼저 작업파일을 저장하세요.</p>
+<button id="saveBeforeNewWork" type="button">작업파일 저장</button>
+<button id="startNewWork" class="primary" type="button">새 작업 시트 열기</button>
+</dialog>
+<dialog id="helpDialog" aria-labelledby="helpDialogTitle">
+<div class="dialog-heading">
+<h2 id="helpDialogTitle">도움말 · 예제</h2>
+<button type="button" id="helpClose" aria-label="닫기" title="닫기">×</button>
+</div>
+<div class="panel help">
+<p class="small">① 기준 데이터 입력 → ② 매장명 일부 입력 → ③ 상품 스캔 → ④ 결과 내보내기</p>
+<p class="small">작업은 메모리 안에만 있습니다. 닫기 전 반드시 작업파일을 저장하세요. 저장한 JSON을 다시 열면 이어서 검수할 수 있습니다.</p>
+<p class="small">바코드 앞의 0이 Excel에서 사라진 경우 복구할 수 없습니다. 원본 셀을 텍스트로 유지하세요.</p>
+<p class="notice">예정 수량은 ASN + 바코드 기준으로 합산합니다. 원본의 상품명 기준 합산·깨진 참조를 그대로 재현하지 않았습니다. 정보 충돌은 확인 후 처리하세요. WMS에 자동 반영되지 않습니다.</p>
+<details>
+<summary>Font license</summary>
+<pre id="fontlicense">Copyright (c) 2021, Kil Hyung-jin (https://github.com/orioncactus/pretendard),
+with Reserved Font Name Pretendard.
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+https://scripts.sil.org/OFL
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded, 
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION &amp; CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.</pre>
+</details>
+<button id="demo" class="full">예제 데이터 체험</button>
+</div>
+</dialog>
+<dialog id="asnShareDialog" aria-labelledby="asnShareTitle">
+<div class="dialog-heading">
+<h2 id="asnShareTitle">PDF 저장</h2>
+<button id="asnShareClose" type="button" aria-label="닫기">×</button>
+</div>
+<div class="beam-share-actions">
+<button id="print" type="button">
+<span data-ko="대조 결과 PDF" data-en="Comparison PDF">대조 결과 PDF</span>
+<small data-ko="현재 ASN · PDA 바코드 포함" data-en="This ASN · PDA barcode included">현재 ASN · PDA 바코드 포함</small>
+</button>
+<button id="evidence" type="button">
+<span data-ko="스캔 이력 PDF" data-en="Scan history PDF">스캔 이력 PDF</span>
+<small data-ko="이 작업 전체" data-en="Entire work sheet">이 작업 전체</small>
+</button>
+</div>
+</dialog>
+<article id="printReport">
+</article>
+<footer>로컬 작업 · v1.57</footer>
+<input id="file" type="file" accept=".xlsx,.xlsm" class="hidden">
+<input id="backup" type="file" accept=".json" class="hidden">
+</body></html>

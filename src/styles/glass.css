@@ -1,0 +1,134 @@
+@layer beam-data-entry, beam-scrollbar, beam-etched, beam-clear-frost, beam-matte;
+@layer beam-data-entry{
+ @media screen{
+  #dataDialog{width:min(482px,calc(100vw - 28px))!important;padding:clamp(16px,3vw,26px);max-height:calc(100dvh - 32px)}
+  #dataDialog .dialog-heading{margin:0 0 14px}
+  #dataDialog #dataPanel{display:block;padding:0;margin:0;border:0}
+  #dataDialog .workbook-import{margin:0 0 16px;padding:2px 0 0;border:0!important}
+  #dataDialog #openWorkbook{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:48px;font-size:14px;font-weight:750}
+  #dataDialog #openWorkbook::before{content:'↑';font-size:20px;line-height:1}
+  #dataDialog .data-privacy{margin:8px 2px 0;text-align:center;line-height:1.5}
+  #dataDialog .raw-import-mode{display:flex!important;justify-content:flex-end;align-items:center;gap:8px;margin:13px 0 0!important;font-size:11px;flex-wrap:wrap}
+  #dataDialog .raw-import-mode select{width:auto!important;max-width:100%;min-height:32px;font-size:12px}
+  #dataDialog .data-disclosure{margin:0!important;border:0!important;border-top:1px solid var(--etch-bottom,#80808031)!important;background:transparent!important}
+  #dataDialog .data-disclosure summary{display:flex!important;align-items:center;min-height:44px;gap:9px;cursor:pointer;font-size:13px;font-weight:650;list-style:none;border-radius:9px;padding:0 4px!important;color:var(--glass-ink,inherit);background:transparent!important}
+  #dataDialog .data-disclosure summary::-webkit-details-marker{display:none}
+  #dataDialog .data-disclosure summary::before{content:none!important;display:none!important}
+  #dataDialog .data-disclosure summary::after{content:''!important;width:7px;height:7px;margin-left:auto;margin-right:5px;border:solid currentColor;border-width:0 1px 1px 0;opacity:.7;transform:rotate(-45deg)}
+  #dataDialog .data-disclosure[open] summary::after{transform:translateY(-2px) rotate(45deg)}
+  #dataDialog .data-disclosure summary:focus-visible{outline:1px solid transparent;box-shadow:0 0 6px var(--etch-focus,currentColor)}
+  #dataDialog .data-disclosure summary svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  #dataDialog .mapping-controls{margin:0 0 10px;padding:5px 0 7px;border:0!important;background:none!important}
+  #dataDialog .data-disclosure .data-groups{margin-top:4px}
+  #dataDialog .data-disclosure #dataEditor{margin-bottom:12px}
+ }
+}
+
+/* A transparent track and a small, rounded frosted thumb; keep a wider grab area. */
+@layer beam-scrollbar{
+ @media screen and (forced-colors:none) and (prefers-reduced-transparency:no-preference){
+  html[data-theme=light]{--scroll-hi:#72727245;--scroll-lo:#7272722b;--scroll-over:#50505091;--scroll-press:#3d3d3dc0}
+  html[data-theme=dark]{--scroll-hi:#fff4;--scroll-lo:#fff1;--scroll-over:#ffffff8c;--scroll-press:#ffffffb8}
+  body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList){
+   scrollbar-width:thin!important;scrollbar-color:var(--scroll-hi) transparent!important;
+  }
+  body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList):hover{
+   scrollbar-color:var(--scroll-over) transparent!important;
+  }
+  @supports selector(::-webkit-scrollbar){
+   body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList),
+   body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList):hover{
+    scrollbar-width:auto!important;scrollbar-color:auto!important;
+   }
+   body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList)::-webkit-scrollbar{width:12px;height:12px}
+   body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList)::-webkit-scrollbar-track,
+   body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList)::-webkit-scrollbar-corner{background:transparent}
+   body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList)::-webkit-scrollbar-thumb{
+    border:4px solid transparent;border-radius:999px;
+    background:linear-gradient(120deg,var(--scroll-hi),var(--scroll-lo)) padding-box;
+    min-height:32px;min-width:32px;
+   }
+   body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList)::-webkit-scrollbar-thumb:hover{
+    background:var(--scroll-over) padding-box;
+   }
+   body :is(dialog,#beamSidebar,#fileMenuPanel,#orderInfoPopover,#discrepancyPopover,#questPeek,#receiptList,#storeList,#activityHistoryViewport,#orderInfoList,#questPeekList)::-webkit-scrollbar-thumb:active{
+    background:var(--scroll-press) padding-box;
+   }
+  }
+ }
+}
+
+/* Beam · etched transmission. Opaque paper and semantic status surfaces are excluded.
+   References: Josh W. Comeau, "Next-level frosted glass"; Figma Glass playground.
+   Independent CSS; no external assets, WebGL, or filter scripts. */
+@layer beam-etched{
+ @media screen and (forced-colors:none) and (prefers-reduced-transparency:no-preference){
+  html[data-theme=light]{
+   --etch-control:rgb(0 0 0 /.012);
+   --etch-action:rgb(0 0 0 /.03);
+   --etch-hover:rgb(0 0 0 /.05);
+   --etch-selected:rgb(0 0 0 /.083);
+   --etch-pane:rgb(255 255 255 /.46);
+   --etch-pass:blur(9px) saturate(.55) contrast(.65) brightness(1.09);
+   --etch-rail-pass:blur(12px) saturate(.45) contrast(.73);
+   --etch-top:rgb(255 255 255 /.65);--etch-bottom:rgb(0 0 0 /.10);
+   --etch-haze:rgb(0 0 0 /.032);--etch-shadow:rgb(0 0 0 /.085);
+   --etch-matte:rgb(255 255 255 /.18);--etch-focus:rgb(0 0 0 /.35);
+   --etch-scrim:rgb(0 0 0 /.065);
+  }
+  html[data-theme=dark]{
+   --etch-control:rgb(255 255 255 /.034);
+   --etch-action:rgb(255 255 255 /.06);
+   --etch-hover:rgb(255 255 255 /.098);
+   --etch-selected:rgb(255 255 255 /.151);
+   --etch-pane:rgb(0 0 0 /.32);
+   --etch-pass:blur(9px) saturate(.46) brightness(.56);
+   --etch-rail-pass:blur(12px) saturate(.38) brightness(.49);
+   --etch-top:rgb(255 255 255 /.29);--etch-bottom:rgb(255 255 255 /.075);
+   --etch-haze:rgb(255 255 255 /.068);--etch-shadow:rgb(0 0 0 /.36);
+   --etch-matte:rgb(255 255 255 /.049);--etch-focus:rgb(255 255 255 /.52);
+   --etch-scrim:rgb(0 0 0 /.09);
+  }
+  @supports (backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)){
+   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
+    background:linear-gradient(151deg,var(--etch-matte),transparent 55%),var(--etch-state,var(--etch-control))!important;
+    border-color:transparent!important;
+    -webkit-backdrop-filter:blur(5px) saturate(.55)!important;
+    backdrop-filter:blur(5px) saturate(.55)!important;
+    box-shadow:inset 0 1px 1px var(--etch-top),inset 0 -1px 1px var(--etch-bottom),inset 0 0 5px var(--etch-haze),0 2px 6px var(--etch-shadow)!important;
+   }
+   body button:is(.primary,#beamStart,#beamConnect,#confirmInspection,#confirmDifferenceAccept,#print,#openWorkbook):not(:disabled){--etch-state:var(--etch-action)}
+   body button:is([aria-pressed=true],[aria-selected=true],[aria-checked=true],[aria-current=true],[aria-current=page],.active,.selected):not(:disabled){--etch-state:var(--etch-selected)}
+   body :is(button,input[type=button],input[type=submit]):not(:disabled):hover{--etch-state:var(--etch-hover)}
+   body :is(button,input[type=button],input[type=submit]):not(:disabled):active{--etch-state:var(--etch-selected)}
+   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric),input[type=button],input[type=submit],#beamQuery,#beamSku):focus-visible{
+    box-shadow:inset 0 0 4px var(--etch-focus),0 0 6px var(--etch-focus)!important;
+   }
+   body :is(dialog[open],#fileMenuPanel,#receiptList,#storeList,#beamSidebar,#discrepancyPopover,#orderInfoPopover,#questPeek,#availabilityNote,.beam-empty){
+    background:radial-gradient(ellipse 115% 70% at 1% 0%,var(--etch-matte),transparent 74%),var(--etch-pane)!important;
+    border-color:transparent!important;
+    -webkit-backdrop-filter:var(--etch-pass)!important;
+    backdrop-filter:var(--etch-pass)!important;
+    box-shadow:inset 0 1px 1px var(--etch-top),inset 0 -1px 1px var(--etch-bottom),inset 0 0 11px var(--etch-haze),0 12px 36px var(--etch-shadow)!important;
+   }
+   body :is(#beamSidebar,#questPeek){--etch-pass:var(--etch-rail-pass)}
+   body dialog::backdrop{background:var(--etch-scrim)!important}
+   /* Single glass substrate: no second filter or heavy fills nested inside a pane. */
+   body :is(dialog[open],#fileMenuPanel,#beamSidebar) button:not(.beam-receipt,#workSidebarToggle,.metric){
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+   }
+   body #fileMenuPanel>button:not([hidden]){background:transparent!important;box-shadow:none!important}
+   body #fileMenuPanel>button:not([hidden]):hover{background:var(--etch-hover)!important}
+   body #fileMenuPanel>button:not([hidden]):focus-visible{box-shadow:inset 0 0 5px var(--etch-focus)!important}
+   body dialog[open] :is(select,input:not([type]),input[type=text],input[type=search],input[type=number],textarea){
+    background:var(--etch-control)!important;border-color:transparent!important;
+    box-shadow:inset 0 -1px 0 var(--etch-bottom),inset 0 1px 3px var(--etch-haze)!important;
+   }
+   body dialog[open] :is(select,input,textarea):focus-visible{box-shadow:inset 0 0 5px var(--etch-focus)!important}
+   html[data-theme=light] body dialog[open] option{background:#fff}
+   html[data-theme=dark] body dialog[open] option{background:#161616}
+  }
+ }
+}
+
+/* Beam · clear matte glass. Keep the plain launch canvas separate from materials. */
