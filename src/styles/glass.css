@@ -1,4 +1,4 @@
-@layer beam-profile-shelf, beam-data-entry, beam-scrollbar, beam-etched, beam-clear-frost, beam-matte;
+@layer beam-profile-shelf, beam-data-entry, beam-scrollbar, beam-satin, beam-clear-frost, beam-matte;
 @layer beam-data-entry{
  @media screen{
   #dataDialog{width:min(482px,calc(100vw - 28px))!important;padding:clamp(16px,3vw,26px);max-height:calc(100dvh - 32px)}
@@ -10,13 +10,13 @@
   #dataDialog .data-privacy{margin:8px 2px 0;text-align:center;line-height:1.5}
   #dataDialog .raw-import-mode{display:flex!important;justify-content:flex-end;align-items:center;gap:8px;margin:13px 0 0!important;font-size:11px;flex-wrap:wrap}
   #dataDialog .raw-import-mode select{width:auto!important;max-width:100%;min-height:32px;font-size:12px}
-  #dataDialog .data-disclosure{margin:0!important;border:0!important;border-top:1px solid var(--etch-bottom,#80808031)!important;background:transparent!important}
+  #dataDialog .data-disclosure{margin:0!important;border:0!important;border-top:1px solid var(--satin-rim,#80808031)!important;background:transparent!important}
   #dataDialog .data-disclosure summary{display:flex!important;align-items:center;min-height:44px;gap:9px;cursor:pointer;font-size:13px;font-weight:650;list-style:none;border-radius:9px;padding:0 4px!important;color:var(--glass-ink,inherit);background:transparent!important}
   #dataDialog .data-disclosure summary::-webkit-details-marker{display:none}
   #dataDialog .data-disclosure summary::before{content:none!important;display:none!important}
   #dataDialog .data-disclosure summary::after{content:''!important;width:7px;height:7px;margin-left:auto;margin-right:5px;border:solid currentColor;border-width:0 1px 1px 0;opacity:.7;transform:rotate(-45deg)}
   #dataDialog .data-disclosure[open] summary::after{transform:translateY(-2px) rotate(45deg)}
-  #dataDialog .data-disclosure summary:focus-visible{outline:1px solid transparent;box-shadow:0 0 6px var(--etch-focus,currentColor)}
+  #dataDialog .data-disclosure summary:focus-visible{outline:1px solid transparent;box-shadow:0 0 6px var(--satin-key,currentColor)}
   #dataDialog .data-disclosure summary svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
   #dataDialog .mapping-controls{margin:0 0 10px;padding:5px 0 7px;border:0!important;background:none!important}
   #dataDialog .data-disclosure .data-groups{margin-top:4px}
@@ -58,80 +58,89 @@
  }
 }
 
-/* Beam · etched transmission. Opaque paper and semantic status surfaces are excluded.
-   References: Josh W. Comeau, "Next-level frosted glass"; Figma Glass playground.
-   Independent CSS; no external assets, WebGL, or filter scripts. */
-@layer beam-etched{
+/* Satin glass: low-contrast broad reflections, a single frosted substrate,
+   and feathered edges. Keep paper, quantities, and print out of the material. */
+@layer beam-satin{
  @media screen and (forced-colors:none) and (prefers-reduced-transparency:no-preference){
   html[data-theme=light]{
-   --etch-control:rgb(0 0 0 /.012);
-   --etch-action:rgb(0 0 0 /.03);
-   --etch-hover:rgb(0 0 0 /.05);
-   --etch-selected:rgb(0 0 0 /.083);
-   --etch-pane:rgb(255 255 255 /.46);
-   --etch-pass:blur(9px) saturate(.55) contrast(.65) brightness(1.09);
-   --etch-rail-pass:blur(12px) saturate(.45) contrast(.73);
-   --etch-top:rgb(255 255 255 /.65);--etch-bottom:rgb(0 0 0 /.10);
-   --etch-haze:rgb(0 0 0 /.032);--etch-shadow:rgb(0 0 0 /.085);
-   --etch-matte:rgb(255 255 255 /.18);--etch-focus:rgb(0 0 0 /.35);
-   --etch-scrim:rgb(0 0 0 /.065);
+   --satin-body:rgb(28 28 28 / .066);
+   --satin-action:rgb(28 28 28 / .10);
+   --satin-hover:rgb(28 28 28 / .127);
+   --satin-selected:rgb(28 28 28 / .17);
+   --satin-veil:rgb(245 245 245 / .57);
+   --satin-rim:rgb(36 36 36 / .125);
+   --satin-polish:rgb(255 255 255 / .71);
+   --satin-bloom:rgb(255 255 255 / .68);
+   --satin-lowlight:rgb(12 12 12 / .06);
+   --satin-depth:rgb(12 12 12 / .10);
+   --satin-scrim:rgb(0 0 0 / .09);
+   --satin-key:rgb(15 15 15 / .46);
   }
   html[data-theme=dark]{
-   --etch-control:rgb(255 255 255 /.034);
-   --etch-action:rgb(255 255 255 /.06);
-   --etch-hover:rgb(255 255 255 /.098);
-   --etch-selected:rgb(255 255 255 /.151);
-   --etch-pane:rgb(0 0 0 /.32);
-   --etch-pass:blur(9px) saturate(.46) brightness(.56);
-   --etch-rail-pass:blur(12px) saturate(.38) brightness(.49);
-   --etch-top:rgb(255 255 255 /.29);--etch-bottom:rgb(255 255 255 /.075);
-   --etch-haze:rgb(255 255 255 /.068);--etch-shadow:rgb(0 0 0 /.36);
-   --etch-matte:rgb(255 255 255 /.049);--etch-focus:rgb(255 255 255 /.52);
-   --etch-scrim:rgb(0 0 0 /.09);
+   --satin-body:rgb(255 255 255 / .118);
+   --satin-action:rgb(255 255 255 / .156);
+   --satin-hover:rgb(255 255 255 / .19);
+   --satin-selected:rgb(255 255 255 / .25);
+   --satin-veil:rgb(59 59 59 / .56);
+   --satin-rim:rgb(255 255 255 / .12);
+   --satin-polish:rgb(255 255 255 / .1);
+   --satin-bloom:rgb(255 255 255 / .14);
+   --satin-lowlight:rgb(0 0 0 / .10);
+   --satin-depth:rgb(0 0 0 / .36);
+   --satin-scrim:rgb(0 0 0 / .13);
+   --satin-key:rgb(255 255 255 / .58);
   }
   @supports (backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)){
    body :is(button:not(.beam-receipt,#workSidebarToggle,.metric),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
-    background:linear-gradient(151deg,var(--etch-matte),transparent 55%),var(--etch-state,var(--etch-control))!important;
+    background:linear-gradient(153deg,var(--satin-polish),transparent 64%),var(--satin-state,var(--satin-body))!important;
     border-color:transparent!important;
-    -webkit-backdrop-filter:blur(5px) saturate(.55)!important;
-    backdrop-filter:blur(5px) saturate(.55)!important;
-    box-shadow:inset 0 1px 1px var(--etch-top),inset 0 -1px 1px var(--etch-bottom),inset 0 0 5px var(--etch-haze),0 2px 6px var(--etch-shadow)!important;
+    -webkit-backdrop-filter:blur(10px) saturate(.45)!important;
+    backdrop-filter:blur(10px) saturate(.45)!important;
+    box-shadow:inset 0 0 0 .5px var(--satin-rim),inset 0 1px 2px var(--satin-polish),0 3px 10px -5px var(--satin-depth)!important;
    }
-   body button:is(.primary,#beamStart,#beamConnect,#confirmInspection,#confirmDifferenceAccept,#print,#openWorkbook):not(:disabled){--etch-state:var(--etch-action)}
-   body button:is([aria-pressed=true],[aria-selected=true],[aria-checked=true],[aria-current=true],[aria-current=page],.active,.selected):not(:disabled){--etch-state:var(--etch-selected)}
-   body :is(button,input[type=button],input[type=submit]):not(:disabled):hover{--etch-state:var(--etch-hover)}
-   body :is(button,input[type=button],input[type=submit]):not(:disabled):active{--etch-state:var(--etch-selected)}
+   body button:is(.primary,#beamStart,#beamConnect,#confirmInspection,#confirmDifferenceAccept,#print,#openWorkbook):not(:disabled){--satin-state:var(--satin-action)}
+   body :is(button,input[type=button],input[type=submit]):not(:disabled):hover{--satin-state:var(--satin-hover)}
+   body button:is([aria-pressed=true],[aria-selected=true],[aria-checked=true],[aria-current=true],[aria-current=page],[aria-expanded=true],.active,.selected):not(:disabled),
+   body :is(button,input[type=button],input[type=submit]):not(:disabled):active{--satin-state:var(--satin-selected)}
    body :is(button:not(.beam-receipt,#workSidebarToggle,.metric),input[type=button],input[type=submit],#beamQuery,#beamSku):focus-visible{
-    box-shadow:inset 0 0 4px var(--etch-focus),0 0 6px var(--etch-focus)!important;
+    box-shadow:0 0 0 1px var(--satin-key),0 0 8px var(--satin-key)!important;
    }
    body :is(dialog[open],#fileMenuPanel,#receiptList,#storeList,#beamSidebar,#discrepancyPopover,#orderInfoPopover,#questPeek,#availabilityNote,.beam-empty){
-    background:radial-gradient(ellipse 115% 70% at 1% 0%,var(--etch-matte),transparent 74%),var(--etch-pane)!important;
+    background:
+     radial-gradient(ellipse 130% 80% at 4% 0%,var(--satin-bloom),transparent 80%),
+     linear-gradient(145deg,transparent 35%,var(--satin-lowlight)),
+     var(--satin-veil)!important;
     border-color:transparent!important;
-    -webkit-backdrop-filter:var(--etch-pass)!important;
-    backdrop-filter:var(--etch-pass)!important;
-    box-shadow:inset 0 1px 1px var(--etch-top),inset 0 -1px 1px var(--etch-bottom),inset 0 0 11px var(--etch-haze),0 12px 36px var(--etch-shadow)!important;
+    -webkit-backdrop-filter:blur(28px) saturate(.48)!important;
+    backdrop-filter:blur(28px) saturate(.48)!important;
+    box-shadow:inset 0 0 0 .5px var(--satin-rim),inset 0 1px 2px var(--satin-polish),inset 0 -1px 3px var(--satin-lowlight),0 16px 44px -12px var(--satin-depth)!important;
    }
-   body :is(#beamSidebar,#questPeek){--etch-pass:var(--etch-rail-pass)}
-   body dialog::backdrop{background:var(--etch-scrim)!important}
-   /* Single glass substrate: no second filter or heavy fills nested inside a pane. */
-   body :is(dialog[open],#fileMenuPanel,#beamSidebar) button:not(.beam-receipt,#workSidebarToggle,.metric){
+   body dialog::backdrop{
+    background:var(--satin-scrim)!important;
     -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
    }
-   body #fileMenuPanel>button:not([hidden]){background:transparent!important;box-shadow:none!important}
-   body #fileMenuPanel>button:not([hidden]):hover{background:var(--etch-hover)!important}
-   body #fileMenuPanel>button:not([hidden]):focus-visible{box-shadow:inset 0 0 5px var(--etch-focus)!important}
-   body dialog[open] :is(select,input:not([type]),input[type=text],input[type=search],input[type=number],textarea){
-    background:var(--etch-control)!important;border-color:transparent!important;
-    box-shadow:inset 0 -1px 0 var(--etch-bottom),inset 0 1px 3px var(--etch-haze)!important;
+   /* The pane owns the blur. Its controls use a thin finish, not a second
+      backdrop root; menu rows are part of the pane, not pills inside it. */
+   body :is(dialog[open],#fileMenuPanel,#beamSidebar,#receiptList,#storeList,#discrepancyPopover,#orderInfoPopover,#questPeek) button:not(.beam-receipt,#workSidebarToggle,.metric){
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
    }
-   body dialog[open] :is(select,input,textarea):focus-visible{box-shadow:inset 0 0 5px var(--etch-focus)!important}
-   html[data-theme=light] body dialog[open] option{background:#fff}
-   html[data-theme=dark] body dialog[open] option{background:#161616}
+   body #fileMenuPanel>button:not([hidden]){
+    min-height:38px;background:transparent!important;box-shadow:none!important;
+   }
+   body #fileMenuPanel>button:not([hidden]):hover{background:var(--satin-body)!important}
+   body #fileMenuPanel>button:not([hidden]):focus-visible{box-shadow:inset 0 0 0 1px var(--satin-key),inset 0 0 7px var(--satin-polish)!important}
+   body #fileMenuPanel>.settings-section-label:not(:first-child){border-top-color:var(--satin-rim)}
+   body dialog[open] :is(select,input:not([type]),input[type=text],input[type=search],input[type=number],textarea){
+    background:var(--satin-body)!important;border-color:transparent!important;
+    box-shadow:inset 0 0 0 .5px var(--satin-rim)!important;
+   }
+   body dialog[open] :is(select,input,textarea):focus-visible{box-shadow:0 0 0 1px var(--satin-key),0 0 8px var(--satin-key)!important}
+   html[data-theme=light] body dialog[open] option{background:#f5f5f5}
+   html[data-theme=dark] body dialog[open] option{background:#292929}
+   @media (pointer:coarse){body #fileMenuPanel>button:not([hidden]){min-height:44px}}
   }
  }
 }
-
-/* Beam · clear matte glass. Keep the plain launch canvas separate from materials. */
 
 /* Profiles read as documents, not as nested bordered cards. */
 @layer beam-profile-shelf {
@@ -192,7 +201,6 @@
   #dataDialog .profile-storage-note {text-align:center;margin:5px 4px 0;line-height:1.45;overflow-wrap:anywhere}
   #dataDialog .profile-storage-note:empty {display:none}
   @media (forced-colors:none) {
-   #dataDialog[open] {border-color:transparent!important;box-shadow:0 14px 44px #0002,inset 0 1px 0 #ffffff24!important}
    #dataDialog .data-disclosure {border-top-color:color-mix(in srgb,currentColor 7%,transparent)!important}
   }
   #dataDialog .profile-management .profile-management-name {display:block;font-size:13px;margin:0 2px 7px;overflow-wrap:anywhere}
