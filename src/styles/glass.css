@@ -1,4 +1,4 @@
-@layer beam-console, beam-workrail, beam-profile-shelf, beam-data-entry, beam-scrollbar, beam-satin, beam-clear-frost, beam-matte;
+@layer beam-folder, beam-console, beam-workrail, beam-profile-shelf, beam-data-entry, beam-scrollbar, beam-satin, beam-clear-frost, beam-matte;
 @layer beam-data-entry{
  @media screen{
   #dataDialog{width:min(482px,calc(100vw - 28px))!important;padding:clamp(16px,3vw,26px);max-height:calc(100dvh - 32px)}
@@ -290,5 +290,14 @@
   html[data-theme] #sheetWorkspace #beamTerminal :is(button,select):focus-visible{
    outline:2px solid var(--term-focus)!important;outline-offset:-2px;
   }
+ }
+}
+
+@layer beam-folder {
+ @media screen {
+  #beamSearch .beam-receipt[data-folder=true]{box-shadow:none!important}
+  #beamSearch .beam-file-caption>strong{font-family:inherit!important;font-weight:760!important;font-size:clamp(16px,1.6vw,21px)!important;line-height:1.15!important}
+  #beamSearch .beam-file-paper>strong{font-family:inherit!important;font-weight:700!important;font-size:clamp(9px,.9vw,13px)!important;line-height:1.25!important}
+  #beamSearch .beam-receipt[data-folder=true]:focus-visible .beam-file-caption>strong{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.2em}
  }
 }
