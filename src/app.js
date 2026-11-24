@@ -2814,10 +2814,11 @@ function beamSizeLongFolder(){
  const needed=paper.getBoundingClientRect().bottom-stage.getBoundingClientRect().top+22;
  stage.style.setProperty('--beam-peek-height',Math.ceil(Math.max(base,needed))+'px');
 }
-function beamPeekFolder(el,step){
+function beamPeekFolder(el,step,{wrap=false}={}){
  const group=beam.phase!=='asn'&&beam.groups?.byId.get(el?.dataset.id);
  if(!group||dataImportBusy)return false;
- const from=beam.folderPeek.get(group.key)||0,to=Math.max(0,Math.min(group.ids.length-1,from+step));
+ const from=beam.folderPeek.get(group.key)||0,count=group.ids.length;
+ const to=wrap?(from+step+count)%count:Math.max(0,Math.min(count-1,from+step));
  const center=el.dataset.id===beam.browseAnchor,firstPull=center&&beam.openFolderPreview!==group.key;
  if(to===from&&!firstPull)return false;
  if(center)beam.openFolderPreview=group.key;
@@ -2849,9 +2850,12 @@ function beamBackStep(edit=false){
  beamResetSelection();beamRender(true);$('beamQuery').focus({preventScroll:true});
 }
 function beamStep(direction,axis='x'){
- const ids=beam.browseIds,at=ids?.indexOf(beam.browseAnchor),id=ids?.[at+direction];
- if(!id||dataImportBusy)return;
- beam.ribbonAxis=axis;beamPick(id,'step');beamFocusCard();
+ const ids=beam.browseIds||[],at=ids.indexOf(beam.browseAnchor);
+ if(ids.length<2||at<0||dataImportBusy)return;
+ const wrap=beam.phase==='asn'&&axis==='x';
+ const id=ids[wrap?(at+direction+ids.length)%ids.length:at+direction];
+ if(!id)return;
+ beam.ribbonAxis=axis;beam.railStepDirection=direction;beamPick(id,'step');beamFocusCard();
 }
 function beamPlaceOnRibbon(el,slot,slide=0){
  const offset=slot-slide,dist=Math.abs(offset),vertical=beam.ribbonAxis==='y';
@@ -2929,7 +2933,7 @@ function beamRender(animate=false){
  $('beamPrev').setAttribute('aria-label',partyMode?beamL('이전 '+noun,'Previous '+noun):beamL('이전 주문','Previous return order'));
  $('beamNext').setAttribute('aria-label',partyMode?beamL('다음 '+noun,'Next '+noun):beamL('다음 주문','Next return order'));
  $('beamPage').textContent=browse.length?(at+1)+' / '+browse.length:'';
- $('beamPrev').disabled=at<=0;$('beamNext').disabled=at>=browse.length-1;
+ $('beamPrev').disabled=asnMode?browse.length<2:at<=0;$('beamNext').disabled=asnMode?browse.length<2:at>=browse.length-1;
  const ring=browse,count=ring.length;
  root.dataset.hasReceipts=String(!!count);root.dataset.rail=String(count>1);
  stage.dataset.axis=beam.ribbonAxis||'x';stage.dataset.browsable=String(browse.length>1&&!dataImportBusy);
@@ -2942,7 +2946,7 @@ function beamRender(animate=false){
  const add=(offset)=>{
   if(!count)return;
   const i=anchor+offset;
-  const id=ring[i];
+  const id=ring[asnMode&&count>2?(i+count*2)%count:i];
   if(id&&!shown.has(id))shown.set(id,offset);
  };
  if(active)add(0);
@@ -2985,7 +2989,9 @@ function beamRender(animate=false){
   if(newNode&&animate&&moved&&!reduced&&typeof el.animate==='function')el.animate(
    [{opacity:0},{opacity:Number(el.style.opacity)}],{duration:200,easing:'ease-out'});
  }
- if(active&&!reduced&&changedResult&&(animate==='query'||animate==='step'))beamTurnPaper(animate,beam.ribbonAxis||'x',Math.sign(travel)||1);
+ const turnDirection=animate==='step'&&beam.railStepDirection?beam.railStepDirection:Math.sign(travel)||1;
+ beam.railStepDirection=0;
+ if(active&&!reduced&&changedResult&&(animate==='query'||animate==='step'))beamTurnPaper(animate,beam.ribbonAxis||'x',turnDirection);
  beam.revealedReceipt=active;beam.hadQuery=!!lookup.q;beamSizeLongFolder();
 }
 function beamInput(isSku=false){
@@ -3042,7 +3048,8 @@ beamRibbon.addEventListener('pointermove',e=>{
  }
  g.offset=g.axis==='y'?dy:dx;
  const at=beam.browseIds.indexOf(beam.browseAnchor);
- const bound=(g.offset>0&&at<=0)||(g.offset<0&&at>=beam.browseIds.length-1);
+ const wraps=beam.phase==='asn'&&g.axis==='x';
+ const bound=!wraps&&((g.offset>0&&at<=0)||(g.offset<0&&at>=beam.browseIds.length-1));
  // Elastic at either end. A drag previews the reel; selection only changes on release.
  if(!g.reduced){
   beamDrawRibbonDrag(-Math.max(-122,Math.min(122,g.offset))/(bound?420:140));
@@ -3101,7 +3108,7 @@ $('beamSearch').addEventListener('keydown',e=>{
  if(e.key==='Escape'){e.preventDefault();if(beam.openFolderPreview){beam.openFolderPreview='';beamRender();beamFocusCard();return;}beamBackStep();return;}
  const folder=beam.phase!=='asn'&&(e.target.closest?.('[data-folder=true]')||beam.nodes.get(beam.browseAnchor));
  if(folder&&['ArrowDown','ArrowUp','PageDown','PageUp'].includes(e.key)){
-  e.preventDefault();beamPeekFolder(folder,e.key.endsWith('Down')?1:-1);return;
+  e.preventDefault();beamPeekFolder(folder,e.key.endsWith('Down')?1:-1,{wrap:e.key.startsWith('Arrow')});return;
  }
  const direction={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];
  if(direction){e.preventDefault();beamStep(direction,/Up|Down/.test(e.key)?'y':'x');}

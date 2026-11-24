@@ -3608,10 +3608,10 @@ body>header{padding-inline:9px!important;gap:4px!important}
  #beamSearch .beam-file-position,#beamSearch .beam-file-arrow{position:absolute;inset-block-end:9px}
  #beamSearch .beam-file-position{inset-inline-start:12px;font:650 10px/1 var(--font-terminal);font-variant-numeric:tabular-nums}
  #beamSearch .beam-file-arrow{inset-inline-end:12px;font-size:20px;line-height:1}
- #beamSearch .beam-file-caption{display:grid;justify-items:center;gap:5px;max-width:100%;text-align:center}
+ #beamSearch .beam-file-caption{display:grid;justify-items:center;gap:5px;width:100%;min-width:0;text-align:center}
  #beamSearch .beam-file-caption>strong{
-  max-width:100%;font:760 clamp(14px,1.6vw,21px)/1.15 var(--font-text);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.02em;
+  max-width:100%;min-width:0;font:760 clamp(14px,1.6vw,21px)/1.15 var(--font-text);
+  white-space:normal;word-break:keep-all;overflow-wrap:anywhere;text-wrap:balance;letter-spacing:-.02em;
  }
  #beamSearch .beam-receipt[data-folder=true][data-center=true] .beam-file-caption>strong{
   font-size:clamp(24px,3.2vw,38px);font-weight:820;letter-spacing:-.035em
@@ -3843,12 +3843,19 @@ body>header{padding-inline:9px!important;gap:4px!important}
  html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #scanActivitySection{
   --term-ink:#efefef;--term-dim:#bdbdbd;--term-head:#ffffff09;--term-rule:#ffffff19;
   --term-edge:#ffffff2d;--term-select:#ffffff12;--term-side:#ffffff12;
+  --tui-dim:var(--term-dim);--muted:var(--term-dim);--tui-surface:var(--recent-surface);
   --complete-bg:#293624;--complete-ink:var(--neon-lime);
   --lemon-fill:#353621;--lemon-ink:var(--neon-yellow);
   --coral-fill:#412d2d;--coral-ink:var(--neon-red);
   background:var(--recent-surface)!important;color:var(--term-ink);
  }
  #beamTerminal #scanActivitySection #recentActivityRef{color:var(--term-dim)}
+ html[data-theme] #sheetWorkspace #beamTerminal #scanActivitySection .compact-activity td.sheet-status[data-cell-state=accepted]{
+  background:var(--recent-surface)!important;color:var(--neon-lime)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal #scanActivitySection .compact-activity tr:hover td.sheet-status[data-cell-state=accepted]{
+  background:#2a2a2a!important;
+ }
  html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #scanActivitySection .compact-activity th{
   background:var(--recent-sticky)!important;color:var(--term-dim)!important;
  }

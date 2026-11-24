@@ -20,6 +20,7 @@ test('the functional icon family is local, complete and keeps control semantics'
   assert.match(button(id),/<svg\b[^>]*aria-hidden="true"[^>]*focusable="false"/,id);
  }
  assert.match(button('availabilityToggle'),/role="switch".*aria-checked="false"/);
+ assert.match(button('availabilityToggle'),/<span lang="en">Location<\/span>/);
  assert.match(button('availabilityToggle'),/beam-glyph-eye-open.*beam-glyph-eye-closed/);
  assert.match(button('theme'),/beam-glyph-moon.*beam-glyph-sun/);
  assert.match(js,/class="status-symbol.*beamIcon\('warning'\)/);

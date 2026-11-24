@@ -23,6 +23,10 @@ test('scanner and ledger keep legible status and text over their neutral dark su
  }
  assert.match(styles,/--shortage-ink:var\(--lemon-ink\)/);
  assert.match(styles,/--excess-ink:var\(--coral-ink\)/);
+ assert.match(styles,/#scanActivitySection \.compact-activity td\.sheet-status\[data-cell-state=accepted\]\{[^}]*background:var\(--recent-surface\)!important;color:var\(--neon-lime\)!important/);
+ assert.match(styles,/--tui-dim:var\(--term-dim\);--muted:var\(--term-dim\)/);
+ assert.ok(contrast(readToken('neon-lime'),readToken('recent-surface'))>=4.5);
+ assert.ok(contrast('#bdbdbd',readToken('recent-surface'))>=4.5);
 });
 
 
@@ -45,4 +49,12 @@ test('normal displays do not paint focus glows while forced contrast and selecte
  assert.match(css,/\(forced-colors:none\)\{\s*html\[data-theme\] body :focus\{outline:none!important/);
  assert.match(css,/\(forced-colors:active\)[^\n]*Highlight/);
  assert.match(glass,/\[data-center=true\] \.beam-file-caption>strong\{font-size:clamp\(24px,3.2vw,38px\)!important/);
+});
+
+
+test('folder captions wrap long store names without trimming them',()=>{
+ const caption=css.match(/#beamSearch \.beam-file-caption>strong\{([^}]+)\}/)?.[1]??'';
+ assert.match(caption,/white-space:normal/);
+ assert.match(caption,/overflow-wrap:anywhere/);
+ assert.doesNotMatch(caption,/text-overflow:ellipsis|line-clamp/);
 });
