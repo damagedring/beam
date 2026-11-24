@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { execFileSync } from 'node:child_process';
 
 const dist = new URL('../dist/',import.meta.url);
-const files = ['.nojekyll','app.css','app.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2','domain/code128.js', 'domain/inspection-report.js','domain/reconcile.js','domain/scanner-input.js','domain/search-keys.js','import/workbook.js','index.html','ui/translations.js','vendor/xml-parser.js'];
+const files = ['.nojekyll','app.css','app.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2','domain/browser-recovery.js','domain/code128.js', 'domain/inspection-report.js','domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','import/workbook.js','index.html','ui/translations.js','vendor/xml-parser.js'];
 const read=(name)=>readFile(new URL(name,dist),'utf8');
 
 test('static distribution allowlist, syntax and all relative module targets', async () => {

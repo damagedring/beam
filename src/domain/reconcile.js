@@ -128,19 +128,27 @@ function entryOutcome(data,receipt,scans,event){
 
 // A reassignment may only consume whole latest events within each SKU's excess.
 function excessEntrySet(data,scans,batch,includeReceipt){
- const result=new Set();
+ const result=new Set(),ix=getIndex(data);
  for(const [receipt,events] of readScanIndex(scans).byReceipt){
   if(!includeReceipt(receipt))continue;
-  const budget=new Map(reconcile(data,receipt,scans).filter(r=>!r.unregistered&&!r.conflict&&!r.unresolved&&r.excess>0).map(r=>[r.key,r.excess]));
+  const template=receiptTemplate(ix,receipt),{counts}=scanAggregate(data,receipt,scans,ix,template);
+  const budget=new Map();
+  // Only known product rows can be moved. Read their indexed quantities
+  // directly; report formatting, outside rows and Location are irrelevant.
+  for(const row of template.rows){
+   if(row.conflict||row.unresolved)continue;
+   const excess=(counts.get(row.key)||0)-row.expected;
+   if(excess>0)budget.set(row.key,excess);
+  }
   if(!budget.size)continue;
   const order=events.filter(e=>e.batch===batch).sort((a,b)=>(b.sequence||0)-(a.sequence||0)||Date.parse(b.at)-Date.parse(a.at));
   for(const event of order){
    if(!budget.size)break;
-   const {row}=inspectEntry(data,receipt,scans,event);
-   if(!row||!budget.has(row.key))continue;
-   const remaining=budget.get(row.key)-units(event);
+   const possible=lookupEntry(ix,template,data,event);
+   if(possible.length!==1||!budget.has(possible[0].key))continue;
+   const key=possible[0].key,remaining=budget.get(key)-units(event);
    if(remaining>=0&&event.id)result.add(event.id);
-   if(remaining<=0)budget.delete(row.key);else budget.set(row.key,remaining);
+   if(remaining<=0)budget.delete(key);else budget.set(key,remaining);
   }
  }
  return result;
