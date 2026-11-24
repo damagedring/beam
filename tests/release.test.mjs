@@ -49,3 +49,12 @@ test('style URL changes with the deployed CSS bytes', async () => {
   const revision=createHash('sha256').update(css).digest('hex').slice(0,12);
   assert.ok((await read('index.html')).includes(`href="./app.css?v=${revision}"`));
 });
+
+test('satin glass uses filter support rather than requiring a transparency preference signal', async () => {
+  const css=await read('app.css');
+  const layer=css.slice(css.indexOf('@layer beam-satin{'),css.indexOf('/* Profiles read as documents'));
+  assert.match(layer,/@media screen and \(forced-colors:none\)\s*\{/);
+  assert.doesNotMatch(layer,/prefers-reduced-transparency\s*:\s*no-preference/);
+  assert.match(layer,/@supports \(backdrop-filter:blur\(2px\)\) or \(-webkit-backdrop-filter:blur\(2px\)\)/);
+  assert.match(layer,/@media \(prefers-reduced-transparency:reduce\)[\s\S]+background:revert-layer!important;[\s\S]+backdrop-filter:none!important/);
+});

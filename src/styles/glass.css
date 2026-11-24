@@ -61,7 +61,9 @@
 /* Satin glass: low-contrast broad reflections, a single frosted substrate,
    and feathered edges. Keep paper, quantities, and print out of the material. */
 @layer beam-satin{
- @media screen and (forced-colors:none) and (prefers-reduced-transparency:no-preference){
+ /* Blur support is sufficient. WebKit can render it but does not yet
+    expose the transparency-preference media feature. */
+ @media screen and (forced-colors:none){
   html[data-theme=light]{
    --satin-body:rgb(28 28 28 / .066);
    --satin-action:rgb(28 28 28 / .10);
@@ -90,6 +92,9 @@
    --satin-scrim:rgb(0 0 0 / .13);
    --satin-key:rgb(255 255 255 / .58);
   }
+  /* The glyph is foreground content, never part of the backdrop sampled by
+     the search field. This ordering is also needed in Safari's compositor. */
+  #beamSearch .beam-input>svg{z-index:1}
   @supports (backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)){
    body :is(button:not(.beam-receipt,#workSidebarToggle,.metric),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
     background:linear-gradient(153deg,var(--satin-polish),transparent 64%),var(--satin-state,var(--satin-body))!important;
@@ -138,6 +143,24 @@
    html[data-theme=light] body dialog[open] option{background:#f5f5f5}
    html[data-theme=dark] body dialog[open] option{background:#292929}
    @media (pointer:coarse){body #fileMenuPanel>button:not([hidden]){min-height:44px}}
+   @media (prefers-reduced-transparency:reduce){
+    /* Drop only the satin material; the earlier opaque accessibility
+       colours and keyboard focus treatments remain in the cascade. */
+    html[data-theme] body :is(
+     button:not(.beam-receipt,#workSidebarToggle,.metric),input[type=button],input[type=submit],
+     #beamQuery,#beamSku,dialog[open],#fileMenuPanel,#receiptList,#storeList,#beamSidebar,
+     #discrepancyPopover,#orderInfoPopover,#questPeek,#availabilityNote,.beam-empty,
+     #fileMenuPanel>button,dialog[open] :is(select,input:not([type]),input[type=text],input[type=search],input[type=number],textarea)
+    ):not([hidden]){
+     background:revert-layer!important;
+     border-color:revert-layer!important;
+     box-shadow:revert-layer!important;
+     -webkit-backdrop-filter:none!important;
+     backdrop-filter:none!important;
+    }
+    html[data-theme] body dialog::backdrop{background:revert-layer!important}
+    html[data-theme] body #fileMenuPanel>.settings-section-label:not(:first-child){border-top-color:revert-layer}
+   }
   }
  }
 }
