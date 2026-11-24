@@ -113,3 +113,18 @@ test('long receipts keep a native scroll track inside the paper and retain their
  assert.match(css,/#beamFolderReceiptScroll\{[^}]*overflow-y:auto[^}]*scrollbar-gutter:stable/);
  assert.match(css,/#beamFolderReceiptScroll::-webkit-scrollbar-thumb\{[^}]*border:4px solid transparent/);
 });
+
+test('folder and paper positions use the same eased transition after keyboard input, but not during drag',async()=>{
+ const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
+ assert.match(glass,/@media screen and \(prefers-reduced-motion:no-preference\)\{\s*#beamSearch \.beam-stage:not\(\[data-dragging\]\) \.beam-receipt\{\s*transition:transform 520ms cubic-bezier\(\.28,\.08,\.22,1\)[^}]*!important/);
+ assert.match(css,/\.beam-stage\[data-dragging\] \.beam-receipt\{[^}]*transition:none!important/);
+});
+
+test('the scanner well never paints its containing console in either theme',()=>{
+ const well=styles.match(/([^{}]+)\{\s*background:var\(--scan-well\)!important/)?.[1]?.trim();
+ assert.equal(well,'html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode');
+ assert.match(css,/#beamTerminal #overviewStatus \.scan\{[^}]*background:transparent!important/);
+ assert.match(styles,/#beamTerminal #scanform \.beam-scan-prompt\{color:var\(--status-info\)\}/);
+ assert.ok(contrast('#505050','#f4f4f4')>=4.5);
+ assert.ok(contrast('#bdbdbd','#252525')>=4.5);
+});

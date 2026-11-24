@@ -1692,7 +1692,7 @@ function inspectionPrintContext(){
 function inspectionReport(){
  const rows=sortProductRows(currentOrderComparison()).map(r=>({
   status:r.status,held:!!r.heldDisplay,
-  barcode:r.barcode,sku:r.sku,name:r.name,location:pickingLocationExport(r),expected:r.expected,actual:r.actual,
+  barcode:r.barcode,sku:r.sku,name:r.name,expected:r.expected,actual:r.actual,
  }));
  return renderInspectionReport({...inspectionPrintContext(),rows});
 }
@@ -2241,7 +2241,6 @@ function pickingLocationData(item){
  }
  return {reason:'',missingType,putaway:[...new Set(typed.map(r=>r.putawayZone).filter(Boolean))],groups:[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([zone,locs])=>({zone,locs:locs.sort()}))};
 }
-function pickingLocationExport(item){return pickingLocationData(item).groups.flatMap(g=>g.locs).join(', ');}
 function pickingLocationText(item){const info=pickingLocationData(item);if(info.reason)return '';return (language==='en'?'Picking location · ':'피킹 위치 · ')+info.groups.flatMap(g=>g.locs).join(', ')+(info.missingType?(language==='en'?' · Some location types need verification':' · 일부 위치 유형 확인 필요'):'');}
 function pickingLocationLine(item){const value=pickingLocationText(item);return value?'<div class="small">'+esc(value)+'</div>':'';}
 function pickingLocationInfo(last){

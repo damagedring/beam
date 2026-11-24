@@ -45,18 +45,18 @@ export function renderInspectionHeader({mode,orderId,externalId='',party='',work
 }
 
 export function renderInspectionReport({rows=[],...context}){
- const header=renderInspectionHeader(context),location=rows.some(r=>r.location&&r.location!=='—');
- const columns=['Status','Barcode / SKU','Product',...(location?['Location']:[]),'Expected','Checked','Difference'];
- const widths=location?[15,20,25,16,8,8,8]:[16,25,35,8,8,8];
+ const header=renderInspectionHeader(context);
+ const columns=['Status','Barcode / SKU','Product','Expected','Checked','Difference'];
+ const widths=[16,25,35,8,8,8];
  const cells=(tag,values)=>values.map((v,i)=>'<'+tag+(tag==='th'?' scope="col"':'')+
   (i>=columns.length-3?' class="pr-number"':'')+'>'+escape(v)+'</'+tag+'>').join('');
  let expected=0,actual=0;
  const body=rows.map(r=>{
   expected+=r.expected;actual+=r.actual;
   return '<tr>'+cells('td',[(englishStatus.get(r.status)||'Review')+(r.held?' · Held':''),[r.barcode,r.sku].filter(Boolean).join(' / '),r.name,
-   ...(location?[show(r.location)]:[]),r.expected,r.actual,signed(r.actual-r.expected)])+'</tr>';
+   r.expected,r.actual,signed(r.actual-r.expected)])+'</tr>';
  }).join('');
- const totals=['Total','','',...(location?['']:[]),expected,actual,signed(actual-expected)];
+ const totals=['Total','','',expected,actual,signed(actual-expected)];
  const markup='<article class="pr-inspection">'+header.markup+'<section class="pr-section"><table aria-label="Inspection results">'+
   '<colgroup>'+widths.map(w=>'<col style="width:'+w+'%">').join('')+'</colgroup>'+
   '<thead><tr>'+cells('th',columns)+'</tr></thead><tbody>'+

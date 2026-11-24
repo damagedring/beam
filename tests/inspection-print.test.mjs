@@ -37,7 +37,12 @@ test('return and outbound produce the same label structure with only workflow-sp
  const omitBars=html=>html.replace(/<svg.*?<\/svg>/,'<svg/>');
  assert.equal(omitBars(outbound.markup).replaceAll('OUT-01','RET-01').replace('Outbound Inspection Report','Return Inspection Report'),omitBars(returns.markup));
  const english=render('OUT-01',{mode:'outbound',rows:[{...item,location:'A-10',actual:2}]});
- assert.match(english.markup,/<h1>Outbound Inspection Report<\/h1>.*<b>Order No\.<\/b>.*>Location<\/th>.*>A-10<\/td>.*>-1<\/td>/);
+ assert.match(english.markup,/<h1>Outbound Inspection Report<\/h1>.*<b>Order No\.<\/b>.*>-1<\/td>/);
+ for(const mode of ['return','outbound']){
+  const report=render('EXPORT-01',{mode,rows:[{...item,location:'A-10',actual:2}]}).markup;
+  assert.doesNotMatch(report,/>Location<|>A-10</);
+  assert.deepEqual([...report.matchAll(/<th[^>]*>([^<]+)<\/th>/g)].map(m=>m[1]),['Status','Barcode / SKU','Product','Expected','Checked','Difference']);
+ }
  assert.doesNotMatch(render('RET-01',{externalId:'RET-01'}).markup,/External Order No\./);
 });
 test('long supported IDs use landscape; unsupported values have no misleading barcode',()=>{
@@ -56,7 +61,7 @@ test('long supported IDs use landscape; unsupported values have no misleading ba
 test('the existing Return screen passes its selected internal order to the shared renderer',()=>{
  const api=vm.runInNewContext(cut('function inspectionPrintContext(', 'function scanHistoryReport(')+'inspectionReport',{
   state:{receipt:'00001234'},rawRows:()=>[{seller:'Store',external:'EXT-55'}],printL:a=>a,language:'ko',isB2C:()=>false,
-  sortProductRows:x=>x,currentOrderComparison:()=>[item],uiData:x=>x,tr:x=>x,pickingLocationExport:()=>'',
+  sortProductRows:x=>x,currentOrderComparison:()=>[item],uiData:x=>x,tr:x=>x,
   renderInspectionReport,
  });
  const {markup}=api();
@@ -69,7 +74,7 @@ test('the actual print handlers mount the work, order and Code 128 for both menu
  const document={title:'Beam'};
  const runtime={
   state:{receipt:'00001234',workNumber:12},rawRows:()=>[{seller:'Example',external:'EX-08'}],
-  isB2C:()=>false,sortProductRows:x=>x,currentOrderComparison:()=>[item],pickingLocationExport:()=>'',
+  isB2C:()=>false,sortProductRows:x=>x,currentOrderComparison:()=>[item],
   renderInspectionHeader,renderInspectionReport,sheetEvents:()=>[],activeWorkAudit:()=>[],
   esc:String,printL:(ko,en)=>en,notice(){},date:()=>new Date().toISOString(),document,
   $:()=>root,window:{print(){handlers.body=root.innerHTML;},addEventListener(name,fn){handlers[name]=fn;}}
