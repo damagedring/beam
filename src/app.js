@@ -476,10 +476,23 @@ const MappingUI=(()=>{
  });}
  function option(select,value,label){select.append(node('option',label,{value:String(value)}));}
  function colLetter(i){let s='';for(i++;i;i=Math.floor((i-1)/26))s=String.fromCharCode(65+(i-1)%26)+s;return s;}
- async function begin(kind,sourceType,{onReview=null,canChangeProfile=false}={}){
+ function sameConnection(a,b){
+  return !!a&&!!b&&MappingCore.comparableHeader(a.sheetName)===MappingCore.comparableHeader(b.sheetName)&&
+   Object.keys(a.headerNames).length===Object.keys(b.headerNames).length&&Object.entries(a.headerNames).every(([key,value])=>
+    Object.hasOwn(b.headerNames,key)&&MappingCore.comparableHeader(value)===MappingCore.comparableHeader(b.headerNames[key]));
+ }
+ function workbookProfileName(staged,file,except){
+  const base=String(file?.name||'').split(/[\\/]/u).at(-1).replace(/\.xls[xm]$/iu,'').trim()||t('연결 프로필','Connection profile');
+  const used=new Set(Object.entries(staged.profiles).filter(([id])=>id!==except).map(([,p])=>p.name));
+  for(let n=1;;n++){
+   const suffix=n===1?'':' ('+n+')',name=base.slice(0,100-suffix.length).trimEnd()+suffix;
+   if(!used.has(name))return name;
+  }
+ }
+ async function begin(kind,sourceType,{onReview=null,canChangeProfile=false,autoProfile=false}={}){
   if(busy)throw Error(t('다른 가져오기가 진행 중입니다.','Another import is in progress.'));
   if(kind!==null&&!kinds.includes(kind))throw Error('Invalid mapping kind');if(!['file','paste'].includes(sourceType))throw Error('Invalid mapping source');
-  busy=true;refresh();const mode=db.active,staged=copy(db),profiles=staged.profiles[mode][sourceType],captured=new Map();let finished=false;
+  busy=true;refresh();const mode=db.active,staged=copy(db),profiles=staged.profiles[mode][sourceType],captured=new Map();let finished=false,owner=mode,profileNote='';
   function remember(k,sheetName,preview,mapping){captured.set(k,{sheetName,header:preview[mapping.headerRow].slice(),headerRow:mapping.headerRow});return mapping;}
   function end(){if(finished)return;finished=true;busy=false;refresh();}
   async function review(reason,open){onReview?.(reason,true);try{return await open();}finally{onReview?.(reason,false);}}
@@ -553,23 +566,54 @@ const MappingUI=(()=>{
      header.onchange=()=>{populate();selects.returnChannel?.onchange?.();};const suggested=reconnect?.mapping?.headerRow??reconnect?.headerRow;if(Number.isInteger(suggested))header.value=String(suggested);header.onchange();if(k==='loc')body.append(node('p',t('위치 유형 열이 없으면 유형 미확인으로 가져옵니다. 피킹 위치로 추정하지 않습니다.','Without a location-type column, type stays unknown. Picking locations are not inferred.')));
      return ()=>{if(header.value==='')throw Error(t('헤더 행을 선택하세요.','Select the header row.'));const headerRow=Number(header.value),columns={};for(const [id,s] of Object.entries(selects))if(s.value!=='')columns[id]=Number(s.value);const valid=MappingCore.validateColumns(k,preview[headerRow],columns);
       const removed=known?Object.keys(known.headerNames).filter(id=>!Object.hasOwn(valid,id)):[];
-      if(removed.length&&!uiConfirm(t('연결하지 않은 기존 열 '+removed.length+'개를 이 프로필에서 해제할까요?','Remove '+removed.length+' previously mapped fields from this profile?')))throw Error(t('빠진 열을 연결하거나, 연결 해제를 확인해 주세요.','Reconnect the missing columns or confirm their removal.'));
+      const protectsOriginal=autoProfile&&sourceType==='file'&&k==='raw'&&!!db.profiles[mode].file.raw;
+      if(removed.length&&!protectsOriginal&&!uiConfirm(t('연결하지 않은 기존 열 '+removed.length+'개를 이 프로필에서 해제할까요?','Remove '+removed.length+' previously mapped fields from this profile?')))throw Error(t('빠진 열을 연결하거나, 연결 해제를 확인해 주세요.','Reconnect the missing columns or confirm their removal.'));
       const result={headerRow,columns:valid,...(k==='raw'?{returnChannelReviewed:true}:{}),...(channelInputs&&Object.hasOwn(valid,'returnChannel')?{returnChannelValues:known?.returnChannelValues?.exact===true&&MappingCore.knownColumns(known,preview[headerRow]).columns.returnChannel===valid.returnChannel&&['b2b','b2c'].every(k=>channelInputs[k].value===returnChannelFormText(known.returnChannelValues[k],k.toUpperCase()))?known.returnChannelValues:returnChannelFormValues(channelInputs.b2b.value,channelInputs.b2c.value)}:{})};MappingCore.makeProfile(k,sheetName,preview,result);return result;};
     },undefined,canChangeProfile));
     profiles[k]=MappingCore.makeProfile(k,sheetName,preview,mapping);return remember(k,sheetName,preview,mapping);
    }
   };
-  return {hooks,commit(original){if(finished)throw Error('Mapping transaction ended');persist(staged);
+  return {hooks,prepareProfile(file,hasRaw){
+   if(finished)throw Error('Mapping transaction ended');
+   if(!autoProfile||sourceType!=='file'||!hasRaw||!captured.has('raw'))return;
+   const previous=db.profiles[mode];
+   const props=[...captured.keys()];
+   const changedSchema=props.some(k=>previous.file[k]&&!sameConnection(previous.file[k],profiles[k]));
+   if(changedSchema){
+    const fileConnections=Object.fromEntries(props.map(k=>[k,profiles[k]]));
+    const match=Object.entries(db.profiles).find(([id,p])=>id!==mode&&props.every(k=>sameConnection(p.file[k],fileConnections[k])));
+    staged.profiles[mode]=previous;
+    if(match){
+     owner=match[0];
+     staged.profiles[owner].file={...staged.profiles[owner].file,...fileConnections};
+    }else{
+     if(Object.keys(staged.profiles).length>=50)throw Error(t('저장할 수 있는 프로필은 최대 50개예요. 기존 프로필과 같은 구조의 RAW를 선택해 주세요.','Up to 50 profiles can be saved. Choose a workbook that matches an existing profile.'));
+     do{owner='p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);}while(Object.hasOwn(staged.profiles,owner));
+     staged.profiles[owner]={name:workbookProfileName(staged,file),file:fileConnections,paste:{}};
+     profileNote=t('새 프로필 연결 완료','New profile connected');
+    }
+    staged.active=owner;
+   }else if(mode==='default'&&!Object.keys(previous.file).length&&!Object.keys(previous.paste).length&&!previous.locationRules){
+    staged.profiles[mode].name=workbookProfileName(staged,file,mode);
+    profileNote=t('새 프로필 연결 완료','New profile connected');
+   }
+  },commit(original){if(finished)throw Error('Mapping transaction ended');
+   if(owner!==mode)forgetSources();
+   persist(staged,profileNote);
    for(const [k,metadata] of captured){
     const key=sessionKey(sourceType,k);sessionSources.delete(key);
-    if(sourceType==='file'&&typeof original?.file?.arrayBuffer==='function'||sourceType==='paste'&&typeof original?.text==='string')sessionSources.set(key,{...metadata,owner:mode,...(sourceType==='file'?{file:original.file}:{text:original.text}),activeRaw:k==='raw'?original.activeRaw:null,codes:new Map()});
+    if(sourceType==='file'&&typeof original?.file?.arrayBuffer==='function'||sourceType==='paste'&&typeof original?.text==='string')sessionSources.set(key,{...metadata,owner,...(sourceType==='file'?{file:original.file}:{text:original.text}),activeRaw:k==='raw'?original.activeRaw:null,codes:new Map()});
    }
    end();},abort:end};
  }
- async function editName(create){
-  if(busy)return;busy=true;refresh();try{if(create&&Object.keys(db.profiles).length>=50)throw Error(t('프로필은 최대 50개입니다.','Maximum 50 profiles.'));
-   const name=await modal(create?t('새 프로필','New profile'):t('프로필 이름 변경','Rename profile'),body=>{const label=node('label',t('프로필 이름','Profile name')),input=node('input',undefined,{type:'text',maxLength:100,value:create?'':db.profiles[db.active].name});label.append(input);body.append(label);return ()=>{const value=input.value.trim();if(!value)throw Error(t('이름을 입력하세요.','Enter a name.'));if(Object.entries(db.profiles).some(([id,p])=>p.name===value&&(create||id!==db.active)))throw Error(t('같은 이름의 프로필이 있습니다.','A profile with that name exists.'));return value;};});
-   const next=copy(db);if(create){let id;do{id='p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);}while(Object.hasOwn(next.profiles,id));next.profiles[id]={name,file:{},paste:{}};next.active=id;offerWorkbookRetry();}else next.profiles[next.active].name=name;persist(next);
+ async function editName(){
+  if(busy)return;busy=true;refresh();
+  try{
+   const name=await modal(t('프로필 이름 변경','Rename profile'),body=>{
+    const label=node('label',t('프로필 이름','Profile name')),input=node('input',undefined,{type:'text',maxLength:100,value:db.profiles[db.active].name});label.append(input);body.append(label);
+    return ()=>{const value=input.value.trim();if(!value)throw Error(t('이름을 입력하세요.','Enter a name.'));if(Object.entries(db.profiles).some(([id,p])=>id!==db.active&&p.name===value))throw Error(t('같은 이름의 프로필이 있습니다.','A profile with that name exists.'));return value;};
+   });
+   const next=copy(db);next.profiles[next.active].name=name;persist(next);
   }catch(e){if(e.name!=='AbortError')storageNote=e.message;}finally{busy=false;refresh();}
  }
  async function inspectProfileSource(file,kind,profile,columnName=null){
@@ -718,9 +762,9 @@ const MappingUI=(()=>{
   const top=node('div',undefined,{className:'profile-shelf-heading'});
   const title=node('h3','',{id:'profileShelfTitle'});
   const page=node('span','',{className:'profile-shelf-page'});page.setAttribute('aria-hidden','true');
-  const addProfile=node('button',undefined,{type:'button',className:'profile-shelf-add'});
+  const openWorkbook=document.getElementById('openWorkbook');
   const shelfTools=node('span',undefined,{className:'profile-shelf-tools'});
-  shelfTools.append(page,addProfile);top.append(title,shelfTools);
+  shelfTools.append(page,openWorkbook);top.append(title,shelfTools);
   const row=node('div',undefined,{className:'profile-shelf-row'});
   const prev=node('button',undefined,{type:'button',className:'profile-shelf-arrow'});prev.append(icon('back'));
   const next=node('button',undefined,{type:'button',className:'profile-shelf-arrow'});next.append(icon('forward'));
@@ -778,9 +822,8 @@ const MappingUI=(()=>{
    return button;
   }
   action(actions,'열 연결 편집','Edit column mapping',editConnection,'columns','',()=>!savedConnections().length);
-  action(actions,'이름 변경','Rename',()=>editName(false),'rename');
+  action(actions,'이름 변경','Rename',editName,'rename');
   action(actions,'위치 표시 규칙','Location display rules',editLocationRules,null,'locationRulesButton');
-  addProfile.append(icon('add'));addProfile.onclick=()=>editName(true);
   const file=node('input',undefined,{type:'file',accept:'.json,application/json',hidden:true});
   action(io,'JSON 불러오기','Import JSON',()=>{if(!busy)file.click();},'in');
   action(io,'JSON 내보내기','Export JSON',()=>{
@@ -810,10 +853,9 @@ const MappingUI=(()=>{
    retry.textContent=lastWorkbook?.offer?t('이 프로필로 다시 연결: ','Reconnect with this profile: ')+lastWorkbook.file.name:'';
    title.textContent=t('사용 중인 프로필','Active profile');
    page.textContent=list.length>1?(index+1)+' / '+list.length:'';page.hidden=list.length===1;
-   const createLabel=t('프로필 추가','Add profile');
-   addProfile.setAttribute('aria-label',createLabel);
-   addProfile.title=list.length>=50?t('프로필은 최대 50개입니다.','Up to 50 profiles are supported.'):createLabel;
-   addProfile.disabled=busy||list.length>=50;
+   const workbookLabel=t('통합 RAW 불러오기','Import combined workbook');
+   openWorkbook.setAttribute('aria-label',workbookLabel);openWorkbook.title=workbookLabel;
+   openWorkbook.disabled=busy||(typeof dataImportBusy!=='undefined'&&dataImportBusy);
    row.dataset.count=String(Math.min(list.length,3));
    prev.hidden=next.hidden=list.length===1;
    for(const [button,edge,label] of [[prev,index===0,t('이전 프로필','Previous profile')],[next,index===list.length-1,t('다음 프로필','Next profile')]]){
@@ -2265,7 +2307,7 @@ function activityMarkup(events,compact=false){
  const codeLine=(label,value,secondary=false)=>'<span class="'+(secondary?'secondary-code':'primary-code')+'" title="'+esc(label+': '+(value||'—'))+'"><span class="sr-only">'+label+' </span>'+esc(value||'—')+'</span>';
  const head='<thead><tr>'+columns.map((label,i)=>'<th scope="col" class="'+(compact?'compact-col-':'sheet-col-')+i+'">'+esc(label)+'</th>').join('')+'</tr></thead>';
  const body=events.map((e,i)=>{const visual=activityCellState(e,true);const date=new Date(e.at),validDate=Number.isFinite(date.getTime()),time=!validDate?'—':date.toLocaleTimeString(language==='ko'?'ko-KR':'en-GB',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
- return `<tr class="sheet-row" data-status="${esc(e.held?'보류':e.status)}">${compact?'<td class="sheet-code activity-code-pair">'+codeLine(language==='en'?'Barcode':'상품 바코드',e.barcode)+codeLine('SKU',e.sku,true)+'</td>':`<th scope="row" class="sheet-index">${historyPage*200+i+1}</th><td class="sheet-code sheet-barcode">${esc(e.barcode||'—')}</td><td class="sheet-code sheet-sku">${esc(e.sku||'—')}</td>`}<td class="sheet-name" title="${esc(e.name)}">${esc(e.name)}${e.code&&e.code!==e.barcode&&e.code!==e.sku?'<small class="original-input">'+esc((language==='en'?'Input: ':'입력: ')+e.code)+'</small>':''}</td><td class="sheet-qty"><b>${e.qty.toLocaleString()}</b><small>EA</small></td><td class="sheet-time"><time datetime="${esc(validDate?e.at:'')}" title="${esc(validDate?date.toString():(language==='en'?'Timestamp unavailable':'입력 시각 확인 필요'))}"><span>${esc(time)}</span><small>${esc(validDate?activityDateLabel(date):'—')}</small></time>${e.priorWork?'<small>'+esc(tr('이전 작업'))+'</small>':''}</td><td class="sheet-status" data-cell-state="${visual.kind}" title="${esc(visual.label)}" aria-label="${esc(visual.label)}"><span class="status-symbol" aria-hidden="true">${visual.symbol}</span>${(e.held||e.reallocatable)&&!e.priorWork?'<button type="button" class="assign-entry" data-assign-event="'+esc(e.id)+'" aria-haspopup="dialog" aria-label="'+esc(e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr('이 입력을 ASN에 배정'))+'" title="'+esc(e.canAssign&&e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr(e.canAssign?'이 입력을 ASN에 배정':state.receiptLocked?'검수 대상 고정을 먼저 해제해 주세요.':'배정 가능한 ASN 없음'))+'"'+(e.canAssign?'':' disabled')+'>↗</button>':''}</td></tr>`;
+ return `<tr class="sheet-row" data-status="${esc(e.held?'보류':e.status)}">${compact?'<td class="sheet-code activity-code-pair">'+codeLine(language==='en'?'Barcode':'상품 바코드',e.barcode)+codeLine('SKU',e.sku,true)+'</td>':`<th scope="row" class="sheet-index">${historyPage*200+i+1}</th><td class="sheet-code sheet-barcode">${esc(e.barcode||'—')}</td><td class="sheet-code sheet-sku">${esc(e.sku||'—')}</td>`}<td class="sheet-name" title="${esc(e.name)}">${esc(e.name)}${e.code&&e.code!==e.barcode&&e.code!==e.sku?'<small class="original-input">'+esc((language==='en'?'Input: ':'입력: ')+e.code)+'</small>':''}</td><td class="sheet-qty"><b>${e.qty.toLocaleString()}</b><small>EA</small></td><td class="sheet-time"><time datetime="${esc(validDate?e.at:'')}" title="${esc(validDate?date.toString():(language==='en'?'Timestamp unavailable':'입력 시각 확인 필요'))}"><span>${esc(time)}</span><small>${esc(validDate?activityDateLabel(date):'—')}</small></time>${e.priorWork?'<small>'+esc(tr('이전 작업'))+'</small>':''}</td><td class="sheet-status" data-cell-state="${visual.kind}" title="${esc(visual.label)}" aria-label="${esc(visual.label)}"><span class="status-symbol${visual.symbol==='⚠︎'?' status-warning':''}" aria-hidden="true">${visual.symbol==='⚠︎'?beamIcon('warning'):visual.symbol}</span>${(e.held||e.reallocatable)&&!e.priorWork?'<button type="button" class="assign-entry" data-assign-event="'+esc(e.id)+'" aria-haspopup="dialog" aria-label="'+esc(e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr('이 입력을 ASN에 배정'))+'" title="'+esc(e.canAssign&&e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr(e.canAssign?'이 입력을 ASN에 배정':state.receiptLocked?'검수 대상 고정을 먼저 해제해 주세요.':'배정 가능한 ASN 없음'))+'"'+(e.canAssign?'':' disabled')+'>↗</button>':''}</td></tr>`;
  }).join('')||'<tr><td colspan="'+columns.length+'" class="sheet-empty">'+esc(tr('스캔 기록이 없습니다.'))+'</td></tr>';
  return '<table class="activity-sheet'+(compact?' compact-activity':'')+'" aria-label="'+esc(tr(compact?'최근 입력 5건':'입력 기록'))+'">'+head+'<tbody>'+body+'</tbody></table>';
 }
@@ -2469,12 +2511,13 @@ async function runCombinedWorkbook(file,{retry=false}={}){
   beamView(true,false);
   // Give the main screen a paint opportunity before decompression or indexing.
   await new Promise(resolve=>setTimeout(resolve,0));
-  tx=await MappingUI.begin(null,'file',{canChangeProfile:reusable,onReview:(kind,waiting)=>{
+  tx=await MappingUI.begin(null,'file',{canChangeProfile:reusable,autoProfile:true,onReview:(kind,waiting)=>{
    if(waiting)beamRawStatus('review',kind==='sheet'?l('시트 연결 확인 대기 중','Waiting for worksheet mapping'):l('열 연결 확인 대기 중','Waiting for column mapping'),false);
    else beamRawStatus('read',l('통합 RAW 읽는 중…','Reading combined workbook…'));
   }});
   const parsed=await readWorkbook(file,null,beamRawProgress,tx.hooks);
   phase='apply';
+  tx.prepareProfile(file,!!parsed.raw?.length);
   beamRawStatus('apply',l('기준 자료 적용 중…','Applying reference data…'));
   await new Promise(resolve=>setTimeout(resolve,0));
   await applyMappedResult(parsed,file.name,parsed.headerOnlyKinds||[]);
@@ -2499,7 +2542,7 @@ $('workbookFile').onchange=async e=>{
 };
 $('file').onchange=async e=>{
  const file=e.target.files[0],kind=$('kind').value;if(!file||dataImportBusy||!dataDefinitions[kind])return;let tx;mappingBusyUI(true);
- try{tx=await MappingUI.begin(kind,'file');const parsed=await readWorkbook(file,kind,showImportProgress,tx.hooks);await applyMappedResult(parsed,file.name,parsed.headerOnlyKinds||[]);tx.commit({file,activeRaw:state.data.raw===parsed.raw?parsed.raw:null});finishDataImport(kind,false);}
+ try{tx=await MappingUI.begin(kind,'file',{autoProfile:kind==='raw'});const parsed=await readWorkbook(file,kind,showImportProgress,tx.hooks);tx.prepareProfile(file,!!parsed.raw?.length);await applyMappedResult(parsed,file.name,parsed.headerOnlyKinds||[]);tx.commit({file,activeRaw:state.data.raw===parsed.raw?parsed.raw:null});finishDataImport(kind,false);}
  catch(error){tx?.abort();dataImportError(error.message);}finally{e.target.value='';mappingBusyUI(false);}
 };
 
@@ -2706,17 +2749,13 @@ const beamFolderTotal=n=>n.toLocaleString()+' EA';
 function beamFolderFace(el,group,preview=false){
  const at=beam.folderPeek.get(group.key)||0,id=group.ids[at],label=beamPartyLabel(id,beam.mode);
  const {items,total}=beamFolderItems(rawRows(id)),ext=receiptDisplay(id)||id;
- const position=(at+1)+' / '+group.ids.length,limit=4;
- const itemRows=items.slice(0,limit).map(item=>'<span class="beam-file-item"><span title="'+esc(item.name)+'">'+esc(item.name)+'</span><b>'+esc(item.qty.toLocaleString())+'</b></span>').join('');
- const remainder=items.length>limit?'<span class="beam-file-more">'+beamL('외 ','+ ')+beamFolderCount(items.length-limit)+'</span>':'';
+ const position=(at+1)+' / '+group.ids.length;
  el.dataset.peek=String(preview);
  el.innerHTML='<span class="beam-file" aria-hidden="true">'
  +'<span class="beam-file-back"></span>'
  +(group.ids.length>1?'<span class="beam-file-sheet beam-file-sheet-left"></span>':'')
  +(group.ids.length>2?'<span class="beam-file-sheet beam-file-sheet-right"></span>':'')
- +'<span class="beam-file-paper"><span class="beam-file-paper-top"><span>RETURN ORDER</span><b>'+esc(ext)+'</b></span>'
- +'<span class="beam-file-item beam-file-columns"><span>'+beamL('상품','Item')+'</span><span>'+beamL('수량','Qty')+'</span></span>'+itemRows+remainder
- +'<span class="beam-file-total"><span>'+beamL('합계','Total')+' · '+beamFolderCount(items.length)+'</span><b>'+esc(beamFolderTotal(total))+'</b></span></span>'
+ +'<span class="beam-file-window"><span class="beam-file-paper">'+beamTicketFace(id,beam.mode)+'</span></span>'
  +'<span class="beam-file-glass"><span class="beam-file-position">'+position+'</span><span class="beam-file-arrow">↗</span></span></span>'
  +'<span class="beam-file-caption"><strong title="'+esc(label)+'">'+esc(label)+'</strong><span>'+beamL('주문 ','Orders: ')+group.ids.length.toLocaleString()+beamL('건','')+'</span></span>';
  el.setAttribute('aria-label',label+beamL(' · 주문 ',' · Orders: ')+group.ids.length+(preview?' · '+position+' · '+ext+' · '+beamFolderCount(items.length)+' · '+beamL('합계 ','Total ')+beamFolderTotal(total):''));

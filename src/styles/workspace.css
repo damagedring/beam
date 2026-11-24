@@ -3616,21 +3616,16 @@ body>header{padding-inline:9px!important;gap:4px!important}
  }
  #beamSearch .beam-file-sheet-left{transform:translateX(-26%) rotate(-17deg)}
  #beamSearch .beam-file-sheet-right{transform:translateX(24%) rotate(15deg)}
+ #beamSearch .beam-file-window{
+  display:block;position:absolute;inset:0 12% 2%;overflow:hidden;border-radius:14px;
+ }
  #beamSearch .beam-file-paper{
-  inset:10% 17% 13%;padding:10px 10px 0;border-radius:8px;
-  background:repeating-linear-gradient(0deg,transparent 0 9px,#79746b1a 10px,transparent 11px) bottom 7px center/85% 36% no-repeat,var(--file-paper);
-  color:var(--file-ink);box-shadow:0 4px 11px var(--file-shadow);
-  transition:transform 260ms cubic-bezier(.18,.72,.28,1);transform:translateY(12%);
+  display:block;position:absolute;inset:0 0 auto;background:none;
+  transform:translateY(47px);transition:transform 260ms cubic-bezier(.18,.72,.28,1);
  }
- #beamSearch .beam-file-paper-top{
-  display:flex;justify-content:space-between;gap:4px;border-bottom:1px dashed #77746c72;
-  font:600 clamp(7px,.73vw,10px)/1.2 var(--font-terminal);padding-bottom:5px;white-space:nowrap;
+ #beamSearch .beam-file .beam-file-paper .beam-paper-ticket{
+  display:flex;zoom:.65;filter:drop-shadow(0 3px 9px var(--file-shadow));
  }
- #beamSearch .beam-file-paper-top b,#beamSearch .beam-file-paper>strong{
-  display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
- }
- #beamSearch .beam-file-paper>strong{font:700 clamp(9px,.9vw,13px)/1.25 var(--font-text);margin-top:5px}
- #beamSearch .beam-file-paper>small{color:var(--file-muted);font:550 clamp(7px,.75vw,10px)/1.3 var(--font-terminal);white-space:nowrap}
  #beamSearch .beam-file-glass{
   inset:50% 2% 0;background:var(--file-front);
   border-radius:17px 17px 15px 15px;clip-path:polygon(0 0,45% 0,54% 19%,100% 19%,100% 100%,0 100%);
@@ -3659,7 +3654,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
  @keyframes beam-file-settle{0%{opacity:1;transform:translateY(-8px)}60%{opacity:.82}100%{opacity:0;transform:translateY(8px);visibility:hidden}}
  @media(prefers-reduced-transparency:reduce){#beamSearch .beam-file-opening{background:#ddd;backdrop-filter:none}}
  #beamSearch .beam-file-caption>span{font:650 11px/1.2 var(--font-terminal);opacity:.8}
- #beamSearch .beam-receipt[data-folder=true]:is(:hover,:focus-visible,[data-peek=true]) .beam-file-paper{transform:translateY(-11%)}
+ #beamSearch .beam-receipt[data-folder=true]:is(:hover,:focus-visible,[data-peek=true]) .beam-file-paper{transform:translateY(2px)}
  #beamSearch .beam-receipt[data-folder=true]:focus-visible .beam-file{filter:drop-shadow(0 0 7px var(--beam-key-haze))}
  @media(max-width:760px){
   #beamSearch .beam-stage .beam-receipt[data-folder=true]{width:min(188px,55vw)}
@@ -3698,22 +3693,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
 @media screen{
  #beamSearch .beam-stage .beam-receipt[data-folder=true]{width:clamp(196px,23vw,292px)}
  #beamSearch .beam-file{height:clamp(204px,23vw,258px)}
- #beamSearch .beam-file-paper{
-  inset:4% 13% auto;min-height:72%;padding:12px 12px 11px;
-  background:var(--file-paper);transform:translateY(14%);
- }
- #beamSearch .beam-file-glass{inset-block-start:69%}
- #beamSearch .beam-file-item,#beamSearch .beam-file-total{
-  display:grid;align-items:baseline;grid-template-columns:minmax(0,1fr) auto;gap:7px;
-  font-size:clamp(10px,1vw,13px);line-height:1.25;margin-top:5px;
- }
- #beamSearch .beam-file-item>span:first-child{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
- #beamSearch .beam-file-item>b,#beamSearch .beam-file-total>b{font-family:var(--font-terminal);font-variant-numeric:tabular-nums}
- #beamSearch .beam-file-columns,#beamSearch .beam-file-more{font-size:10px;color:var(--file-muted)}
- #beamSearch .beam-file-columns{margin-top:7px}
- #beamSearch .beam-file-more{display:block;margin-top:6px}
- #beamSearch .beam-file-total{border-top:1px dashed #77746c72;margin-top:8px;padding-top:6px;font-weight:700}
- #beamSearch .beam-receipt[data-folder=true]:is(:hover,:focus-visible,[data-peek=true]) .beam-file-paper{transform:translateY(-17%)}
+ #beamSearch .beam-file-glass{inset-block-start:80%}
  #beamFolderReceiptOpen:not([hidden]){display:inline-flex;align-items:center;justify-content:center;gap:7px;width:max-content;padding-inline:14px}
  #beamFolderReceiptOpen svg{width:15px;height:15px}
  #beamFolderReceiptDialog[open]{
@@ -3730,7 +3710,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
  #beamFolderReceiptScroll table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px;color:#262320}
  #beamFolderReceiptScroll :is(th,td){padding:7px 4px;border-bottom:1px solid #938d812e;text-align:start;background:none!important}
  #beamFolderReceiptScroll :is(th,td):last-child{width:66px;text-align:end;font-family:var(--font-terminal);font-variant-numeric:tabular-nums}
- #beamFolderReceiptScroll th{position:sticky;inset-block-start:0;background:#faf8f3!important;color:#5e5a53}
+ #beamFolderReceiptScroll th{position:sticky;inset-block-start:0;background:#fff!important;color:#555}
  #beamFolderReceiptScroll td:first-child{overflow-wrap:anywhere}
  #beamFolderReceiptScroll td small{display:block;color:#5e5a53;font-family:var(--font-terminal)}
  #beamFolderReceiptTotal{margin:0;border-top:1px dashed #76716a91;padding-top:10px;font:750 14px/1.4 var(--font-terminal)}
@@ -3738,7 +3718,8 @@ body>header{padding-inline:9px!important;gap:4px!important}
  @media(max-width:760px){
   #beamSearch .beam-stage .beam-receipt[data-folder=true]{width:min(238px,63vw)}
   #beamSearch .beam-file{height:215px}
-  #beamSearch .beam-file-paper{inset-inline:10%;padding-inline:8px}
+  #beamSearch .beam-file-window{inset-inline:9%}
+  #beamSearch .beam-file .beam-file-paper .beam-paper-ticket{zoom:.6}
  }
 }
 
@@ -3833,3 +3814,18 @@ body>header{padding-inline:9px!important;gap:4px!important}
  }
 }
 @media print{#beamHome,#beamHomeBack{display:none!important}}
+
+
+/* Keep warning artwork as prominent as the ledger's large O, without taller rows. */
+@media screen{
+ html[data-theme] #scanActivitySection .compact-activity td.sheet-status:has(>.status-warning){
+  padding-block:0!important;text-align:center;vertical-align:middle;
+ }
+ html[data-theme] .activity-sheet td.sheet-status>.status-warning{
+  display:inline-grid!important;place-items:center;padding:0!important;margin:0!important;min-width:0!important;
+  line-height:1;vertical-align:middle;background:none!important;color:inherit!important;box-shadow:none!important
+ }
+ .activity-sheet .sheet-status>.status-warning .beam-ui-icon{
+  display:block;width:clamp(20px,2.1vw,26px);height:clamp(20px,2.1vw,26px)
+ }
+}

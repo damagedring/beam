@@ -30,7 +30,7 @@ const ix={modeIds:{b2b,b2c},modeSets:{b2b:new Set(b2b),b2c:new Set(b2c)},orderSe
 const entered=[],deferred={},turns=[]; let reduced=true;
 El.prototype.firstElementChild={animate(frames,options){turns.push({frames,options});return {cancel(){}};}};
 const c=vm.createContext({$,document:{querySelector:()=>modes,querySelectorAll:()=>[],createElement:()=>new El()},window:{matchMedia:()=>({matches:reduced})},uiIndex:()=>ix,isB2C:()=>false,asnStoreKey:id=>({A1:'a',A2:'a',B1:'b'})[id]||'',rawRows:id=>orderRows.get(id)||[],receiptDisplay:id=>'Ext-'+id,receiptBarcodeValue:id=>id,encodeReceiptCode128:()=>({runs:[2,1,2],modules:25}),esc:x=>String(x??'').replace(/[&<>"']/g,'X'),customerLookupKey:v=>v.trim().toLowerCase(),trackingMatches:(q,filter)=>[...orderRows.keys()].filter(id=>filter(id)&&q.replaceAll('-','')===orderRows.get(id)[0].returnTracking?.replaceAll('-','')),looksLikeTracking:q=>/^[0-9-]{10,}$/.test(q),Engine:{masterInfo:()=>({})},state:{data:{raw:[...orderRows.values()].flat()}},language:'ko',dataImportBusy:false,entered,performance,printL:(a)=>a});
-vm.runInContext(searchKeys+'\n'+slice('const beam={mode:', 'function beamView(')+`\nfunction beamEnter(){entered.push(beam.candidate);} \$('beamStart').onclick=beamAdvance; globalThis.R={beam,beamRender,beamFolderItems,beamOpenFolderReceipt};`,c);
+vm.runInContext(searchKeys+'\n'+slice('const beam={mode:', 'function beamView(')+`\nfunction beamEnter(){entered.push(beam.candidate);} \$('beamStart').onclick=beamAdvance; globalThis.R={beam,beamRender,beamFolderItems,beamOpenFolderReceipt,beamTicketFace};`,c);
 const beam=c.R.beam;
 function ev(key,target,more={}){return {key,target,preventDefault(){this.defaultPrevented=true},stopPropagation(){},...more};}
 const key=(name,more={})=>$('beamSearch').events.keydown(ev(name,active.element,more));
@@ -42,7 +42,7 @@ assert.equal(beam.nodes.size,2);
 assert.equal(beam.nodes.get('A1').dataset.center,'true');
 assert.equal(beam.nodes.get('B1').dataset.center,'false');
 assert.match(beam.nodes.get('A1').innerHTML,/beam-file-caption.*가상 성수점.*주문 2건/);
-assert.doesNotMatch(beam.nodes.get('A1').innerHTML,/Code 128/);
+assert.match(beam.nodes.get('A1').innerHTML,/beam-file-paper.*beam-paper-top.*beam-paper-tear.*Code 128 · A1/);
 assert.equal($('beamStart').disabled,true);inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');
 reduced=false;
 type('beamQuery','성수');assert.ok(turns.some(t=>/rotateY\(32deg\)/.test(t.frames[0].transform)));
@@ -113,11 +113,14 @@ const folder=beam.nodes.get('A1'),candidateBeforePeek=beam.candidate;folder.focu
 const whisk=ev('wheel',folder,{deltaX:0,deltaY:73,deltaMode:0});
 reel.events.wheel(whisk);assert.equal(whisk.defaultPrevented,true);
 assert.match(folder.innerHTML,/Ext-A2.*Paper Two.*2 \/ 2/);
+assert.ok(folder.innerHTML.includes(c.R.beamTicketFace('A2','b2b')));
 assert.equal(beam.phase,'party');assert.equal(beam.candidate,candidateBeforePeek);
 const endWheel=ev('wheel',folder,{deltaX:0,deltaY:73,deltaMode:0});reel.events.wheel(endWheel);assert.equal(endWheel.defaultPrevented,undefined);
 key('PageUp');assert.match(folder.innerHTML,/Ext-A1.*Paper One.*1 \/ 2/);
 key('PageDown');assert.match(folder.innerHTML,/Ext-A2.*Paper Two.*2 \/ 2/);
+assert.ok(folder.innerHTML.includes(c.R.beamTicketFace('A2','b2b')));
 key('Enter');assert.equal(beam.phase,'asn');assert.equal(beam.candidate,'A2');assert.doesNotMatch(beam.nodes.get('A2').innerHTML,/beam-file-glass/);
+assert.equal(beam.nodes.get('A2').innerHTML,c.R.beamTicketFace('A2','b2b'));
 $('beamEditSearch').onclick();assert.equal(beam.phase,'search');
 type('beamQuery','000000000000');inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');assert.match($('beamSearchStatus').textContent,/찾지 못했어요/);
 type('beamQuery','성수');c.dataImportBusy=true;inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');c.dataImportBusy=false;

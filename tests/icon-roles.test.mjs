@@ -21,6 +21,7 @@ test('the functional icon family is local, complete and keeps control semantics'
  assert.match(button('availabilityToggle'),/role="switch".*aria-checked="false"/);
  assert.match(button('availabilityToggle'),/beam-glyph-eye-open.*beam-glyph-eye-closed/);
  assert.match(button('theme'),/beam-glyph-moon.*beam-glyph-sun/);
+ assert.match(js,/class="status-symbol.*beamIcon\('warning'\)/);
  assert.match(js,/beamIcon\(collapsed\?'add':'minus'\)/);
  assert.match(js,/role="img" aria-label="'\+label[^\n]+beamIcon\('check'\)/);
 });

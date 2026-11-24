@@ -5,9 +5,9 @@
   #dataDialog .dialog-heading{margin:0 0 14px}
   #dataDialog #dataPanel{display:block;padding:0;margin:0;border:0}
   #dataDialog .workbook-import{margin:0 0 16px;padding:2px 0 0;border:0!important}
-  #dataDialog #openWorkbook{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:48px;font-size:14px;font-weight:750}
+  #dataDialog #openWorkbook{display:flex;align-items:center;justify-content:center;gap:6px;width:auto;min-height:44px;margin:0;padding:0 12px;white-space:nowrap;font-size:12px;font-weight:750}
   #dataDialog #openWorkbook::before{
-   content:'';width:20px;height:20px;flex:none;background:currentColor;
+   content:'';width:15px;height:15px;flex:none;background:currentColor;
    -webkit-mask:var(--beam-upload-mask) center/contain no-repeat;mask:var(--beam-upload-mask) center/contain no-repeat;
   }
   #dataDialog .data-privacy{margin:8px 2px 0;text-align:center;line-height:1.5}
@@ -304,7 +304,6 @@
  @media screen {
   #beamSearch .beam-receipt[data-folder=true]{box-shadow:none!important}
   #beamSearch .beam-file-caption>strong{font-family:inherit!important;font-weight:760!important;font-size:clamp(16px,1.6vw,21px)!important;line-height:1.15!important}
-  #beamSearch .beam-file-paper>strong{font-family:inherit!important;font-weight:700!important;font-size:clamp(9px,.9vw,13px)!important;line-height:1.25!important}
   #beamSearch .beam-receipt[data-folder=true]:focus-visible .beam-file-caption>strong{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.2em}
  }
 }
@@ -314,16 +313,8 @@
   #dataDialog .profile-shelf-heading{align-items:center}
   #dataDialog .profile-shelf-tools{display:inline-flex;align-items:center;gap:9px}
   #dataDialog .profile-shelf-page[hidden]{display:none}
-  #dataDialog .profile-shelf-add{
-   display:grid;place-items:center;width:36px;height:36px;min-width:36px;min-height:36px;padding:0!important;
-   border:0!important;border-radius:11px!important;background:color-mix(in srgb,currentColor 8%,transparent)!important;
-   box-shadow:none!important;color:var(--beam-type)!important;
-  }
-  #dataDialog .profile-shelf-add:hover:not(:disabled){background:color-mix(in srgb,currentColor 14%,transparent)!important}
-  #dataDialog .profile-shelf-add:focus-visible{outline:1px solid currentColor!important;outline-offset:2px}
-  #dataDialog .profile-shelf-add svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-  @media (pointer:coarse){#dataDialog .profile-shelf-add{width:44px;height:44px}}
-  @media(forced-colors:active){#dataDialog .profile-shelf-add{border:1px solid ButtonText!important}}
+  #dataDialog .profile-shelf-tools #openWorkbook:focus-visible{outline:1px solid currentColor!important;outline-offset:2px}
+  @media(forced-colors:active){#dataDialog .profile-shelf-tools #openWorkbook{border:1px solid ButtonText!important}}
  }
 }
 
@@ -338,7 +329,7 @@
 @layer beam-folder {
  @media screen and (forced-colors:none){
   html[data-theme] body #beamFolderReceiptDialog[open]{
-   background:#faf8f3!important;color:#262320!important;
+   background:#fff!important;color:#181818!important;
    -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
    box-shadow:none!important;
   }

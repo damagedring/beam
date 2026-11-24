@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
 
 class Element {
- constructor(){this.children=[];this.events=new Map();this.attributes=new Map();this.dataset={};this.classList={add(){}};}
+ constructor(){this.children=[];this.events=new Map();this.attributes=new Map();this.dataset={};this.value='';this.classList={add(){}};}
  append(...children){this.children.push(...children);}
  prepend(...children){this.children.unshift(...children);}
  showModal(){this.open=true;}
@@ -20,13 +20,13 @@ class Element {
 
 function boot(profiles,active){
  const html=fs.readFileSync(__dirname+'/../dist/index.html','utf8'),js=fs.readFileSync(__dirname+'/../dist/app.js','utf8');
- assert.match(html,/<button id="openWorkbook"[^>]*>[^<]+<\/button>\s*<section id="profileShelf"/);
+ assert.match(html,/<section id="profileShelf"[^>]*><button id="openWorkbook"[^>]*>불러오기<\/button><\/section>/);
  const elements=new Map(),document={activeElement:null,createElement(tag){const e=new Element();e.doc=document;e.tag=tag;return e;},createElementNS(){return this.createElement();},getElementById(id){if(!elements.has(id))elements.set(id,this.createElement());return elements.get(id);}};
  document.body=document.createElement('body');
  let state=JSON.stringify({version:1,profiles,active});
  const retries=[];
  const c=vm.createContext({document,language:'ko',localStorage:{getItem:()=>state,setItem:(_,value)=>{state=value;}},performance:{now:()=>0},returnChannelValues:()=>undefined,
-   Uint8Array,TextDecoder,uiConfirm:()=>true,runCombinedWorkbook:(file,options)=>retries.push({file,options}),
+   Uint8Array,TextDecoder,returnChannelInputLimit:256,returnChannelFormText:(_,fallback)=>fallback,uiConfirm:()=>true,runCombinedWorkbook:(file,options)=>retries.push({file,options}),
  });
  const source=js.slice(js.indexOf('const MappingUI=(()=>{'),js.indexOf('Object.assign(translations,',js.indexOf('const MappingUI=(()=>{')));
  assert.ok(source.includes('function chooseProfile'));
@@ -74,25 +74,19 @@ test('single-profile shelf does not show decorative navigation or a position cou
  assert.equal(byClass(details,'profile-empty-mapping').textContent,'아직 저장된 연결이 없어요.');
 });
 
-test('shelf add button opens the existing create dialog and activates the new profile',async()=>{
- const {shelf,details,read,c,document}=boot({a:profile('Alpha')},'a');
- const add=byClass(shelf,'profile-shelf-add');
- assert.equal(add.attributes.get('aria-label'),'프로필 추가');
- assert.equal(add.children[0].attributes.get('aria-hidden'),'true');
- assert.ok(!byClass(details,'profile-json-actions').find(el=>el.textContent==='새 프로필'));
+test('the workbook picker is in the former plus slot and separate profile JSON import remains',async()=>{
+ const {shelf,details,c,document}=boot({a:profile('Alpha')},'a');
+ const button=document.getElementById('openWorkbook');
+ assert.equal(byClass(shelf,'profile-shelf-tools').children.at(-1),button);
+ assert.equal(button.attributes.get('aria-label'),'통합 RAW 불러오기');
+ assert.equal(byClass(shelf,'profile-shelf-add'),null);
+ assert.ok(byClass(details,'profile-json-actions').find(el=>el.textContent==='JSON 불러오기'));
  const tx=await c.api.begin('sku','file');
- assert.equal(add.disabled,true);tx.abort();assert.equal(add.disabled,false);
- const pending=add.click();
- const modal=document.body.children.at(-1);
- assert.equal(modal.find(el=>el.id==='mappingDialogTitle').textContent,'새 프로필');
- modal.find(el=>el.tag==='input').value='Sandbox';
- modal.find(el=>el.textContent==='연결 확인').click();await pending;
- assert.equal(current(shelf).title,'Sandbox');
- assert.equal(Object.keys(read().profiles).length,2);
+ assert.equal(button.disabled,true);tx.abort();assert.equal(button.disabled,false);
 });
 
 
-const raw=(name,sheetName,headerNames)=>({name,file:{raw:{version:1,kind:'raw',sheetName,signature:Object.values(headerNames),headerNames,returnChannelReviewed:true}},paste:{}});
+const raw=(name,sheetName,headerNames)=>({name,file:{raw:{version:1,kind:'raw',sheetName,signature:Object.values(headerNames).sort(),headerNames,returnChannelReviewed:true}},paste:{}});
 const work=raw('Example A','Intake A',{receipt:'Ref A',qty:'Count A',sku:'Item A'});
 const sample=raw('Example B','Intake B',{receipt:'Ticket B',qty:'Units B',sku:'Product B'});
 const sampleFile={name:'example-b.xlsx',sheets:[{name:'Intake B',index:4}],rows:[['Notes'],['Units B','Product B','Ticket B'],['3','TEST-B','RETURN-B']]};
@@ -137,4 +131,57 @@ test('RAW chosen first can return to profiles and replay that exact workbook, ne
  assert.equal(retries.length,0);retry.click();
  assert.equal(retries.length,1);assert.equal(retries[0].file,sampleFile);assert.equal(retries[0].options.retry,true);
  await assertSampleMapping(c.api);
+});
+
+
+async function mapReturnFile(c,document){
+ const tx=await c.api.begin('raw','file',{autoProfile:true});
+ const pending=tx.hooks.selectColumns({kind:'raw',sheetName:'Intake B',rows:[['Ticket B','Units B','Product B'],['R1','2','SKU1']]});
+ const modal=document.body.children.at(-1);
+ const byLabel=name=>modal.find(el=>el.attributes.get('aria-label')===name);
+ const header=byLabel('헤더 행');header.value='0';header.onchange();
+ for(const field of byClass(modal,'mapping-fields').children)for(const child of field.children)if(child.tag==='select')child.value='';
+ byLabel('주문 식별자').value='0';
+ byLabel('예정 수량').value='1';
+ byLabel('상품 코드').value='2';
+ modal.find(el=>el.textContent==='연결 확인').click();
+ await pending;
+ return tx;
+}
+test('first connected RAW names the empty profile only after a successful apply',async()=>{
+ const {document,c,read}=boot({default:profile('기본 프로필')},'default');
+ let tx=await mapReturnFile(c,document);tx.prepareProfile({name:'Sandbox.xlsx'},true);
+ assert.equal(read().profiles.default.name,'기본 프로필');
+ tx.abort();assert.equal(read().profiles.default.name,'기본 프로필');
+ tx=await mapReturnFile(c,document);tx.prepareProfile({name:'Sandbox.xlsx'},true);tx.commit({});
+ assert.equal(read().active,'default');
+ assert.equal(read().profiles.default.name,'Sandbox');
+ assert.equal(read().profiles.default.file.raw.sheetName,'Intake B');
+});
+test('a different RAW schema creates a named profile and keeps previous mappings untouched',async()=>{
+ const {document,c,read}=boot({work,other:profile('Sandbox')},'work');
+ const before=read().profiles.work;
+ const tx=await mapReturnFile(c,document);tx.prepareProfile({name:'Sandbox.XLSM'},true);tx.commit({});
+ const saved=read();
+ assert.notEqual(saved.active,'work');
+ assert.deepEqual(saved.profiles.work,before);
+ assert.equal(saved.profiles[saved.active].name,'Sandbox (2)');
+ assert.equal(saved.profiles[saved.active].file.raw.sheetName,'Intake B');
+ assert.equal(Object.keys(saved.profiles).length,3);
+});
+test('same mapping with reordered headers reuses the active profile instead of creating a copy',async()=>{
+ const {read,c}=boot({sample},'sample');
+ const tx=await c.api.begin(null,'file',{autoProfile:true});
+ await tx.hooks.selectSheets({sheets:sampleFile.sheets});
+ await tx.hooks.selectColumns({kind:'raw',sheetName:'Intake B',rows:sampleFile.rows});
+ tx.prepareProfile({name:'renamed-copy.xlsx'},true);tx.commit({});
+ assert.deepEqual(Object.keys(read().profiles),['sample']);
+ assert.equal(read().profiles.sample.name,sample.name);
+});
+test('a source already mapped in another profile selects it without making a duplicate',async()=>{
+ const {document,c,read}=boot({work,sample},'work');
+ const tx=await mapReturnFile(c,document);tx.prepareProfile({name:'already-known.xlsx'},true);tx.commit({});
+ assert.deepEqual(Object.keys(read().profiles),['work','sample']);
+ assert.equal(read().active,'sample');
+ assert.equal(read().profiles.sample.name,sample.name);
 });
