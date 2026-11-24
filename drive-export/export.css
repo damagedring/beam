@@ -1,0 +1,22 @@
+:root{color-scheme:light dark;font-family:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#242626;background:#fbfbf8}
+body{margin:0;padding:clamp(18px,5vw,48px);display:grid;min-height:100vh;align-content:center;box-sizing:border-box}
+main{max-width:37rem;width:100%;margin:auto}
+h1{font-size:clamp(26px,6vw,41px);line-height:1.14;margin:8px 0 20px;letter-spacing:-.045em}
+p{line-height:1.55;font-size:15px;max-width:36rem}
+.eyebrow{font-size:11px;letter-spacing:.14em;color:#5e6761}
+#status{font-weight:650;min-height:1.6em}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+button,a{font:inherit}
+button{background:#e9edeb;color:#1d2621;border:0;min-height:44px;padding:0 15px;border-radius:7px;cursor:pointer}
+#authorize:not(:disabled){background:#31564a;color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+a{color:#31564a;overflow-wrap:anywhere}
+[hidden]{display:none!important}
+@media(prefers-color-scheme:dark){:root{background:#1b1f1d;color:#f0f5f1}.eyebrow,a{color:#b8d5c6}button{background:#343e39;color:#f0f5f1}#authorize:not(:disabled){background:#bbd9c9;color:#20362c}}
+fieldset{border:0;margin:12px 0;padding:0}
+fieldset legend{font-size:13px;font-weight:700;margin-bottom:4px}
+fieldset label{display:block;padding:8px 0;font-size:14px}
+#folder-confirmation{padding:10px 15px;border-radius:8px;background:color-mix(in srgb,currentColor 7%,transparent)}
+#folder-confirmation p{margin:4px 0 9px}
+#folder-name{overflow-wrap:anywhere}

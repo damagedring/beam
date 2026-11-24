@@ -5,3 +5,8 @@
 /*.xlsm
 /*.csv
 /*.tsv
+
+/dist-drive-export/
+
+/dist-onedrive-export/
+/.onedrive-export-*/

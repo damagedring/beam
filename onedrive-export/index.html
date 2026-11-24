@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; connect-src https://login.microsoftonline.com https://graph.microsoft.com; style-src 'self'; img-src data:; form-action 'none'; base-uri 'none'; object-src 'none'">
+<title>Beam · OneDrive 저장</title>
+<link rel="stylesheet" href="./export.css">
+<body data-app-origin="" data-client-id="" data-kind="" data-tenant-id="" data-drive-id="" data-folder-id="" data-label="">
+<main>
+ <h1>OneDrive에 검수 기록 저장</h1>
+ <p>기준 워크북은 보내지 않아요. 저장할 Microsoft 계정과 폴더를 확인한 뒤, 새 파일 하나를 만들어요.</p>
+ <p id="status" role="status" aria-live="polite">Beam과 연결하는 중…</p>
+ <button id="authorize" type="button" disabled>Microsoft 계정 선택</button>
+ <section id="confirmation" hidden aria-label="저장 위치 확인">
+  <dl><dt>계정</dt><dd id="account"></dd><dt>저장 폴더</dt><dd id="destination"></dd></dl>
+  <p>검수 기록에 주문번호와 상품 코드 등이 포함될 수 있어요.</p>
+  <button id="save" type="button" disabled>이 폴더에 새 파일 저장</button>
+ </section>
+ <button id="cancel" type="button">취소</button>
+</main>
+<script type="module" src="./export.mjs"></script>
+</body>
+</html>

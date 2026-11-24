@@ -77,7 +77,7 @@
 <div class="toolbar">
 <div class="availability-setting header-availability">
 <button id="availabilityToggle" type="button" role="switch" aria-checked="false" aria-describedby="availabilityNote">
-<span>Loc</span>
+<span data-ko="피킹 위치" data-en="Picking locations">피킹 위치</span>
 <svg class="beam-ui-icon loc-eye" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use class="loc-eye-open" href="#beam-glyph-eye-open"/><use class="loc-eye-closed" href="#beam-glyph-eye-closed"/></svg>
 <b id="availabilityState" hidden>OFF</b>
 </button>
@@ -97,6 +97,12 @@
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-folder"/></svg>작업 불러오기</button>
 <button id="save" class="primary">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-download"/></svg>작업파일 저장</button>
+<button id="beamDriveExport" type="button" data-export-origin="" aria-haspopup="dialog" hidden>
+<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-upload"/></svg><span data-ko="Google Drive에 저장" data-en="Save to Google Drive">Google Drive에 저장</span>
+</button>
+<button id="beamOneDriveExport" type="button" data-one-drive-origin="" hidden aria-label="OneDrive에 검수 기록 저장">
+<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-upload"/></svg><span data-ko="OneDrive에 저장" data-en="Save to OneDrive">OneDrive에 저장</span>
+</button>
 <button id="newWork" type="button" aria-haspopup="dialog" aria-controls="newWorkDialog">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-add"/></svg>새 작업</button>
 <span class="settings-section-label" data-ko="환경 · 도움말" data-en="PREFERENCES · HELP">환경 · 도움말</span>
@@ -108,6 +114,20 @@
 </div>
 </div>
 </header>
+<section id="beamDriveNotice" hidden aria-label="Google Drive 저장">
+ <span id="beamDriveExportStatus" role="status" aria-live="polite"></span>
+ <a id="beamDriveResult" target="_blank" rel="noopener noreferrer" hidden data-ko="저장된 파일 열기" data-en="Open saved file">저장된 파일 열기</a>
+</section>
+<section id="beamOneDriveNotice" hidden aria-label="OneDrive 저장"><span id="beamOneDriveExportStatus" role="status" aria-live="polite"></span></section>
+<dialog id="beamDriveConsent" aria-labelledby="beamDriveConsentTitle">
+ <div class="dialog-heading">
+  <h2 id="beamDriveConsentTitle" data-ko="Google Drive에 검수 기록 저장" data-en="Save inspection records to Google Drive">Google Drive에 검수 기록 저장</h2>
+  <button type="button" id="beamDriveDismiss" aria-label="닫기"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-close"/></svg></button>
+ </div>
+ <p data-ko="검수 기록만 분리된 Google Drive 저장 창으로 전달합니다. 기준 RAW, 고객명 조회 목록, 파일 출처는 포함하지 않지만 검수 기록에는 오더 번호와 상품 코드 등이 들어갈 수 있어요." data-en="Only inspection records are sent to the separate export window. Raw reference data, customer lookup lists, and source labels are excluded, but records may include order and product identifiers.">검수 기록만 분리된 Google Drive 저장 창으로 전달합니다. 기준 RAW, 고객명 조회 목록, 파일 출처는 포함하지 않지만 검수 기록에는 오더 번호와 상품 코드 등이 들어갈 수 있어요.</p>
+ <p data-ko="다음 창에서 Google 계정을 선택한 뒤에만 새 파일을 만들어요." data-en="A new file is created only after you choose a Google account in the next window.">다음 창에서 Google 계정을 선택한 뒤에만 새 파일을 만들어요.</p>
+ <button type="button" id="beamDriveProceed" data-ko="저장 창 열기" data-en="Open export window">저장 창 열기</button>
+</dialog>
 <section id="beamRecoveryPanel" hidden aria-label="브라우저 작업 복구">
  <p id="beamRecoveryStatus" role="status" aria-live="polite"></p>
  <button type="button" id="beamRecoverDraft" hidden>작업 복구</button>
@@ -383,7 +403,7 @@
 <div class="last-scanned-codes">
 <span id="lastScannedSku">
 </span>
-<span id="lastScannedAltsku">
+<span id="lastScannedBarcode">
 </span>
 <span id="lastScannedContext">
 </span>
@@ -432,7 +452,7 @@
 </span>
 </button>
 <button class="metric" id="otherAsnDetails" type="button" aria-haspopup="dialog" aria-controls="otherAsnDialog" hidden>
-<span>다른 ASN 추정</span>
+<span>다른 ASN 혼입 후보</span>
 <span class="metric-quantity">
 <b id="otherAsnCount">0</b>
 <span class="metric-unit">EA</span>
@@ -512,7 +532,7 @@
 <tr>
 <th>상태</th>
 <th>바코드 / SKU</th>
-<th>상품명 · Loc</th>
+<th data-ko="상품명 · 피킹 위치" data-en="Product · Picking location">상품명 · 피킹 위치</th>
 <th class="num">전산 수량</th>
 <th class="num">실물</th>
 <th class="num">차이량</th>

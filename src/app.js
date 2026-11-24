@@ -6,6 +6,7 @@ import { trackingExactKey, trackingKey, trackingNumericCore, looksLikeTracking, 
 import { translations } from "./ui/translations.js";
 
 'use strict';
+Object.assign(translations,{'OneDrive에 검수 기록 저장':'Save inspection records to OneDrive','OneDrive 저장':'OneDrive export'});
 Object.assign(translations,{'바코드 / SKU':'Barcode / SKU','바코드 또는 SKU 입력':'Enter a barcode or SKU','최근 스캔 상품 검수 진행률':'Last scanned item progress','피킹 위치 안내':'Picking location information','검수 시작':'Start inspection'});
 /* v1.10 local content fingerprints. WebCrypto only; no authentication/signing claim.
    Format: reference-sha256-chunks-v1; maximum 256 rows per role-array chunk.
@@ -993,8 +994,8 @@ function clearModeSelection(){state.receipt='';state.assignment='';state.receipt
 function enforceActiveMode(){if(state.receipt&&rawRows(state.receipt).length&&!modeAllowsReceipt(state.receipt))clearModeSelection();}
 function syncSearchMode(){
  const b=isB2C(),en=language==='en',bound=workHasEntries();for(const [id,active] of [['searchB2B',!b],['searchB2C',b]])$(id).setAttribute('aria-disabled',String(bound&&!active));$('store').readOnly=bound;$('customerQuery').readOnly=bound;$('workScopeBar').hidden=bound;$('searchB2B').setAttribute('aria-pressed',String(!b));$('searchB2C').setAttribute('aria-pressed',String(b));$('searchB2B').textContent=en?'B2B · Store':'B2B · 매장';$('searchB2C').textContent=en?'B2C · Customer':'B2C · 고객';
- $('storeSearchField').hidden=b;$('customerSearchField').hidden=!b;$('customerQuery').disabled=!!state.receiptLocked;$('customerQuery').placeholder=en?'Customer name or order number':'고객명 또는 오더번호';$('customerQuery').previousElementSibling.textContent=en?'Customer':'고객명';
- $('receipt').placeholder=b?(en?'Customer name or order number':'고객명 또는 오더번호'):(en?'Order number':'오더번호');$('receipt').setAttribute('aria-label',$('receipt').placeholder);
+ $('storeSearchField').hidden=b;$('customerSearchField').hidden=!b;$('customerQuery').disabled=!!state.receiptLocked;$('customerQuery').placeholder=en?'Customer name or return tracking':'고객명 또는 반송장번호';$('customerQuery').previousElementSibling.textContent=en?'Customer':'고객명';
+ $('receipt').placeholder=b?(en?'Customer name or return tracking':'고객명 또는 반송장번호'):(en?'Order number':'오더번호');$('receipt').setAttribute('aria-label',$('receipt').placeholder);
  $('rawImportModeLabel').textContent=en?'Expected order import':'예정 자료 적용';$('rawImportMode').options[0].textContent=en?'Replace':'교체';$('rawImportMode').options[1].textContent=en?'Add orders · reject duplicate keys':'오더 추가 · 중복 키 거절';
 }
 function setSearchMode(mode){if(!['b2b','b2c'].includes(mode))return false;if(mode===(isB2C()?'b2c':'b2b'))return true;if(workHasEntries())return workContextWarning();if(state.receiptLocked){notice(tr('검수 대상 고정을 먼저 해제해 주세요.'),'warning');return false;}closeReceiptList();closeStoreList();closeDiscrepancyPreview();clearModeSelection();state.store='';delete state.storeSelection;$('store').value='';$('barcode').value='';state.searchMode=mode;orderSearchCache=null;$('customerQuery').value='';changed();draw();(isB2C()?(state.receiptLocked?$('searchB2C'):$('customerQuery')):$('store')).focus();return true;}
@@ -2131,7 +2132,7 @@ function scanActivityRows(rows,all=false){
   const names=[...new Set(matched.map(r=>r.name).filter(n=>n&&!['상품 정보 없음','ASN 상품명 없음'].includes(n)))];
   const name=conflict?tr('상품명 확인 필요'):external&&master.name?master.name:names.length===1?names[0]:tr(names.length>1?'상품명 확인 필요':'상품 정보 없음');
   const status=conflict?'정보 충돌':pending?'입력 기록 유지':matched.length===1?matched[0].status:matched.length>1?'정보 충돌':'확인 필요';
-  return {sku:!conflict&&matched.length===1?(matched[0].sku||master.sku||''):(!conflict?master.sku||'':''),altsku:!conflict&&matched.length===1?(matched[0].barcode||''):(!conflict&&e.kind!=='sku'?e.barcode||'':''),expected:matched.length===1?matched[0].expected:null,actual:matched.length===1?matched[0].actual:null,id:e.id,name,code:Engine.eventCode(e),qty:Engine.units(e),at:e.at,pending,status,scanOutcome:e.scanOutcome??(historical??=legacyScanOutcomes(events)).get(e),priorWork:e.batch!==state.currentBatch,assignedReceipt:e.receipt||'',held:pending&&!!e.holdForStore,reallocatable:!pending&&excessAllocationSource(e)&&allocationOptions(e).some(o=>o.fits),canAssign:!state.receiptLocked&&allocationOptions(e).some(o=>o.fits)};
+  return {sku:!conflict&&matched.length===1?(matched[0].sku||master.sku||''):(!conflict?master.sku||'':''),barcode:!conflict&&matched.length===1?(matched[0].barcode||''):(!conflict&&e.kind!=='sku'?e.barcode||'':''),expected:matched.length===1?matched[0].expected:null,actual:matched.length===1?matched[0].actual:null,id:e.id,name,code:Engine.eventCode(e),qty:Engine.units(e),at:e.at,pending,status,scanOutcome:e.scanOutcome??(historical??=legacyScanOutcomes(events)).get(e),priorWork:e.batch!==state.currentBatch,assignedReceipt:e.receipt||'',held:pending&&!!e.holdForStore,reallocatable:!pending&&excessAllocationSource(e)&&allocationOptions(e).some(o=>o.fits),canAssign:!state.receiptLocked&&allocationOptions(e).some(o=>o.fits)};
  });
  renderReadCache?.set(cacheKey,values);return values;
 }
@@ -2145,15 +2146,15 @@ function activityCellState(e,ledger=false){
  if(ledger&&e.held&&!e.assignedReceipt)return {kind:'hold',symbol:'Ⅱ',label:language==='en'?'Another ASN may match':'다른 ASN 혼입 후보 · 배정 확인'};
  if(ledger&&e.scanOutcome==='held')return {kind:'hold',symbol:'Ⅱ',label:language==='en'?'Held at scan time':'입력 당시 보류'};
  if(ledger&&e.scanOutcome==='accepted')return {kind:'complete',symbol:'O',label:language==='en'?'Accepted at scan time':'입력 당시 정상'};
- if(ledger&&e.scanOutcome==='excess')return {kind:'excess',symbol:'⚠',label:language==='en'?'This entry exceeded the expected quantity':'이 입력부터 예정 수량 초과'};
- if(ledger&&e.scanOutcome==='unknown')return {kind:'unknown',symbol:'⚠',label:language==='en'?'Entry not on the selected order':'현재 ASN에 없는 입력'};
- if(ledger&&e.scanOutcome==='conflict')return {kind:'review',symbol:'⚠',label:language==='en'?'Product identifiers conflict':'상품 식별 정보 충돌'};
+ if(ledger&&e.scanOutcome==='excess')return {kind:'excess',symbol:'⚠︎',label:language==='en'?'This entry exceeded the expected quantity':'이 입력부터 예정 수량 초과'};
+ if(ledger&&e.scanOutcome==='unknown')return {kind:'unknown',symbol:'⚠︎',label:language==='en'?'Entry not on the selected order':'현재 ASN에 없는 입력'};
+ if(ledger&&e.scanOutcome==='conflict')return {kind:'review',symbol:'⚠︎',label:language==='en'?'Product identifiers conflict':'상품 식별 정보 충돌'};
  const count=Number.isFinite(e.expected)&&Number.isFinite(e.actual)?` · ${e.actual} / ${e.expected} EA`:'';
  if(e.held)return {kind:'hold',symbol:'Ⅱ',label:language==='en'?'On hold · Assign an ASN':'보류 · ASN 배정 필요'};
  if(e.status==='일치')return {kind:'complete',symbol:'O',label:(language==='en'?'Quantity matched':'수량 일치')+count};
  if(e.status==='부족')return {kind:'progress',symbol:'◔',label:(language==='en'?'Inspection in progress':'검수 진행 중')+count+(language==='en'?` · ${e.expected-e.actual} remaining`:` · ${e.expected-e.actual}개 남음`)};
- if(e.status==='초과')return {kind:'excess',symbol:'⚠',label:tr(e.status)+count};
- if(e.status==='예정 외')return {kind:'unknown',symbol:'⚠',label:(language==='en'?'Unverified barcode':'미확인 바코드')+count};
+ if(e.status==='초과')return {kind:'excess',symbol:'⚠︎',label:tr(e.status)+count};
+ if(e.status==='예정 외')return {kind:'unknown',symbol:'⚠︎',label:(language==='en'?'Unverified barcode':'미확인 바코드')+count};
  if(e.pending||e.status==='입력 기록 유지')return {kind:'waiting',symbol:'…',label:language==='en'?'Waiting for ASN · Entry preserved':'ASN 선택 대기 · 입력 기록 유지'};
  return {kind:'review',symbol:'?',label:tr(e.status)};
 }
@@ -2165,7 +2166,7 @@ function pickingLocationData(item){
  if(!item||!item.sku||item.conflict||item.unresolved||item.status==='정보 충돌'||item.status==='식별자 없음')return {reason:'SKU 확인 필요',groups:[]};
  if(!state.data.loc.length)return {reason:'위치 자료를 불러오세요',groups:[]};
  const ix=Engine.getIndex(state.data);if(!ix.locationTypePresent)return {reason:'위치 유형 열을 연결한 자료를 다시 불러오세요',groups:[]};
- const barcode=item.altsku||item.barcode||'',related=[...new Set([...(ix.locBySku.get(item.sku)||[]),...(barcode?ix.locByBarcode.get(barcode)||[]:[])])];
+ const barcode=item.barcode||'',related=[...new Set([...(ix.locBySku.get(item.sku)||[]),...(barcode?ix.locByBarcode.get(barcode)||[]:[])])];
  if(related.some(r=>barcode&&r.barcode===barcode&&r.sku&&r.sku!==item.sku))return {reason:'SKU·Barcode 위치 정보 충돌',groups:[]};
  if(related.some(r=>barcode&&r.barcode===barcode&&!r.sku))return {reason:'위치 자료의 SKU 확인 필요',groups:[]};
  const rules=MappingUI.locationRules(),eligible=new Set(rules.eligibleTypes);
@@ -2227,7 +2228,7 @@ function drawLastScanned(rows){
  if(!last)return;
  $('lastScannedName').textContent=last.name;
  $('lastScannedSku').textContent='SKU · '+(last.sku||'—');
- $('lastScannedAltsku').textContent=(language==='en'?'Barcode · ':'상품 바코드 · ')+(last.altsku||'—');
+ $('lastScannedBarcode').textContent=(language==='en'?'Barcode · ':'상품 바코드 · ')+(last.barcode||'—');
  $('lastScannedContext').textContent=last.pending?(language==='en'?'ASN pending':'ASN 미배정'):last.assignedReceipt!==state.receipt?'ASN · '+last.assignedReceipt:'';
  const progress=$('lastScannedProgress');
  const valid=last.assignedReceipt===state.receipt&&!last.pending&&Number.isFinite(last.actual)&&Number.isFinite(last.expected)&&last.expected>0&&!['정보 충돌','식별자 없음','예정 외','확인 필요'].includes(last.status);
@@ -2265,7 +2266,7 @@ function activityMarkup(events,compact=false){
  const codeLine=(label,value,secondary=false)=>'<span class="'+(secondary?'secondary-code':'primary-code')+'" title="'+esc(label+': '+(value||'—'))+'"><span class="sr-only">'+label+' </span>'+esc(value||'—')+'</span>';
  const head='<thead><tr>'+columns.map((label,i)=>'<th scope="col" class="'+(compact?'compact-col-':'sheet-col-')+i+'">'+esc(label)+'</th>').join('')+'</tr></thead>';
  const body=events.map((e,i)=>{const visual=activityCellState(e,true);const date=new Date(e.at),validDate=Number.isFinite(date.getTime()),time=!validDate?'—':date.toLocaleTimeString(language==='ko'?'ko-KR':'en-GB',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
- return `<tr class="sheet-row" data-status="${esc(e.held?'보류':e.status)}">${compact?'<td class="sheet-code activity-code-pair">'+codeLine(language==='en'?'Barcode':'상품 바코드',e.altsku)+codeLine('SKU',e.sku,true)+'</td>':`<th scope="row" class="sheet-index">${historyPage*200+i+1}</th><td class="sheet-code sheet-altsku">${esc(e.altsku||'—')}</td><td class="sheet-code sheet-sku">${esc(e.sku||'—')}</td>`}<td class="sheet-name" title="${esc(e.name)}">${esc(e.name)}${e.code&&e.code!==e.altsku&&e.code!==e.sku?'<small class="original-input">'+esc((language==='en'?'Input: ':'입력: ')+e.code)+'</small>':''}</td><td class="sheet-qty"><b>${e.qty.toLocaleString()}</b><small>EA</small></td><td class="sheet-time"><time datetime="${esc(validDate?e.at:'')}" title="${esc(validDate?date.toString():(language==='en'?'Timestamp unavailable':'입력 시각 확인 필요'))}"><span>${esc(time)}</span><small>${esc(validDate?activityDateLabel(date):'—')}</small></time>${e.priorWork?'<small>'+esc(tr('이전 작업'))+'</small>':''}</td><td class="sheet-status" data-cell-state="${visual.kind}" title="${esc(visual.label)}" aria-label="${esc(visual.label)}"><span class="status-symbol" aria-hidden="true">${visual.symbol}</span>${(e.held||e.reallocatable)&&!e.priorWork?'<button type="button" class="assign-entry" data-assign-event="'+esc(e.id)+'" aria-haspopup="dialog" aria-label="'+esc(e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr('이 입력을 ASN에 배정'))+'" title="'+esc(e.canAssign&&e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr(e.canAssign?'이 입력을 ASN에 배정':state.receiptLocked?'검수 대상 고정을 먼저 해제해 주세요.':'배정 가능한 ASN 없음'))+'"'+(e.canAssign?'':' disabled')+'>↗</button>':''}</td></tr>`;
+ return `<tr class="sheet-row" data-status="${esc(e.held?'보류':e.status)}">${compact?'<td class="sheet-code activity-code-pair">'+codeLine(language==='en'?'Barcode':'상품 바코드',e.barcode)+codeLine('SKU',e.sku,true)+'</td>':`<th scope="row" class="sheet-index">${historyPage*200+i+1}</th><td class="sheet-code sheet-barcode">${esc(e.barcode||'—')}</td><td class="sheet-code sheet-sku">${esc(e.sku||'—')}</td>`}<td class="sheet-name" title="${esc(e.name)}">${esc(e.name)}${e.code&&e.code!==e.barcode&&e.code!==e.sku?'<small class="original-input">'+esc((language==='en'?'Input: ':'입력: ')+e.code)+'</small>':''}</td><td class="sheet-qty"><b>${e.qty.toLocaleString()}</b><small>EA</small></td><td class="sheet-time"><time datetime="${esc(validDate?e.at:'')}" title="${esc(validDate?date.toString():(language==='en'?'Timestamp unavailable':'입력 시각 확인 필요'))}"><span>${esc(time)}</span><small>${esc(validDate?activityDateLabel(date):'—')}</small></time>${e.priorWork?'<small>'+esc(tr('이전 작업'))+'</small>':''}</td><td class="sheet-status" data-cell-state="${visual.kind}" title="${esc(visual.label)}" aria-label="${esc(visual.label)}"><span class="status-symbol" aria-hidden="true">${visual.symbol}</span>${(e.held||e.reallocatable)&&!e.priorWork?'<button type="button" class="assign-entry" data-assign-event="'+esc(e.id)+'" aria-haspopup="dialog" aria-label="'+esc(e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr('이 입력을 ASN에 배정'))+'" title="'+esc(e.canAssign&&e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr(e.canAssign?'이 입력을 ASN에 배정':state.receiptLocked?'검수 대상 고정을 먼저 해제해 주세요.':'배정 가능한 ASN 없음'))+'"'+(e.canAssign?'':' disabled')+'>↗</button>':''}</td></tr>`;
  }).join('')||'<tr><td colspan="'+columns.length+'" class="sheet-empty">'+esc(tr('스캔 기록이 없습니다.'))+'</td></tr>';
  return '<table class="activity-sheet'+(compact?' compact-activity':'')+'" aria-label="'+esc(tr(compact?'최근 입력 5건':'입력 기록'))+'">'+head+'<tbody>'+body+'</tbody></table>';
 }
@@ -2298,7 +2299,7 @@ function closeFileMenu(returnFocus=false){$('fileMenuPanel').hidden=true;$('file
 function openFileMenu(){$('fileMenuPanel').hidden=false;$('fileMenuButton').setAttribute('aria-expanded','true');}
 $('fileMenuButton').onclick=()=>{if($('fileMenuPanel').hidden)openFileMenu();else closeFileMenu();};
 $('fileMenuButton').onkeydown=e=>{if(e.key==='ArrowDown'){e.preventDefault();openFileMenu();$('dataLauncher').focus();}else if(e.key==='Escape'){e.preventDefault();closeFileMenu(true);}};
-$('fileMenuPanel').onkeydown=e=>{const ids=['dataLauncher','restore','save','newWork','language','helpLauncher'];const index=ids.indexOf(document.activeElement.id);if(e.key==='Escape'){e.preventDefault();closeFileMenu(true);}else if(index>=0&&['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?ids.length-1:(index+(e.key==='ArrowDown'?1:-1)+ids.length)%ids.length;$(ids[next]).focus();}};
+$('fileMenuPanel').onkeydown=e=>{const ids=['dataLauncher','restore','save','beamDriveExport','beamOneDriveExport','newWork','language','helpLauncher'].filter(id=>!$(id).hidden&&!$(id).disabled);const index=ids.indexOf(document.activeElement.id);if(e.key==='Escape'){e.preventDefault();closeFileMenu(true);}else if(index>=0&&['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?ids.length-1:(index+(e.key==='ArrowDown'?1:-1)+ids.length)%ids.length;$(ids[next]).focus();}};
 $('fileMenu').onfocusout=e=>{if(!e.relatedTarget||!$('fileMenu').contains(e.relatedTarget))closeFileMenu();};
 window.addEventListener('pointerdown',e=>{if(!$('fileMenu').contains(e.target))closeFileMenu();});
 for(const [id,dialog] of [['dataLauncher','dataDialog'],['restore',null],['save',null],['newWork','newWorkDialog'],['helpLauncher','helpDialog']]){const action=$(id).onclick;$(id).onclick=e=>{closeFileMenu(true);action(e);if(dialog&&$(dialog).open)$(dialog).returnFocus='fileMenuButton';};}
@@ -3226,3 +3227,155 @@ $('beamKeepDraft').onclick=()=>browserRecovery.replace();
 document.addEventListener('visibilitychange',()=>{if(document.hidden)void browserRecovery.flush();});
 window.addEventListener('pagehide',()=>{void browserRecovery.flush();});
 void browserRecovery.flush();
+
+/* Export is a separate trusted HTTPS origin; only a one-use MessagePort
+   crosses the boundary. The main app never loads GIS or contacts Drive. */
+(()=>{
+ const trigger=$('beamDriveExport'),status=$('beamDriveExportStatus'),link=$('beamDriveResult');
+ let origin;
+ try{
+  const value=trigger.dataset.exportOrigin,url=new URL(value);
+  if(url.origin!==value||url.protocol!=='https:'||url.origin===location.origin||location.protocol!=='https:')return;
+  origin=url.origin;
+ }catch{return;}
+ trigger.hidden=false;
+ const report=(ko,en)=>{status.textContent=beamL(ko,en);status.parentElement.hidden=false;};
+ const consent=$('beamDriveConsent'),dismiss=$('beamDriveDismiss'),proceed=$('beamDriveProceed');
+ dismiss.onclick=()=>consent.close();
+ consent.addEventListener('close',()=>$('fileMenuButton').focus({preventScroll:true}));
+ trigger.onclick=()=>{
+  closeFileMenu(true);if(trigger.disabled)return;
+  if(!state.data.raw.length){report('기준 자료를 먼저 연결하세요.','Connect reference data first.');return;}
+  consent.showModal();dismiss.focus({preventScroll:true});
+ };
+ proceed.onclick=()=>{
+  consent.close();if(trigger.disabled||!state.data.raw.length)return;
+  link.hidden=true;link.removeAttribute('href');
+  if(!globalThis.crypto?.getRandomValues||typeof MessageChannel!=='function'){
+   report('이 브라우저에서 분리된 저장 창을 연결할 수 없어요.','This browser cannot connect to the isolated export window.');return;
+  }
+  const nonce=Array.from(crypto.getRandomValues(new Uint8Array(16)),byte=>byte.toString(16).padStart(2,'0')).join('');
+  const popup=window.open(origin+'/#nonce='+nonce,'beam-drive-'+nonce,'popup,width=540,height=660');
+  if(!popup){
+   report('저장 창이 차단됐어요. 팝업을 허용하고 다시 시도하세요.','The export window was blocked. Allow popups and try again.');return;
+  }
+  let port=null,used=false,ended=false,sent=false;
+  trigger.disabled=true;
+  report('분리된 Google Drive 저장 창을 기다리는 중…','Waiting for the separate Google Drive window…');
+  const stop=()=>{
+   if(ended)return;ended=true;
+   window.removeEventListener('message',accept);
+   window.removeEventListener('pagehide',unload);
+   clearTimeout(timer);clearInterval(watch);
+   port?.close();trigger.disabled=false;
+  };
+  function unload(){if(!sent)port?.postMessage({type:'beam-drive/cancel',nonce});stop();}
+  async function accept(event){
+   if(ended||used||event.origin!==origin||event.source!==popup||event.data?.type!=='beam-drive/ready'||event.data.nonce!==nonce)return;
+   used=true;window.removeEventListener('message',accept);
+   const channel=new MessageChannel();port=channel.port1;
+   port.onmessage=e=>{
+    const message=e.data;if(ended||message?.nonce!==nonce)return;
+    const {type,id}=message;
+    if(type==='beam-drive/complete'&&sent&&typeof id==='string'&&/^[A-Za-z0-9_-]{1,180}$/.test(id)){
+     link.href='https://drive.google.com/open?id='+encodeURIComponent(id);link.hidden=false;
+     report('검수 기록을 Google Drive에 저장했어요.','Inspection records saved to Google Drive.');stop();
+    }else if(type==='beam-drive/uncertain'){
+     report('저장 결과를 확인하지 못했어요. 다시 저장하기 전에 Google Drive를 먼저 확인하세요.','Could not verify the save. Check Google Drive before trying again.');stop();
+    }else if(type==='beam-drive/failed'||type==='beam-drive/cancel'){
+     report(type==='beam-drive/cancel'?'Google Drive 저장을 취소했어요.':'Google Drive에 저장하지 못했어요. 저장 창을 확인해 주세요.',type==='beam-drive/cancel'?'Google Drive export was cancelled.':'Could not save to Google Drive. Check the export window.');stop();
+    }
+   };
+   port.start();
+   try{
+    popup.postMessage({type:'beam-drive/handoff',nonce},origin,[channel.port2]);
+    const prepared=await WorkDelta.prepareSave({compact:true});
+    if(ended)return;
+    prepared.assertCurrent();
+    const name='Beam-work-'+new Date().toISOString().replace(/\.\d+Z$/,'Z').replaceAll(':','-')+'.json';
+    port.postMessage({type:'beam-drive/payload',nonce,name,text:prepared.text});sent=true;
+    report('저장 창에서 저장할 Google 계정을 선택하세요.','Choose the Google account in the export window.');
+   }catch{
+    if(ended)return;
+    port.postMessage({type:'beam-drive/cancel',nonce});
+    report('이 작업의 검수 기록을 준비하지 못했어요. 기준 자료 연결과 작업 상태를 확인해 주세요.','Could not prepare these records. Check the reference connection and work status.');stop();
+   }
+  }
+  const timeout=()=>{
+   if(!sent)port?.postMessage({type:'beam-drive/cancel',nonce});
+   report(sent?'저장 창과 연결이 끝났어요. 다시 저장하기 전에 Google Drive를 확인하세요.':'저장 창 연결이 종료됐어요. 다시 시도해 주세요.',sent?'The export window disconnected. Check Google Drive before retrying.':'The export connection closed. Try again.');stop();
+  };
+  const timer=setTimeout(timeout,8*60_000),watch=setInterval(()=>{if(popup.closed)timeout();},700);
+  window.addEventListener('message',accept);
+  window.addEventListener('pagehide',unload,{once:true});
+ };
+})();
+
+/* Microsoft authentication is isolated. No payload before the one-shot named
+   destination confirmation message from the exact pinned exporter origin. */
+(()=>{
+ const prefix='beam-onedrive/',trigger=$('beamOneDriveExport'),status=$('beamOneDriveExportStatus');
+ if(!trigger||!status)return;
+ let origin;
+ try{
+  const u=new URL(trigger.dataset.oneDriveOrigin);
+  if(u.protocol!=='https:'||u.origin!==trigger.dataset.oneDriveOrigin||u.origin===location.origin||location.protocol!=='https:')return;
+  origin=u.origin;
+ }catch{return;}
+ trigger.hidden=false;
+ const report=(ko,en)=>{status.textContent=beamL(ko,en);status.parentElement.hidden=false;};
+ trigger.onclick=()=>{
+  closeFileMenu(true);if(trigger.disabled)return;
+  if(!state.data.raw.length){report('기준 자료를 먼저 연결하세요.','Load reference data first.');return;}
+  if(!globalThis.crypto?.getRandomValues||typeof MessageChannel!=='function'){report('분리된 저장 창을 지원하지 않는 브라우저예요.','This browser cannot open the isolated export channel.');return;}
+  const nonce=Array.from(crypto.getRandomValues(new Uint8Array(16)),byte=>byte.toString(16).padStart(2,'0')).join('');
+  const initialWork=state.currentBatch, initialData=state.data, initialNumber=state.workNumber;
+  const sameWork=()=>state.currentBatch===initialWork&&state.data===initialData&&state.workNumber===initialNumber;
+  let port,handed=false,requested=false,sent=false,ended=false,timer,watch;
+  function stop(){
+   if(ended)return;ended=true;clearTimeout(timer);clearInterval(watch);window.removeEventListener('message',accept);window.removeEventListener('pagehide',unload);port?.close();trigger.disabled=false;
+  }
+  function unload(){if(!sent)port?.postMessage({type:prefix+'cancel',nonce});stop();}
+  function timeout(){
+   if(!sent)port?.postMessage({type:prefix+'cancel',nonce});
+   if(sent)report('저장 여부를 확인하지 못했어요. 다시 시도하기 전에 OneDrive를 확인하세요.','Could not confirm the save. Check OneDrive before trying again.');
+   else report('저장 창 연결이 끝났어요. 검수 기록을 보내지 않았어요.','The export window disconnected. No inspection records were sent.');
+   stop();
+  }
+  function accept(event){
+   if(ended||handed||event.source!==popup||event.origin!==origin||event.data?.type!==prefix+'ready'||event.data.nonce!==nonce)return;
+   handed=true;window.removeEventListener('message',accept);
+   const channel=new MessageChannel();port=channel.port1;
+   port.onmessage=async ({data})=>{
+    if(ended||data?.nonce!==nonce)return;
+    if(data.type===prefix+'request'&&!requested){
+     requested=true;
+     try{
+      if(!sameWork())throw Error('work-changed');
+      const prepared=await WorkDelta.prepareSave({compact:true});
+      if(ended)return;
+      if(!sameWork())throw Error('work-changed');
+      prepared.assertCurrent();
+      port.postMessage({type:prefix+'payload',nonce,text:prepared.text});sent=true;
+      report('검수 기록을 OneDrive 저장 창에 전달했어요. 저장 결과를 기다리는 중…','Working records sent to the OneDrive window. Waiting for the result…');
+     }catch{
+      if(ended)return;port.postMessage({type:prefix+'cancel',nonce});report('작업이 바뀌었거나 검수 기록을 준비할 수 없어요. 파일을 보내지 않았어요.','The work changed or could not be prepared. No file was sent.');stop();
+     }
+    }else if(data.type===prefix+'complete'&&sent){
+     report('OneDrive에 새 검수 기록을 저장했어요.','Saved a new inspection record file to OneDrive.');stop();
+    }else if(data.type===prefix+'uncertain'&&sent)timeout();
+    else if(data.type===prefix+'failed'||data.type===prefix+'cancel'){
+     report('OneDrive 저장이 끝나지 않았어요. 저장 창과 폴더 권한을 확인해 주세요.','OneDrive did not report a completed save. Check the export window and folder access.');stop();
+    }
+   };
+   port.start();
+   try{popup.postMessage({type:prefix+'handoff',nonce},origin,[channel.port2]);}
+   catch{timeout();}
+  }
+  const popup=window.open(origin+'/#nonce='+nonce,'beam-onedrive-'+nonce,'popup,width=500,height=620');
+  if(!popup){report('저장 창이 차단됐어요. 팝업을 허용하고 다시 시도하세요.','The export window was blocked. Allow popups and try again.');return;}
+  trigger.disabled=true;report('별도 창에서 저장할 Microsoft 계정과 폴더를 확인하세요.','Confirm the Microsoft account and folder in the separate window.');
+  timer=setTimeout(timeout,8*60_000);watch=setInterval(()=>{if(popup.closed)timeout();},700);
+  window.addEventListener('message',accept);window.addEventListener('pagehide',unload,{once:true});
+ };
+})();

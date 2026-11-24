@@ -33,7 +33,24 @@ try {
   const css = await Promise.all(styles.map(readSource));
   const stylesheet = Buffer.concat(css.flatMap((data) => [data, Buffer.from('\n')]));
   const revision = createHash('sha256').update(stylesheet).digest('hex').slice(0, 12);
-  const markup = (await readSource('index.html')).toString('utf8');
+  let markup = (await readSource('index.html')).toString('utf8');
+  const driveExporter = process.env.BEAM_DRIVE_EXPORTER_ORIGIN ?? '';
+  if (driveExporter) {
+    const origin = new URL(driveExporter);
+    const appOrigin = new URL(process.env.BEAM_APP_ORIGIN ?? '');
+    if (origin.protocol !== 'https:' || origin.origin !== driveExporter || !/^https:\/\/[A-Za-z0-9.-]+(?::[0-9]+)?$/.test(driveExporter) || appOrigin.protocol !== 'https:' || appOrigin.origin !== process.env.BEAM_APP_ORIGIN || appOrigin.origin === origin.origin) throw Error('Beam Drive export requires distinct canonical HTTPS origins');
+    const marker = 'data-export-origin=""';
+    if (!markup.includes(marker)) throw Error('Missing Beam Drive exporter field');
+    markup = markup.replace(marker, `data-export-origin="${origin.origin}"`);
+  }
+  const oneDriveExporter = process.env.BEAM_ONEDRIVE_EXPORTER_ORIGIN ?? '';
+  if(oneDriveExporter){
+    const origin=new URL(oneDriveExporter),appValue=process.env.BEAM_APP_ORIGIN??'',appOrigin=new URL(appValue);
+    if(origin.protocol!=='https:'||origin.origin!==oneDriveExporter||!/^https:\/\/[A-Za-z0-9.-]+(?::[0-9]+)?$/.test(oneDriveExporter)||appOrigin.protocol!=='https:'||appOrigin.origin!==appValue||origin.origin===appOrigin.origin||origin.origin===driveExporter)throw Error('Beam OneDrive export requires a distinct canonical HTTPS origin');
+    const marker='data-one-drive-origin=""';
+    if(!markup.includes(marker))throw Error('Missing Beam OneDrive exporter field');
+    markup=markup.replace(marker,`data-one-drive-origin="${origin.origin}"`);
+  }
   const stylesheetHref = 'href="./app.css"';
   if (!markup.includes(stylesheetHref)) throw Error('Missing Beam stylesheet reference');
   await writeFile(join(stage, 'index.html'), markup.replace(stylesheetHref, `href="./app.css?v=${revision}"`));

@@ -3768,3 +3768,15 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
  #beamRecoveryPanel button{font-size:12px;min-height:34px}
 }
 @media print{#beamRecoveryPanel,#beamRecoverySaved{display:none!important}}
+
+@media screen{
+ #beamDriveNotice[hidden],#beamDriveResult[hidden],#beamDriveExport[hidden],#beamOneDriveNotice[hidden],#beamOneDriveExport[hidden]{display:none!important}
+ #beamDriveNotice,#beamOneDriveNotice{
+  display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;
+  width:min(calc(100% - 24px),760px);margin:6px auto 0;padding:7px 10px;
+  border-radius:8px;background:var(--beam-field,var(--surface-input));color:var(--beam-type,var(--ink));
+ }
+ #beamDriveNotice :is(span,a),#beamOneDriveNotice span{font-size:12px;overflow-wrap:anywhere}
+ #beamDriveResult{color:inherit;text-decoration:underline;text-underline-offset:.18em}
+}
+@media print{#beamDriveNotice,#beamOneDriveNotice{display:none!important}}
