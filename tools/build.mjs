@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
@@ -22,18 +22,38 @@ async function readSource(relative) {
   return readFile(file);
 }
 
+const jsSources=new Map(await Promise.all(files.filter(name=>name.endsWith('.js')).map(async name=>[name,await readSource(name)])));
+const moduleDigest=createHash('sha256');
+for(const [name,bytes] of jsSources){
+  moduleDigest.update(JSON.stringify([name,bytes.length])).update(bytes);
+}
+const moduleRevision=moduleDigest.digest('hex').slice(0,12);
+
+function versionModule(relative,bytes){
+  return bytes.toString('utf8').replace(/^(import[^\r\n]+ from ["'])(\.\.?\/[^"'?#]+)(["'];?)/gm,
+    (_,before,specifier,after)=>{
+      // Module specifiers and the manifest use URL slash semantics on every OS.
+      const target=posix.normalize(posix.join(posix.dirname(relative),specifier));
+      if(!jsSources.has(target))throw Error('Missing local module: '+specifier);
+      return before+specifier+'?v='+moduleRevision+after;
+    });
+}
+
 const stage = await mkdtemp(join(root, '.beam-dist-'));
 try {
   for (const relative of files) {
     if (relative === 'index.html') continue;
     const file = join(stage, relative);
     await mkdir(dirname(file), { recursive: true });
-    await writeFile(file, await readSource(relative));
+    await writeFile(file, jsSources.has(relative) ? versionModule(relative,jsSources.get(relative)) : await readSource(relative));
   }
   const css = await Promise.all(styles.map(readSource));
   const stylesheet = Buffer.concat(css.flatMap((data) => [data, Buffer.from('\n')]));
   const revision = createHash('sha256').update(stylesheet).digest('hex').slice(0, 12);
   let markup = (await readSource('index.html')).toString('utf8');
+  const entryScript='src="./app.js"';
+  if(!markup.includes(entryScript))throw Error('Missing Beam entry script');
+  markup=markup.replace(entryScript,`src="./app.js?v=${moduleRevision}"`);
   const driveExporter = process.env.BEAM_DRIVE_EXPORTER_ORIGIN ?? '';
   if (driveExporter) {
     const origin = new URL(driveExporter);
