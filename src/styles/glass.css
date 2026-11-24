@@ -347,3 +347,12 @@
   }
  }
 }
+
+@layer beam-console {
+ html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressBar::-webkit-progress-value {background:var(--excess-ink)!important}
+ html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressBar::-moz-progress-bar {background:var(--excess-ink)!important}
+ html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressStatus {color:var(--excess-ink)!important}
+ html[data-theme] body #sheetWorkspace .activity-sheet .sheet-status[data-cell-state="unknown"] {background:var(--warning-bg)!important;color:var(--warning-ink)!important}
+ .beam-scan-sound {display:flex;align-items:center;gap:8px;font-size:.85rem;margin-block:8px}
+ .beam-scan-sound input {inline-size:auto;margin:0}
+}

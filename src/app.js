@@ -1,10 +1,12 @@
+import { createScannerBurst } from "./domain/scanner-input.js";
+import { key, units, eventCode, matches, getIndex, invalidate, masterInfo, reconcile, asnProgress, storeMatches, inspectEntry, entryOutcome, candidateReceipts, readScanIndex, excessEntrySet } from "./domain/reconcile.js";
 import { readWorkbook as readSpreadsheet } from "./import/workbook.js";
 import { encodeReceiptCode128 } from "./domain/code128.js";
 import { trackingExactKey, trackingKey, trackingNumericCore, looksLikeTracking, beamInitialKey } from "./domain/search-keys.js";
 import { translations } from "./ui/translations.js";
 
 'use strict';
-Object.assign(translations,{'바코드 / SKU':'Barcode / SKU','바코드 또는 SKU 입력':'Enter a barcode or SKU','최근 스캔 상품 검수 진행률':'Last scanned item progress','피킹 위치 안내':'Picking location information','검수 시작':'Start inspection','위치 형식 또는 구역을 확인해 주세요':'Verify the location format or zone'});
+Object.assign(translations,{'바코드 / SKU':'Barcode / SKU','바코드 또는 SKU 입력':'Enter a barcode or SKU','최근 스캔 상품 검수 진행률':'Last scanned item progress','피킹 위치 안내':'Picking location information','검수 시작':'Start inspection'});
 /* v1.10 local content fingerprints. WebCrypto only; no authentication/signing claim.
    Format: reference-sha256-chunks-v1; maximum 256 rows per role-array chunk.
    Data is immutable by Engine's existing contract; same-length edits MUST call
@@ -173,11 +175,6 @@ function checkedCustomerNames(value,raw){
 const Engine=(()=>{
 const text=v=>String(v??'').trim();
 function parseDelimited(src,delimiter='\t'){const rows=[];let row=[],field='',quoted=false;for(let i=0;i<src.length;i++){const c=src[i];if(c==='"'){if(quoted&&src[i+1]==='"'){field+='"';i++;}else if(!field||quoted)quoted=!quoted;else field+=c;}else if(!quoted&&c===delimiter){row.push(field);field='';}else if(!quoted&&(c==='\n'||c==='\r')){if(c==='\r'&&src[i+1]==='\n')i++;row.push(field);if(row.some(v=>v!==''))rows.push(row);row=[];field='';}else field+=c;}if(quoted)throw Error('따옴표로 묶인 셀이 닫히지 않았습니다.');row.push(field);if(row.some(v=>v!==''))rows.push(row);return rows;}
-const key=r=>r.barcode?'B:'+r.barcode:r.sku?'S:'+r.sku:'U:'+r.unresolvedId;
-const units=s=>s.qty??1;
-const eventCode=s=>s.kind==='sku'?s.sku:s.barcode;
-const directMatch=(r,s)=>s.kind==='sku'?r.sku===s.sku:s.kind==='code'?(r.barcode===s.barcode||r.sku===s.barcode):r.barcode===s.barcode;
-const matches=(r,s,data=null)=>{if(directMatch(r,s))return true;if(!data||r.barcode||!r.sku||s.kind==='sku')return false;const ix=getIndex(data);if(directCandidates(ix.rawByBarcode,ix.rawBySku,s).length)return false;const info=masterInfo(data,s);return info.found&&!info.conflict&&!!info.sku&&r.sku===info.sku;};
 // Decode the stored value separately from the display format. A presentation
 // style may preserve leading zeros, but never decides a column's semantic role.
 function storedInteger(value,maxDigits){
@@ -241,62 +238,10 @@ function headerKey(v){return v==null?'':String(v);}
 function headerIndex(kind,rows,mapping){return Number.isInteger(mapping?.headerRow)?mapping.headerRow:-1;}
 function table(kind,rows,mapping){if(kind==='phoneOrders')return PhoneOrderCore.table('orders',rows,mapping);const index=mapping?.headerRow;if(!Array.isArray(rows)||!Number.isInteger(index)||index<0||index>=rows.length)throw Error('제목 행과 열 연결을 먼저 선택하세요.');const columns=MappingCore.validateColumns(kind,rows[index],mapping.columns),records=[],customerNames=Object.create(null),phoneRecords=[],importSummary={missingIdentifier:0,missingLocation:0,skuOnly:0};const channelMapped=kind==='raw'&&Object.hasOwn(columns,'returnChannel'),channelValues=channelMapped?(returnChannelValues(mapping.returnChannelValues)||{b2b:'B2B',b2c:'B2C'}):null,channelLookup=channelValues?new Map(['b2b','b2c'].flatMap(mode=>[].concat(channelValues[mode]).map(code=>[code,mode]))):null;for(let i=index+1;i<rows.length;i++){const r=rows[i];if(!r.some(v=>text(v)))continue;const get=k=>['receipt','external','barcode','sku','returnTracking'].includes(k)?identifierValue(r[columns[k]]):text(r[columns[k]]),barcode=get('barcode'),sku=get('sku');if(kind==='raw'){const receipt=get('receipt');let qty;try{qty=quantityValue(r[columns.qty]);}catch(error){throw Error((i+1)+'행: '+error.message);}if(!receipt)throw Error(`${i+1}행: 주문 식별자가 비어 있습니다.`);if(Object.hasOwn(columns,'customerPhone')){const value=r[columns.customerPhone];if(String(value??'').trim()){const phone=PhoneOrderCore.normalizePhone(value);if(phone.status!=='ok')throw Error(`${i+1}행: 고객 전화번호를 확인하세요. 7~15자리 전체 번호를 입력하거나 원본 Excel 파일을 연결하세요.`);phoneRecords.push({id:receipt,phoneKey:phone.key,phoneMask:phone.mask});}}const customer=get('customerName');if(customer){if(customer.length>4096)throw Error(`${i+1}행: 고객명은 4096자 이하여야 합니다.`);(customerNames[receipt]??=new Set()).add(customer);}records.push({receipt,barcode,sku,name:get('name'),qty,seller:get('seller')||get('company'),company:get('company'),address:get('address'),external:get('external'),returnTracking:get('returnTracking'),memo:get('memo'),...(get('date')?{date:rawReturnDay(get('date'))}:{}),...(channelMapped?{returnChannel:(v=>v?(channelLookup.get(v)||'unknown'):'')((channelValues.exact?returnChannelExact:returnChannelKey)(get('returnChannel')))}:{}),...(!barcode&&!sku?{unresolvedId:'row-'+(i+1)}:{})});}else if(kind==='sku'){if(!barcode&&!sku)throw Error(`${i+1}행: 상품 식별 정보가 비어 있습니다.`);records.push({barcode,sku,name:get('name')});}else{const loc=get('loc');if(!barcode&&!sku){importSummary.missingIdentifier++;continue;}if(!loc){importSummary.missingLocation++;continue;}if(!barcode)importSummary.skuOnly++;records.push({barcode,sku,loc,locationType:get('locationType'),zone:get('zone'),putawayZone:get('putawayZone'),warehouse:get('warehouse')});}}if(kind==='raw'){if(!Number.isSafeInteger(records.reduce((n,r)=>n+r.qty,0)))throw Error('총 예정 수량이 너무 큽니다.');const totals=new Map();for(const r of records){const k=JSON.stringify([r.receipt,key(r)]);totals.set(k,(totals.get(k)||0)+r.qty);if(!Number.isSafeInteger(totals.get(k)))throw Error('합산 예정 수량이 너무 큽니다.');}}if(kind==='raw')Object.defineProperty(records,'customerNames',{value:Object.fromEntries(Object.entries(customerNames).map(([id,names])=>[id,[...names]])),enumerable:false,configurable:true});if(kind==='raw')Object.defineProperty(records,'phoneRecords',{value:phoneRecords,enumerable:false,configurable:true});if(kind==='loc')Object.defineProperty(records,'importSummary',{value:importSummary,enumerable:false});return records;}
 
-// Index only immutable reference data. New arrays/lengths rebuild automatically;
-// deliberate same-length in-place reference edits must call Engine.invalidate(data).
-const dataIndexes=new WeakMap();
-function invalidate(data){if(data&&typeof data==='object')dataIndexes.delete(data);}
-// Read-only singleton buckets may be shared across indexes; the first append detaches.
-function addIndex(map,key,row,singleton=null){const bucket=map.get(key);if(!bucket){map.set(key,singleton||[row]);return;}if(bucket.length===1)map.set(key,[bucket[0],row]);else bucket.push(row);}
-function directCandidates(barcodes,skus,event){
- if(event.kind==='sku')return skus.get(event.sku)||[];
- if(event.kind!=='code')return barcodes.get(event.barcode)||[];
- const a=barcodes.get(event.barcode)||[],b=skus.get(event.barcode)||[];
- return !a.length?b:!b.length?a:[...new Set([...a,...b])];
-}
-function getIndex(data){
- let ix=dataIndexes.get(data);const raw=data.raw||[],sku=data.sku||[],loc=data.loc||[];
- if(ix&&ix.raw===raw&&ix.sku===sku&&ix.loc===loc&&ix.rawLength===raw.length&&ix.skuLength===sku.length&&ix.locLength===loc.length)return ix;
- ix={raw,sku,loc,rawLength:raw.length,skuLength:sku.length,locLength:loc.length,rawByReceipt:new Map(),rawByBarcode:new Map(),rawBySku:new Map(),skuByBarcode:new Map(),skuBySku:new Map(),locByBarcode:new Map(),locBySku:new Map(),hasReturnChannel:raw.some(r=>Object.hasOwn(r,'returnChannel')),returnChannels:new Map(),locations:new Map(),templates:new Map(),receiptStoreKey:new Map(),storeReceipts:new Map(),stores:new Map(),locationTypePresent:false};
- for(const r of raw){const singleton=[r];addIndex(ix.rawByReceipt,r.receipt,r,singleton);addIndex(ix.rawByBarcode,r.barcode,r,singleton);addIndex(ix.rawBySku,r.sku,r,singleton);}
- for(const r of sku){const singleton=[r];addIndex(ix.skuByBarcode,r.barcode,r,singleton);addIndex(ix.skuBySku,r.sku,r,singleton);}
- for(const r of loc){const singleton=[r];addIndex(ix.locByBarcode,r.barcode,r,singleton);addIndex(ix.locBySku,r.sku,r,singleton);if(String(r.locationType||'').trim())ix.locationTypePresent=true;const lk=r.barcode?'B:'+r.barcode:r.sku?'S:'+r.sku:'';if(!lk||!r.loc)continue;for(const id of new Set([lk,r.sku?'S:'+r.sku:''].filter(Boolean))){if(!ix.locations.has(id))ix.locations.set(id,new Set());ix.locations.get(id).add(r.loc);}}
- for(const [receipt,rows]of ix.rawByReceipt){if(ix.hasReturnChannel){let channel='';for(const r of rows){const v=r.returnChannel;if(!v)continue;if(!['b2b','b2c'].includes(v)||(channel&&channel!==v)){channel='';break;}channel=v;}if(channel)ix.returnChannels.set(receipt,channel);}const keys=new Set(rows.map(r=>JSON.stringify([r.seller||r.company||'',r.company||'',r.address||''])));const storeKey=keys.size===1&&rows.some(r=>r.seller||r.company)?[...keys][0]:'';ix.receiptStoreKey.set(receipt,storeKey);if(storeKey){addIndex(ix.storeReceipts,storeKey,receipt);if(!ix.stores.has(storeKey)){const [name,company,address]=JSON.parse(storeKey);ix.stores.set(storeKey,{name,company,address});}}}
- dataIndexes.set(data,ix);return ix;
-}
-function masterInfo(data,event){
- const ix=getIndex(data),masterCandidates=directCandidates(ix.skuByBarcode,ix.skuBySku,event),candidates=masterCandidates.length?masterCandidates:directCandidates(ix.rawByBarcode,ix.rawBySku,event);
- const skus=new Set(),names=new Set(),keys=event.kind==='code'?new Set():null;
- for(const r of candidates){if(r.sku)skus.add(r.sku);if(r.name)names.add(r.name);if(keys)keys.add(key(r));}
- const conflict=skus.size>1||names.size>1||(keys&&keys.size>1)||false;
- return {found:!!candidates.length,conflict,sku:!conflict&&skus.size===1?[...skus][0]:'',name:!conflict&&names.size===1?[...names][0]:''};
-}
-function receiptTemplate(ix,receipt){
- if(ix.templates.has(receipt))return ix.templates.get(receipt);
- const found=new Map(),raw=ix.rawByReceipt.get(receipt)||[];
- for(const [i,r]of raw.entries()){const k=key({...r,unresolvedId:r.unresolvedId||'row-'+i});if(!found.has(k))found.set(k,{...r,key:k,expected:0,actual:0,conflict:!r.barcode&&!r.sku,unresolved:!r.barcode&&!r.sku});const a=found.get(k);a.expected+=r.qty;if(!Number.isSafeInteger(a.expected))throw Error('합산 예정 수량이 너무 큽니다.');if(a.sku&&r.sku&&a.sku!==r.sku)a.conflict=true;if(a.name&&r.name&&a.name!==r.name)a.conflict=true;}
- const byBarcode=new Map(),bySku=new Map(),skuOnly=new Map();for(const r of found.values()){addIndex(byBarcode,r.barcode,r);addIndex(bySku,r.sku,r);if(!r.barcode&&r.sku)addIndex(skuOnly,r.sku,r);}
- const template={rows:[...found.values()],byBarcode,bySku,skuOnly};
- // Keep reference-sized templates only for used receipts, bounded for very fragmented imports.
- if(ix.templates.size>=2048)ix.templates.delete(ix.templates.keys().next().value);
- ix.templates.set(receipt,template);return template;
-}
-function reconcile(data,receipt,scans){
- const ix=getIndex(data),template=receiptTemplate(ix,receipt),found=new Map(template.rows.map(r=>[r.key,{...r}]));
- for(const s of scans){if(s.receipt!==receipt)continue;let possible=directCandidates(template.byBarcode,template.bySku,s);
- if(s.kind!=='sku'&&!directCandidates(ix.rawByBarcode,ix.rawBySku,s).length){const info=masterInfo(data,s);if(info.found&&!info.conflict&&info.sku){const aliases=template.skuOnly.get(info.sku)||[];if(aliases.length)possible=[...new Set([...possible,...aliases])];}}
- const k=possible.length===1?possible[0].key:(s.kind==='sku'?'M:':'X:')+eventCode(s);
- if(!found.has(k))found.set(k,{key:k,barcode:s.kind==='sku'?'':s.barcode,sku:s.kind==='sku'?s.sku:'',expected:0,actual:0,unregistered:true,matchedInAsn:possible.length>0,inputKind:s.kind||'barcode',conflict:possible.length>1});found.get(k).actual+=units(s);if(!Number.isSafeInteger(found.get(k).actual))throw Error('합산 실물 수량이 너무 큽니다.');}
- return [...found.values()].map(r=>{const master=r.unregistered&&!r.conflict?masterInfo(data,{kind:r.inputKind,barcode:r.barcode,sku:r.sku}):{conflict:false,sku:'',name:''},conflict=r.conflict||master.conflict;const locations=[...(ix.locations.get('B:'+r.barcode)||ix.locations.get('S:'+r.sku)||[])];return {...r,name:r.unregistered?(master.name||'상품 정보 없음'):(r.name||'ASN 상품명 없음'),sku:r.unregistered?(r.sku||master.sku):(r.sku||''),locations,location:locations.join(', '),missing:Math.max(0,r.expected-r.actual),excess:Math.max(0,r.actual-r.expected),status:r.unresolved?'식별자 없음':conflict?'정보 충돌':r.unregistered?'예정 외':r.expected===r.actual?'일치':r.actual>r.expected?'초과':'부족'};});
-}
-function asnProgress(data,receipt,scans,pending=[],currentBatch=''){
- const rows=reconcile(data,receipt,scans),expected=rows.reduce((n,r)=>n+r.expected,0);let actual=0,batch=0;for(const e of scans)if(e.receipt===receipt){actual+=units(e);if(currentBatch&&e.batch===currentBatch)batch+=units(e);}const unassigned=pending.reduce((n,e)=>n+units(e),0),known=!!receipt&&getIndex(data).rawByReceipt.has(receipt),exception=rows.some(r=>r.unregistered||r.unresolved||r.status==='정보 충돌'||r.excess>0),complete=known&&expected>0&&rows.length>0&&!unassigned&&rows.every(r=>r.status==='일치'&&!r.unregistered&&!r.unresolved);const covered=rows.filter(r=>!r.unregistered&&!r.unresolved&&r.status!=='정보 충돌').reduce((n,r)=>n+Math.min(Math.max(r.actual,0),r.expected),0),percent=known&&expected>0?Math.min(100,Math.floor(covered/expected*100)):null;return {expected,actual,batch,unassigned,complete,covered,percent,phase:!known?'waiting':exception||unassigned||expected===0?'warning':complete?'complete':'progress'};
-}
-function storeMatches(r,query){const normalize=x=>String(x||'').toLowerCase().replace(/\s+/g,'');const hay=normalize([r.seller,r.company,r.address].filter(Boolean).join(' '));return String(query||'').trim().split(/\s+/).filter(Boolean).every(token=>hay.includes(normalize(token)));}
-
 // Advisory only: rank expected codes by how evenly they divide active ASNs.
 // Absence is not recorded or treated as evidence; this never modifies inspection data.
 function suggest(raw,receiptIds,entered=[],limit=2){const active=new Set(receiptIds);if(active.size<2)return [];const rows=raw.filter(r=>active.has(r.receipt)),index=new Map(),proposals=new Set();for(const r of rows){if(r.qty>0&&(r.barcode||r.sku))proposals.add(r.barcode||r.sku);for(const code of new Set([r.barcode,r.sku].filter(Boolean))){if(!index.has(code))index.set(code,[]);index.get(code).push(r);}}const ranked=[];for(const code of proposals){const matched=index.get(code)||[],receipts=new Set(matched.map(r=>r.receipt));if(receipts.size===active.size||!receipts.size)continue;if(entered.some(e=>matched.some(r=>matches(r,e))))continue;const perReceipt=new Map();for(const r of matched){if(!perReceipt.has(r.receipt))perReceipt.set(r.receipt,new Set());perReceipt.get(r.receipt).add(key(r));}if([...perReceipt.values()].some(keys=>keys.size>1))continue;const skus=[...new Set(matched.map(r=>r.sku).filter(Boolean))],names=[...new Set(matched.map(r=>r.name).filter(Boolean))];if(skus.length>1||names.length>1)continue;const count=receipts.size;ranked.push({code,sku:skus[0]||'',name:names[0]||'',score:count*(active.size-count),membership:[...receipts].sort().join('\u001f')});}ranked.sort((a,b)=>b.score-a.score||a.code.localeCompare(b.code,'en'));const selected=[],seen=new Set();for(const item of ranked){if(seen.has(item.membership))continue;seen.add(item.membership);selected.push({code:item.code,sku:item.sku,name:item.name});if(selected.length>=limit)break;}return selected;}
-function validEvent(r){return r&&typeof eventCode(r)==='string'&&eventCode(r).trim()&&Number.isFinite(Date.parse(r.at))&&Number.isSafeInteger(units(r))&&units(r)>0;}
+function validEvent(r){return r&&(r.scanOutcome===undefined||['accepted','excess','unknown','conflict','held'].includes(r.scanOutcome))&&typeof eventCode(r)==='string'&&eventCode(r).trim()&&Number.isFinite(Date.parse(r.at))&&Number.isSafeInteger(units(r))&&units(r)>0;}
 function validateSession(s,{preserveIndex=false}={}){if(s?.searchMode!==undefined&&!['b2b','b2c'].includes(s.searchMode))throw Error('검색 방식 설정이 올바르지 않습니다.');if(s?.version!==1||!s.data||!Array.isArray(s.scans)||!['raw','sku','loc'].every(k=>Array.isArray(s.data[k])))throw Error('지원하지 않는 작업파일입니다.');MappingCore.checkedCustomerNames(s.customerNames,s.data.raw);for(const r of s.data.raw)if(typeof r.receipt!=='string'||!r.receipt.trim()||typeof r.barcode!=='string'||!Number.isSafeInteger(r.qty)||r.qty<0)throw Error('예정 데이터가 올바르지 않습니다.');for(const k of ['sku','loc'])for(const r of s.data[k])if(typeof r.barcode!=='string')throw Error('기준 데이터가 올바르지 않습니다.');for(const r of s.scans)if(!validEvent(r)||typeof r.receipt!=='string'||!r.receipt.trim())throw Error('검수 기록이 올바르지 않습니다.');if(s.confirmations!==undefined&&(!Array.isArray(s.confirmations)||s.confirmations.some(c=>!c||typeof c.receipt!=='string'||!c.receipt||typeof c.batch!=='string'||typeof c.signature!=='string'||(c.outcome!==undefined&&!['matched','difference'].includes(c.outcome))||!Number.isFinite(Date.parse(c.at)))))throw Error('검수 확인 기록이 올바르지 않습니다.');if(s.pending!==undefined&&!Array.isArray(s.pending))throw Error('보류 스캔 형식이 올바르지 않습니다.');for(const r of s.pending||[])if(!validEvent(r))throw Error('보류 기록이 올바르지 않습니다.');if(s.archivedScans!==undefined&&(!Array.isArray(s.archivedScans)||s.archivedScans.some(e=>!validEvent(e)||typeof e.receipt!=='string'||!e.receipt)))throw Error('이전 작업 검수 기록이 올바르지 않습니다.');if(s.archivedPending!==undefined&&(!Array.isArray(s.archivedPending)||s.archivedPending.some(e=>!validEvent(e))))throw Error('이전 작업 보류 기록이 올바르지 않습니다.');if(s.audit!==undefined){if(!Array.isArray(s.audit))throw Error('이력 형식이 올바르지 않습니다.');for(const a of s.audit)if(!a||typeof a.id!=='string'||!Number.isFinite(Date.parse(a.at))||typeof a.action!=='string'||!Array.isArray(a.events)||a.events.some(e=>!validEvent(e)))throw Error('이력 사건이 올바르지 않습니다.');}for(const kind of ['raw','sku','loc'])for(const r of s.data[kind])for(const [k,v]of Object.entries(r))if(k!=='qty'&&typeof v!=='string')throw Error('셀 값은 텍스트여야 합니다.');if(s.storeSelection!==undefined&&(!s.storeSelection||typeof s.storeSelection!=='object'||Array.isArray(s.storeSelection)||!['name','company','address'].every(k=>typeof s.storeSelection[k]==='string')||!s.storeSelection.name.trim()||s.store!==s.storeSelection.name))throw Error('매장 선택 정보가 올바르지 않습니다.');if(s.sources!==undefined&&(!s.sources||typeof s.sources!=='object'||Array.isArray(s.sources)))throw Error('출처 형식이 올바르지 않습니다.');if(s.receiptLocked!==undefined&&(typeof s.receiptLocked!=='boolean'||(s.receiptLocked&&!s.receipt)))throw Error('검수 대상 고정 상태가 올바르지 않습니다.');if(s.availabilityEnabled!==undefined&&typeof s.availabilityEnabled!=='boolean')throw Error('피킹 위치 안내 설정이 올바르지 않습니다.');if(s.autoPaused!==undefined&&typeof s.autoPaused!=='boolean')throw Error('자동 연결 상태가 올바르지 않습니다.');for(const e of [...s.scans,...(s.pending||[]),...(s.archivedPending||[]),...(s.archivedScans||[])]){if(e.holdForStore!==undefined&&(typeof e.holdForStore!=='string'||typeof e.holdOrigin!=='string'))throw Error('보류 배정 정보가 올바르지 않습니다.');if(e.allocationConfirmed!==undefined&&typeof e.allocationConfirmed!=='boolean')throw Error('배정 상태가 올바르지 않습니다.');}for(const e of [...s.scans,...(s.pending||[]),...(s.archivedPending||[]),...(s.archivedScans||[])])if(e.batch!==undefined&&typeof e.batch!=='string')throw Error('묶음 식별자가 올바르지 않습니다.');for(const k of ['receipt','store','currentBatch','assignment'])if(s[k]!==undefined&&typeof s[k]!=='string')throw Error('조회 조건이 올바르지 않습니다.');if(!Number.isSafeInteger([...s.scans,...(s.pending||[]),...(s.archivedPending||[]),...(s.archivedScans||[])].reduce((n,r)=>n+units(r),0))||!Number.isSafeInteger(s.data.raw.reduce((n,r)=>n+r.qty,0)))throw Error('총 수량이 너무 큽니다.');if(!preserveIndex)invalidate(s.data);for(const receipt of getIndex(s.data).rawByReceipt.keys())reconcile(s.data,receipt,[]);return s;}
 return {getIndex,invalidate,parseDelimited,identifierValue,quantityValue,excelDateValue,orderDateText,headerKey,headerIndex,table,masterInfo,reconcile,validateSession,key,units,eventCode,matches,storeMatches,suggest,asnProgress};})();
 if(typeof module!=='undefined')module.exports=Engine;
@@ -937,7 +882,7 @@ function syncStoreDisplay(){
  input.value=state.store||resolvedStoreName();
 }
 function matchesStore(r){const selected=state.storeSelection;if(selected&&state.store===selected.name)return (r.seller||r.company||'')===selected.name&&(r.company||'')===selected.company&&(r.address||'')===selected.address;return Engine.storeMatches(r,state.store);}
-function drawAsnProgress(){const p=Engine.asnProgress(state.data,state.receipt,state.scans,state.pending||[],state.currentBatch||'');$('asnProgress').setAttribute('data-phase',p.phase);setUI('asnProgressStatus',p.phase==='waiting'?(state.receipt?'ASN 기준 데이터 없음':'ASN 선택 필요'):isInspectionConfirmed()?'✓ ASN 검수 완료':p.complete?'ASN 수량 일치 · 컨펌 대기':p.phase==='warning'?'! ASN 확인 필요':'… ASN 검수 진행',false,false);$('asnProgressCount').textContent=state.receipt?tr('실물')+' '+p.actual.toLocaleString()+' / '+tr('예정')+' '+p.expected.toLocaleString()+' EA':'— / —';setUI('asnProgressScope',(state.receipt?'ASN '+state.receipt+' · ':'')+'현재 ASN 전체 · 실물 / Expected quantity',false,true);$('asnProgressCount').setAttribute('aria-label',$('asnProgressScope').textContent+' · '+$('asnProgressCount').textContent+' EA');$('asnProgressCount').setAttribute('title',$('asnProgressScope').textContent+' · EA');$('asnProgressBar').value=p.percent??0;$('asnProgressBar').setAttribute('aria-valuetext',p.percent===null?tr('진행률 계산 전'):p.covered+' / '+p.expected+' · '+p.percent+'%');$('asnCoverage').textContent=p.percent===null?tr('진행률 계산 전'):tr('예정 수량 확인')+' '+p.percent+'%';$('asnBatchCount').textContent=tr('현재 묶음')+' '+p.batch.toLocaleString()+' · '+tr('미배정 입력')+' '+p.unassigned.toLocaleString();$('mobileBatchCount').textContent=$('asnBatchCount').textContent;}
+function drawAsnProgress(){const p=Engine.asnProgress(state.data,state.receipt,state.scans,state.pending||[],state.currentBatch||'');$('asnProgress').setAttribute('data-phase',p.phase);setUI('asnProgressStatus',p.phase==='waiting'?(state.receipt?'ASN 기준 데이터 없음':'ASN 선택 필요'):isInspectionConfirmed()?'✓ ASN 검수 완료':p.complete?'ASN 수량 일치 · 완료 대기':p.phase==='excess'?'! ASN 수량 초과':p.phase==='warning'?'! ASN 확인 필요':'… ASN 검수 진행',false,false);$('asnProgressCount').textContent=state.receipt?tr('실물')+' '+p.actual.toLocaleString()+' / '+tr('예정')+' '+p.expected.toLocaleString()+' EA':'— / —';setUI('asnProgressScope',(state.receipt?'ASN '+state.receipt+' · ':'')+'현재 ASN 전체 · 실물 / Expected quantity',false,true);$('asnProgressCount').setAttribute('aria-label',$('asnProgressScope').textContent+' · '+$('asnProgressCount').textContent+' EA');$('asnProgressCount').setAttribute('title',$('asnProgressScope').textContent+' · EA');$('asnProgressBar').value=Math.min(100,p.percent??0);$('asnProgressBar').setAttribute('aria-valuetext',p.percent===null?tr('진행률 계산 전'):(p.excess?'+'+p.excess+' EA · ':p.covered+' / '+p.expected+' · ')+p.percent+'%');$('asnCoverage').textContent=p.percent===null?tr('진행률 계산 전'):(p.percent>100?(language==='en'?'Actual vs expected':'실물 / 예정'):tr('예정 수량 확인'))+' '+p.percent+'%';$('asnBatchCount').textContent=tr('현재 묶음')+' '+p.batch.toLocaleString()+' · '+tr('미배정 입력')+' '+p.unassigned.toLocaleString();$('mobileBatchCount').textContent=$('asnBatchCount').textContent;}
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const makeId=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
 let lastBarcode='',receiptIds=[];
@@ -1062,12 +1007,89 @@ function storeReceiptCandidates(){
 function matchesReference(r,event){return Engine.matches(r,event,state.data);}
 function getCandidates(){let list=storeReceiptCandidates();for(const scan of (state.pending||[]).filter(e=>!e.holdForStore))list=list.filter(id=>rawRows(id).some(r=>matchesReference(r,scan)));return list;}
 function drawSuggestions(){const selected=state.storeSelection;const eligible=!isB2C()&&!state.receipt&&!state.autoPaused&&!!selected?.name&&selected.name===state.store;const ids=eligible?getCandidates():[],show=ids.length>1;$('scanSuggestions').classList.toggle('hidden',!show);if(!show){$('suggestedProducts').innerHTML='';return;}const items=Engine.suggest(state.data.raw,ids,state.pending||[],2);$('suggestionHeading').textContent=tr(items.length?'이 상품이 있으면 먼저 스캔해 보세요':'ASN을 직접 선택해 주세요');$('suggestionNote').textContent=tr(items.length?'아직 검수하지 않은 실물이 있을 때만 스캔하세요.':'먼저 스캔할 상품을 찾지 못했습니다. 입력 기록은 유지됩니다.');$('suggestedProducts').innerHTML=items.map(item=>`<li><span class="suggest-name">${esc(item.name||tr('상품명 없음'))}</span><span class="suggest-code">${esc(item.code)}</span>${item.sku&&item.sku!==item.code?`<span class="suggest-sku">SKU ${esc(item.sku)}</span>`:''}</li>`).join('');}
-function draw(){renderReadCache=new Map();try{enforceActiveMode();syncSearchMode();referenceFingerprintState();const namesIncluded=!!Object.keys(state.customerNames||{}).length;$('save').title=namesIncluded?(language==='en'?'Save local work file, including customer lookup names':'작업파일 저장 · 고객명 조회 자료 포함'):(language==='en'?'Save local work file':'작업파일 저장');$('save').title+=(language==='en'?' · Up to 50 MB':' · 최대 50MB');$('save').setAttribute('aria-label',$('save').title);closeOrderInfo();syncAvailabilitySetting();endQuestPeek();if($('receiptBarcodeDialog')?.open)$('receiptBarcodeDialog').close();invalidateConfirmations();closeDiscrepancyPreview();$('confirmationText').value='';$('copyConfirmation').disabled=true;const receipts=modeReceiptIds();receiptIds=(!isB2C()&&state.store?.trim()?storeReceiptCandidates():receipts).filter(workReceiptGate());$('receipt').value=receiptDisplay(state.receipt);$('receipt').setAttribute('aria-invalid','false');syncStoreDisplay();drawWorkTabs();const yes=!!state.receipt;for(const id of ['barcode','scanbutton','print','reset'])$(id).disabled=!yes;$('barcode').disabled=!receipts.length;$('scanbutton').disabled=!receipts.length;$('sources').innerHTML=['raw','loc','sku'].map((k,i)=>`<div class="source"><span>${['반품 예정 자료','위치 자료','상품 자료'][i]}</span><span>${state.data[k].length.toLocaleString()} ${tr('행')}</span></div>`).join('');const rows=reconcileView(state.data,state.receipt,state.scans),scans=state.scans.filter(s=>s.receipt===state.receipt),meta=rawRows(state.receipt);setUI('subtitle',yes?'바코드를 입력하면 실물 수량이 1개씩 쌓입니다.':'기준 데이터를 넣고 ASN을 선택하면 검수를 시작합니다.',false,false);const externalRefs=[...new Set(meta.map(r=>r.external).filter(Boolean))];$('externalRef').textContent=receiptIdentityLabel(yes?state.receipt:'');$('selectedInternalLabel').textContent='External order ID';$('selectedExternalKey').hidden=!yes;$('selectedExternalKey').textContent=yes&&!receiptDisplay(state.receipt)?(language==='en'?'External key missing or ambiguous':'외부 키 없음 또는 복수 값 · 확인 필요'):'';$('receiptBarcode').disabled=!receiptBarcodeValue();drawOverviewTracking(meta);const sum=k=>rows.reduce((n,r)=>n+r[k],0);$('expected').textContent=sum('expected').toLocaleString();$('actual').textContent=scans.reduce((n,s)=>n+Engine.units(s),0).toLocaleString();const expectedTypes=rows.filter(r=>!r.unregistered&&r.expected>0),confirmedTypes=expectedTypes.filter(r=>r.status==='일치'&&!r.unresolved);$('normal').textContent=confirmedTypes.reduce((n,r)=>n+r.actual,0).toLocaleString();$('normalTypes').textContent=tr('정상 확인')+' '+confirmedTypes.length.toLocaleString()+' SKU';$('normalTypes').title=confirmedTypes.length+' / '+expectedTypes.length+' SKU';$('normalUnit').textContent='EA';drawWorkUnverified();drawOrderWorkspace();$('missing').textContent=sum('missing').toLocaleString();$('excess').textContent=rows.filter(r=>!r.unregistered).reduce((n,r)=>n+r.excess,0).toLocaleString();for(const id of ['normal','unregistered','expected','actual','missing','excess'])$(id).classList.toggle('quiet',$(id).textContent==='0');const comparison=currentOrderComparison(rows),filtered=sortProductRows(comparison.filter(r=>$('filter').value==='all'||($('filter').value==='ok'?r.status==='일치':r.status!=='일치')));setUI('rowcount',` · ${rows.length}개 바코드 / 일치 ${rows.filter(r=>r.status==='일치').length}개`,false,false);const pageKey=state.receipt+'|'+$('filter').value;if(resultPageKey!==pageKey){resultPage=0;resultPageKey=pageKey;}resultPage=Math.min(resultPage,Math.max(0,Math.ceil(filtered.length/200)-1));$('resultPager').hidden=filtered.length<=200;$('resultPrev').disabled=resultPage===0;$('resultNext').disabled=(resultPage+1)*200>=filtered.length;$('resultPageLabel').textContent=(filtered.length?(resultPage*200+1)+'–'+Math.min(filtered.length,(resultPage+1)*200):'0')+' / '+filtered.length;
-$('rows').innerHTML=($('results').open?filtered.slice(resultPage*200,(resultPage+1)*200):[]).map(r=>`<tr data-quantity-state="${r.missing>0?'shortage':r.excess>0||r.unregistered?'excess':''}"><td><span class="badge ${r.status==='일치'?'ok':['정보 충돌','예정 외','식별자 없음'].includes(r.status)?'bad':''}">${esc(tr(r.status==='예정 외'?'WMS 확인 불가':r.status))}</span>${r.heldDisplay?'<small class="comparison-held">'+esc(language==='en'?'Includes held input':'보류 입력 포함')+'</small>':''}</td><td class="mono">${esc(r.barcode)}<div class="small">${esc(r.sku)}</div></td><td class="name">${esc(uiData(r.name))}${pickingLocationLine(r)}</td>${['expected','actual'].map(k=>`<td class="num">${r[k].toLocaleString()}</td>`).join('')}<td class="num">${r.actual-r.expected>0?'+':''}${(r.actual-r.expected).toLocaleString()}</td></tr>`).join('');$('empty').style.display=filtered.length?'none':'block';setUI('empty',yes?'<strong>이 조건에 해당하는 항목이 없습니다.</strong>전체 필터에서 다시 확인하세요.':'<strong>검수할 ASN을 기다리고 있어요.</strong>Settings에서 기준 데이터를 불러와 주세요.',true,false);syncSheetView();drawLast(rows);drawScanActivity(rows);drawSkuQuest(rows);drawLastScanned(rows);drawSuggestions();drawAsnProgress();updateConfirmButton();drawTargetLock();updateDataRows();drawAllocationHint();drawAsnNavigation();PhoneOrderUI.sync();}finally{renderReadCache=null;}}
+function setMarkup(id,html){const el=$(id);if(el.innerHTML!==html)el.innerHTML=html;}
+function drawWorkspaceContext(){
+ enforceActiveMode();syncSearchMode();referenceFingerprintState();
+ const hasCustomerNames=!!Object.keys(state.customerNames||{}).length;
+ const button=$('save');
+ button.title=hasCustomerNames
+  ?(language==='en'?'Save work file, including customer names':'작업파일 저장 · 고객명 포함')
+  :(language==='en'?'Save work file':'작업파일 저장');
+ button.title+=(language==='en'?' · Up to 50 MB':' · 최대 50MB');
+ button.setAttribute('aria-label',button.title);
+ closeOrderInfo();syncAvailabilitySetting();endQuestPeek();
+ if($('receiptBarcodeDialog')?.open)$('receiptBarcodeDialog').close();
+ closeDiscrepancyPreview();$('confirmationText').value='';$('copyConfirmation').disabled=true;
+ const receipts=modeReceiptIds();
+ receiptIds=(!isB2C()&&state.store?.trim()?storeReceiptCandidates():receipts).filter(workReceiptGate());
+ const selected=!!state.receipt;
+ $('receipt').value=receiptDisplay(state.receipt);$('receipt').setAttribute('aria-invalid','false');
+ syncStoreDisplay();drawWorkTabs();
+ $('print').disabled=$('reset').disabled=!selected;
+ $('barcode').disabled=$('scanbutton').disabled=!receipts.length;
+ const sources=['반품 예정 자료','위치 자료','상품 자료'];
+ setMarkup('sources',['raw','loc','sku'].map((key,i)=>`<div class="source"><span>${tr(sources[i])}</span><span>${state.data[key].length.toLocaleString()} ${tr('행')}</span></div>`).join(''));
+ setUI('subtitle',selected?'바코드를 입력하면 실물 수량이 1개씩 쌓입니다.':'기준 데이터를 넣고 ASN을 선택하면 검수를 시작합니다.',false,false);
+ $('externalRef').textContent=receiptIdentityLabel(state.receipt);
+ $('selectedInternalLabel').textContent=language==='en'?'External order ID':'외부 주문 번호';
+ const external=$('selectedExternalKey');
+ external.hidden=!selected;
+ external.textContent=selected&&!receiptDisplay(state.receipt)?(language==='en'?'External order number missing or ambiguous':'외부 주문 번호를 확인하세요.'): '';
+ $('receiptBarcode').disabled=!receiptBarcodeValue();
+ drawOverviewTracking(rawRows(state.receipt));
+}
+function drawInspectionTotals(rows){
+ const totals={expected:0,actual:0,missing:0,excess:0,matched:0,matchedTypes:0,types:0};
+ for(const r of rows){
+  totals.expected+=r.expected;totals.actual+=r.actual;totals.missing+=r.missing;
+  if(r.unregistered)continue;
+  totals.excess+=r.excess;
+  if(r.expected<=0)continue;
+  totals.types++;
+  if(r.status==='일치'&&!r.unresolved){totals.matched+=r.actual;totals.matchedTypes++;}
+ }
+ for(const key of ['expected','actual','missing','excess'])$(key).textContent=totals[key].toLocaleString();
+ $('normal').textContent=totals.matched.toLocaleString();
+ $('normalTypes').textContent=tr('정상 확인')+' '+totals.matchedTypes.toLocaleString()+' SKU';
+ $('normalTypes').title=totals.matchedTypes+' / '+totals.types+' SKU';
+ $('normalUnit').textContent='EA';
+ drawWorkUnverified();
+ for(const id of ['normal','unregistered','expected','actual','missing','excess'])$(id).classList.toggle('quiet',$(id).textContent==='0');
+}
+function drawComparison(rows){
+ const filter=$('filter').value;
+ const comparison=currentOrderComparison(rows);
+ const filtered=comparison.filter(r=>filter==='all'||(filter==='ok'?r.status==='일치':r.status!=='일치'));
+ setUI('rowcount',` · ${rows.length}개 바코드 / 일치 ${rows.filter(r=>r.status==='일치').length}개`,false,false);
+ const pageKey=state.receipt+'|'+filter;
+ if(resultPageKey!==pageKey){resultPage=0;resultPageKey=pageKey;}
+ resultPage=Math.min(resultPage,Math.max(0,Math.ceil(filtered.length/200)-1));
+ $('resultPager').hidden=filtered.length<=200;
+ $('resultPrev').disabled=resultPage===0;$('resultNext').disabled=(resultPage+1)*200>=filtered.length;
+ $('resultPageLabel').textContent=(filtered.length?(resultPage*200+1)+'–'+Math.min(filtered.length,(resultPage+1)*200):'0')+' / '+filtered.length;
+ const visible=$('results').open?sortProductRows(filtered).slice(resultPage*200,(resultPage+1)*200):[];
+ setMarkup('rows',visible.map(r=>`<tr data-quantity-state="${r.missing>0?'shortage':r.unregistered?'unexpected':r.excess>0?'excess':''}"><td><span class="badge ${r.status==='일치'?'ok':['정보 충돌','예정 외','식별자 없음'].includes(r.status)?'bad':''}">${esc((r.status==='예정 외'?(language==='en'?'Not on this ASN':'현재 ASN에 없음'):tr(r.status)))}</span>${r.heldDisplay?'<small class="comparison-held">'+esc(language==='en'?'Includes held input':'보류 입력 포함')+'</small>':''}</td><td class="mono">${esc(r.barcode)}<div class="small">${esc(r.sku)}</div></td><td class="name">${esc(uiData(r.name))}${pickingLocationLine(r)}</td>${['expected','actual'].map(k=>`<td class="num">${r[k].toLocaleString()}</td>`).join('')}<td class="num">${r.actual-r.expected>0?'+':''}${(r.actual-r.expected).toLocaleString()}</td></tr>`).join(''));
+ $('empty').style.display=filtered.length?'none':'block';
+ setUI('empty',state.receipt?'<strong>이 조건에 해당하는 항목이 없습니다.</strong>전체 필터에서 다시 확인하세요.':'<strong>검수할 ASN을 기다리고 있어요.</strong>설정에서 기준 데이터를 불러와 주세요.',true,false);
+}
+function draw(scanOnly=false){
+ scanOnly=scanOnly===true;
+ renderReadCache=new Map();
+ try{
+  invalidateConfirmations();
+  if(!scanOnly)drawWorkspaceContext();
+  const rows=reconcileView(state.data,state.receipt,state.scans);
+  drawInspectionTotals(rows);
+  if(!scanOnly)drawOrderWorkspace();
+  drawComparison(rows);syncSheetView();drawLast(rows);drawScanActivity(rows);drawSkuQuest(rows);drawLastScanned(rows);
+  drawAsnProgress();updateConfirmButton();drawAllocationHint();drawAsnNavigation();
+  if(!scanOnly){drawSuggestions();drawTargetLock();updateDataRows();PhoneOrderUI.sync();}
+ }finally{renderReadCache=null;}
+}
 function locationMarkup(r){if(!r)return '';const info=pickingLocationData(r);if(info.reason)return esc(tr(info.reason));return info.groups.map(({zone,locs})=>`<div class="loc-entry">${zone?`<span class="loc-zone"><span class="loc-zone-label">${esc(tr('구역'))}</span> ${esc(zone)}</span>`:''}${locs.map(full=>`<span class="loc-full">${esc(language==='en'?'Picking location':'피킹 위치')} ${esc(full)}</span>`).join('')}</div>`).join('')+(info.missingType?'<small>'+esc(language==='en'?'Some location types need verification':'일부 위치 유형 확인 필요')+'</small>':'');}
 function phase(name){for(const key of ['progress','complete','warning','excess'])$('scanresult').classList.toggle('state-'+key,key===name);}
 function showDifference(value,label){$('remaining').textContent=value;$('remaining').setAttribute('aria-label',label);}
-function drawLast(rows){$('scanresult').setAttribute('data-quantity-state','');if(!state.receipt&&sheetEvents().length){phase(getCandidates().length?'progress':'warning');const last=latestSheetEvent(),rawMatches=state.data.raw.filter(x=>modeAllowsReceipt(x.receipt)&&matchesStore(x)&&matchesReference(x,last)),master=Engine.masterInfo(state.data,last),matches=rawMatches.length?rawMatches:[],skuNames=matches.length?[...new Set(matches.map(x=>x.sku).filter(Boolean))]:[master.sku].filter(Boolean),names=matches.length?[...new Set(matches.map(x=>x.name).filter(Boolean))]:[master.name].filter(Boolean);setUI('lastsku',(skuNames.length>1||(!rawMatches.length&&master.conflict))?'SKU 정보 충돌':skuNames[0]||(last.kind==='sku'?last.sku:'SKU 확인 필요'),false,true);setUI('lastname',(names.length>1||(!rawMatches.length&&master.conflict))?'상품명 확인 필요':names[0]||'상품 정보 없음',false,true);setUI('lastbarcode',Engine.eventCode(last)+(last.kind==='sku'?' · 수동 SKU':''),false,true);setUI('laststatus',state.autoPaused?'ASN을 선택해 주세요':getCandidates().length?'상품을 더 스캔해 주세요':'상품과 매장을 확인해 주세요',false,false);setUI('location','',false,true);setUI('itemdelta','',false,false);showDifference('—',tr('입력 기록 유지'));setUI('remaininglabel','입력 기록 유지',false,false);setUI('lastcount',`입력 ${(state.pending||[]).reduce((n,s)=>n+Engine.units(s),0)}개`,false,false);return;}const r=rows.find(x=>x.key===lastBarcode||x.barcode===lastBarcode);setUI('lastsku',r?(r.sku||'SKU 정보 없음'):'—',false,true);setUI('lastname',r?r.name:'',false,true);setUI('lastbarcode',r?r.barcode:'',false,true);setUI('laststatus',r?(r.unregistered&&!r.matchedInAsn?'WMS 확인 불가':'ASN 포함')+' · '+(r.status==='일치'?'✓ 수량 일치':r.status==='정보 충돌'?'! 정보 충돌':r.status==='식별자 없음'?'! 식별자 없음':r.unregistered?'! DO 미등록':r.actual>r.expected?'↑ 과입고':'… 검수 진행 · 부족') :'상품을 스캔해 주세요',false,false);const unsure=r&&(r.status==='정보 충돌'||r.status==='식별자 없음');$('scanresult').setAttribute('data-quantity-state',!r||unsure?'':r.unregistered?'unexpected':r.actual<r.expected?'shortage':r.actual>r.expected?'excess':'matched');phase(!r?'':unsure||r.unregistered?'warning':r.actual>r.expected?'excess':r.actual===r.expected?'complete':'progress');const delta=r?r.actual-r.expected:0;const matched=!!r&&!unsure&&!r.unregistered&&delta===0;const difference=r?(unsure?tr('확인'):delta>0?'+'+delta:delta):'—';showDifference(matched?'✓':difference,matched?tr('전산 · 실물 일치'):tr('실물 − 예정')+' '+difference);setUI('remaininglabel',!r?'실물 − 예정':unsure?'기준 정보 확인 필요':r?.unregistered?'ASN 미포함 수량':delta<0?'부족 수량':delta>0?'초과 수량':'전산 · 실물 일치',false,false);setUI('lastcount',r?`실물 ${r.actual} / 전산 수량 ${r.expected}`:'',false,false);$('location').innerHTML=locationMarkup(r);setUI('itemdelta',r?'차이 '+(r.actual-r.expected>0?'+':'')+(r.actual-r.expected):'',false,false);}
+function drawLast(rows){$('scanresult').setAttribute('data-quantity-state','');if(!state.receipt&&sheetEvents().length){phase(getCandidates().length?'progress':'warning');const last=latestSheetEvent(),rawMatches=state.data.raw.filter(x=>modeAllowsReceipt(x.receipt)&&matchesStore(x)&&matchesReference(x,last)),master=Engine.masterInfo(state.data,last),matches=rawMatches.length?rawMatches:[],skuNames=matches.length?[...new Set(matches.map(x=>x.sku).filter(Boolean))]:[master.sku].filter(Boolean),names=matches.length?[...new Set(matches.map(x=>x.name).filter(Boolean))]:[master.name].filter(Boolean);setUI('lastsku',(skuNames.length>1||(!rawMatches.length&&master.conflict))?'SKU 정보 충돌':skuNames[0]||(last.kind==='sku'?last.sku:'SKU 확인 필요'),false,true);setUI('lastname',(names.length>1||(!rawMatches.length&&master.conflict))?'상품명 확인 필요':names[0]||'상품 정보 없음',false,true);setUI('lastbarcode',Engine.eventCode(last)+(last.kind==='sku'?' · 수동 SKU':''),false,true);setUI('laststatus',state.autoPaused?'ASN을 선택해 주세요':getCandidates().length?'상품을 더 스캔해 주세요':'상품과 매장을 확인해 주세요',false,false);setUI('location','',false,true);setUI('itemdelta','',false,false);showDifference('—',tr('입력 기록 유지'));setUI('remaininglabel','입력 기록 유지',false,false);setUI('lastcount',`입력 ${(state.pending||[]).reduce((n,s)=>n+Engine.units(s),0)}개`,false,false);return;}const r=rows.find(x=>x.key===lastBarcode||x.barcode===lastBarcode);setUI('lastsku',r?(r.sku||'SKU 정보 없음'):'—',false,true);setUI('lastname',r?r.name:'',false,true);setUI('lastbarcode',r?r.barcode:'',false,true);setUI('laststatus',r?(r.unregistered&&!r.matchedInAsn?'현재 ASN에 없음':'ASN 포함')+' · '+(r.status==='일치'?'✓ 수량 일치':r.status==='정보 충돌'?'! 정보 충돌':r.status==='식별자 없음'?'! 식별자 없음':r.unregistered?'! 현재 ASN에 없음':r.actual>r.expected?'↑ 과입고':'… 검수 진행 · 부족') :'상품을 스캔해 주세요',false,false);const unsure=r&&(r.status==='정보 충돌'||r.status==='식별자 없음');$('scanresult').setAttribute('data-quantity-state',!r||unsure?'':r.unregistered?'unexpected':r.actual<r.expected?'shortage':r.actual>r.expected?'excess':'matched');phase(!r?'':unsure||r.unregistered?'warning':r.actual>r.expected?'excess':r.actual===r.expected?'complete':'progress');const delta=r?r.actual-r.expected:0;const matched=!!r&&!unsure&&!r.unregistered&&delta===0;const difference=r?(unsure?tr('확인'):delta>0?'+'+delta:delta):'—';showDifference(matched?'✓':difference,matched?tr('전산 · 실물 일치'):tr('실물 − 예정')+' '+difference);setUI('remaininglabel',!r?'실물 − 예정':unsure?'기준 정보 확인 필요':r?.unregistered?'ASN 미포함 수량':delta<0?'부족 수량':delta>0?'초과 수량':'전산 · 실물 일치',false,false);setUI('lastcount',r?`실물 ${r.actual} / 전산 수량 ${r.expected}`:'',false,false);$('location').innerHTML=locationMarkup(r);setUI('itemdelta',r?'차이 '+(r.actual-r.expected>0?'+':'')+(r.actual-r.expected):'',false,false);}
 function prepareOrderAddition(next){
  if(!next.raw||$('rawImportMode').value!=='append')return next;
  if(!next.raw.length)throw Error(language==='en'?'No order rows to add.':'추가할 예정 자료 행이 없습니다.');
@@ -1124,7 +1146,7 @@ function dataImportError(message,pasted=false){
  if(pasted)$('paste').setAttribute('aria-invalid','true');
 }
 function lastKey(ev){const rows=reconcileView(state.data,state.receipt,state.scans),matched=rows.filter(r=>!r.unregistered&&matchesReference(r,ev));return matched.length===1?matched[0].key:(ev.kind==='sku'?'M:':'X:')+Engine.eventCode(ev);}
-function assignReceipt(id,automatic=false,keepStoreFocus=false){if(isB2C())return selectCustomerOrder(id);if(state.receiptLocked&&id!==state.receipt){notice('검수 대상 고정을 먼저 해제해 주세요.','warning');return false;}if(!workAllowsReceipt(id))return workContextWarning();let pending=(state.pending||[]).filter(e=>!e.holdForStore);const held=(state.pending||[]).filter(e=>e.holdForStore);const moving=[];if(moving.length){/* Explicit target selection re-evaluates this batch without changing its scanned content. */const prior=state.receipt;audit('ASN 연결 수정',moving,prior,'변경 ASN: '+id);state.scans=state.scans.filter(e=>!moving.includes(e));pending=[...pending,...moving.map(({receipt,...e})=>e)];}/* An explicit ASN choice accepts pending scans for reconciliation, including outside-ASN items. */state.currentBatch??=makeId();audit(automatic?'ASN 자동 연결':'ASN 수동 연결',pending,id);state.receipt=id;state.assignment=automatic?'자동 연결':'수동 연결';state.autoPaused=false;for(const scan of pending)state.scans.push({...scan,receipt:id,batch:scan.batch||state.currentBatch});lastBarcode=pending.at(-1)?lastKey(pending.at(-1)):'';state.pending=held;stageOutsideScans();changed();draw();if($('message').dataset.reason==='asn-selection')notice('');setUI('feedback','ASN '+id+' · '+state.assignment,false,true);if(!keepStoreFocus)$('barcode').focus();return true;}
+function assignReceipt(id,automatic=false,keepStoreFocus=false){if(isB2C())return selectCustomerOrder(id);if(state.receiptLocked&&id!==state.receipt){notice('검수 대상 고정을 먼저 해제해 주세요.','warning');return false;}if(!workAllowsReceipt(id))return workContextWarning();let pending=(state.pending||[]).filter(e=>!e.holdForStore);const held=(state.pending||[]).filter(e=>e.holdForStore);const moving=[];if(moving.length){/* Explicit target selection re-evaluates this batch without changing its scanned content. */const prior=state.receipt;audit('ASN 연결 수정',moving,prior,'변경 ASN: '+id);state.scans=state.scans.filter(e=>!moving.includes(e));pending=[...pending,...moving.map(({receipt,...e})=>e)];}/* An explicit ASN choice accepts pending scans for reconciliation, including outside-ASN items. */state.currentBatch??=makeId();audit(automatic?'ASN 자동 연결':'ASN 수동 연결',pending,id);state.receipt=id;state.assignment=automatic?'자동 연결':'수동 연결';state.autoPaused=false;for(const scan of pending)state.scans.push({...scan,receipt:id,scanOutcome:entryOutcome(state.data,id,state.scans,scan),batch:scan.batch||state.currentBatch});lastBarcode=pending.at(-1)?lastKey(pending.at(-1)):'';state.pending=held;stageOutsideScans();changed();draw();if($('message').dataset.reason==='asn-selection')notice('');setUI('feedback','ASN '+id+' · '+state.assignment,false,true);if(!keepStoreFocus)$('barcode').focus();return true;}
 function autoAssign(keepStoreFocus=false){if(state.receiptLocked||state.receipt||state.autoPaused)return false;const ids=getCandidates();return ids.length===1?assignReceipt(ids[0],true,keepStoreFocus):false;}
 function releaseBatch(){if(state.receiptLocked){notice('검수 대상 고정을 먼저 해제해 주세요.','warning');return;}const events=state.scans.filter(e=>e.receipt===state.receipt&&e.batch&&e.batch===state.currentBatch&&!e.allocationConfirmed);if(!state.receipt)return;if(!uiConfirm('현재 묶음 '+events.reduce((n,e)=>n+Engine.units(e),0)+'개를 보류로 돌리고 ASN을 수정할까요? 이전 묶음은 유지됩니다.'))return;const old=state.receipt;audit('ASN 연결 수정',events,old,'현재 묶음을 보류로 이동');state.scans=state.scans.filter(e=>!events.includes(e));state.pending??=[];state.pending.push(...events.map(({receipt,...e})=>e));state.receipt='';state.assignment='수정 중';state.autoPaused=true;lastBarcode='';changed();draw();$('receipt').focus();};
 function commitReceipt(id){if(id&&!receiptIds.includes(id)){notice(tr('목록에서 ASN을 선택해 주세요.'),'warning');return;}if(id){if(!(isB2C()?selectCustomerOrder(id):assignReceipt(id)))draw();}else{releaseBatch();draw();}closeReceiptList();}
@@ -1208,13 +1230,84 @@ $('newreceipt').onclick=()=>{
  state.receiptLocked=!state.receiptLocked;
  audit(state.receiptLocked?'검수 대상 고정':'검수 대상 고정 해제',[],state.receipt);
  changed();draw();
- setUI('feedback',state.receiptLocked?'검수 대상 고정 · 다른 ASN 상품은 WMS 확인 불가로 표시됩니다.':'고정 해제 · ASN을 다시 선택할 수 있습니다. 기존 기록은 유지됩니다.',false,false);
+ setUI('feedback',state.receiptLocked?'다른 ASN 상품은 현재 검수에 포함되지 않은 것으로 표시됩니다.':'고정 해제 · ASN을 다시 선택할 수 있습니다. 기존 기록은 유지됩니다.',false,false);
  (state.receiptLocked?$('barcode'):$('receipt')).focus();
 };
 // Clearing unassigned entries is intentionally not exposed; use undo, allocation or New work.
 
 $('barcode').onkeydown=e=>{if(e.key==='Enter'&&(e.repeat||e.isComposing))e.preventDefault();};
-function register(ev){if(!isB2C()&&!state.receipt&&!selectedWorkStoreKey()){notice(language==='en'?'Choose the work sheet’s store before scanning.':'작업 시트의 매장을 먼저 선택해 주세요.','warning');return false;}if(!modeReceiptIds().length||state.receipt&&!modeAllowsReceipt(state.receipt))return false;if(isB2C()&&!state.receipt){notice(language==='en'?'Select an order before scanning.':'오더를 선택한 뒤 스캔해 주세요.','warning');return false;}if(!state.receiptLocked&&$('receipt').getAttribute('aria-invalid')==='true'){notice('목록에서 ASN을 선택해 주세요.','warning');return false;}const total=[...state.scans,...(state.pending||[])].reduce((n,s)=>n+Engine.units(s),0);if(!Number.isSafeInteger(total+ev.qty)){notice('합산 실물 수량이 너무 큽니다.','error');return false;}const value=Engine.eventCode(ev);if(!value||value.length>128||/[\x00-\x1f\x7f]/.test(value)){notice('식별자는 1~128자의 한 줄 텍스트여야 합니다.','error');return false;}state.currentBatch??=makeId();ev={...ev,id:makeId(),batch:state.currentBatch,at:new Date().toISOString(),sequence:[...state.scans,...(state.pending||[])].reduce((n,e)=>Math.max(n,Number.isSafeInteger(e.sequence)?e.sequence:0),0)+1};if(!state.receipt){const workStoreKey=selectedWorkStoreKey();if(workStoreKey)ev.workStoreKey=workStoreKey;state.pending??=[];state.pending.push(ev);audit(ev.kind==='sku'?'보류 수동 입력':ev.kind==='code'?'보류 통합 입력':'보류 스캔',[ev]);changed();if(!autoAssign()){draw();const candidates=getCandidates();setUI('feedback',state.autoPaused?'ASN을 선택해 주세요 · 입력 기록 유지':candidates.length?'상품을 더 스캔해 주세요 · 입력 기록 유지':'상품과 매장을 확인해 주세요 · 입력 기록 유지',false,true);}}else{ev.receipt=state.receipt;state.scans.push(ev);audit(ev.kind==='sku'?'수동 입력':ev.kind==='code'?'통합 입력':'스캔',[ev],state.receipt);lastBarcode=lastKey(ev);if(!isB2C()){stageOutsideScans();routeUniqueOrder(ev.id);}changed();draw();const r=reconcileView(state.data,state.receipt,state.scans).find(x=>x.key===lastBarcode);setUI('feedback',value+' · '+ev.qty+'개 등록 · '+(r?.status||'확인 필요')+(state.scans.some(x=>x.id===ev.id&&x.receipt!==ev.receipt)?' · 오더 자동 전환 '+(receiptDisplay(state.receipt)||state.receipt):''),false,true);}notice('');return true;}
+var scanAudio;
+function scanSoundEnabled(){try{return localStorage.getItem('beam.scanSound')!=='off';}catch{return true;}}
+function playScanFeedback(outcome){
+ if(!scanSoundEnabled())return;
+ try{
+  const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
+  scanAudio??=new Audio();
+  const play=()=>{
+   const notes=outcome==='accepted'?[900]:outcome==='excess'?[540,330]:[480,670];
+   for(const [i,pitch] of notes.entries()){
+    const at=scanAudio.currentTime+i*.09,osc=scanAudio.createOscillator(),gain=scanAudio.createGain();
+    osc.frequency.value=pitch;gain.gain.setValueAtTime(.001,at);
+    gain.gain.exponentialRampToValueAtTime(.085,at+.01);gain.gain.exponentialRampToValueAtTime(.001,at+.075);
+    osc.connect(gain);gain.connect(scanAudio.destination);osc.start(at);osc.stop(at+.08);
+    osc.onended=()=>{osc.disconnect();gain.disconnect();};
+   }
+  };
+  if(scanAudio.state==='running')play();else void scanAudio.resume().then(play,()=>{});
+ }catch{/* Audio is optional; the scan has already been recorded. */}
+}
+function register(input){
+ if(!state.receipt&&(isB2C()||!selectedWorkStoreKey())){
+  notice(isB2C()?(language==='en'?'Select an order before scanning.':'오더를 선택한 뒤 스캔해 주세요.')
+   :(language==='en'?'Select the store before scanning.':'매장을 선택한 뒤 스캔해 주세요.'),'warning');
+  return false;
+ }
+ if(!modeReceiptIds().length||(state.receipt&&!modeAllowsReceipt(state.receipt)))return false;
+ if(!state.receiptLocked&&$('receipt').getAttribute('aria-invalid')==='true'){
+  notice('목록에서 ASN을 선택해 주세요.','warning');return false;
+ }
+ const assigned=readScanIndex(state.scans),pending=state.pending??=[],held=readScanIndex(pending);
+ if(!Number.isSafeInteger(input.qty)||input.qty<1||!Number.isSafeInteger(assigned.total+held.total+input.qty)){
+  notice('입력 수량을 확인하세요.','error');return false;
+ }
+ const value=Engine.eventCode(input);
+ if(!value||value.length>128||/[\x00-\x1f\x7f]/.test(value)){
+  notice('식별자는 1~128자의 한 줄 텍스트여야 합니다.','error');return false;
+ }
+ state.currentBatch??=makeId();
+ const event={...input,id:makeId(),batch:state.currentBatch,at:new Date().toISOString(),
+  sequence:Math.max(assigned.sequence,held.sequence)+1,
+  scanOutcome:entryOutcome(state.data,state.receipt,state.scans,input)};
+ let outcome=event.scanOutcome;
+ if(!state.receipt){
+  const key=selectedWorkStoreKey();if(key)event.workStoreKey=key;
+  pending.push(event);audit('ASN 배정 대기',[event]);changed();
+  if(autoAssign())outcome=allocationEvent(event.id)?.scanOutcome||outcome;
+  else{
+   draw();
+   setUI('feedback',state.autoPaused?'ASN을 선택해 주세요 · 입력 기록 유지':
+    getCandidates().length?'상품을 더 스캔해 주세요 · 입력 기록 유지':'상품과 매장을 확인해 주세요 · 입력 기록 유지',false,true);
+  }
+ }else{
+  const origin=state.receipt;
+  event.receipt=origin;state.scans.push(event);
+  audit(event.kind==='sku'?'수동 입력':'스캔',[event],origin);
+  lastBarcode=lastKey(event);
+  let moved=false;
+  if(!isB2C()&&(outcome==='unknown'||outcome==='excess')){
+   if(outcome==='unknown')stageOutsideScans(event);
+   moved=routeUniqueOrder(event.id);
+   const final=allocationEvent(event.id);
+   outcome=final?.receipt?final.scanOutcome:'held';
+  }
+  changed();draw(!moved);
+  const r=reconcileView(state.data,state.receipt,state.scans).find(x=>x.key===lastBarcode);
+  const status=outcome==='held'?'ASN 배정 확인':r?.status||'확인 필요';
+  setUI('feedback',value+' · '+event.qty+'개 등록 · '+status+
+   (moved?' · 검수 ASN 변경 '+(receiptDisplay(state.receipt)||state.receipt):''),false,true);
+ }
+ playScanFeedback(outcome);notice('');return true;
+}
 $('scanform').onsubmit=e=>{e.preventDefault();const barcode=$('barcode').value.trim();if(!barcode)return;if(register({barcode,kind:'code',qty:1,inputSource:'unified'})){$('barcode').value='';$('barcode').focus();}};
 $('undo').onclick=()=>undoSheetEvent();
 $('reset').onclick=()=>{if(uiConfirm(`ASN ${state.receipt}의 스캔 기록만 초기화할까요? 저장된 작업파일은 바뀌지 않습니다.`)){audit('ASN 스캔 초기화',state.scans.filter(s=>s.receipt===state.receipt),state.receipt);state.scans=state.scans.filter(s=>s.receipt!==state.receipt);changed();draw();setUI('feedback','이 ASN의 스캔 기록을 초기화했습니다.',false,true);$('barcode').focus();}};
@@ -1251,9 +1344,9 @@ const WorkDelta=(()=>{
 
 
  function checkedEvents(value){
-  const stringKeys=new Set(['id','barcode','sku','kind','inputSource','at','batch','receipt','workStoreKey','holdForStore','holdOrigin']),allowed=new Set([...stringKeys,'qty','sequence','allocationConfirmed']);
+  const stringKeys=new Set(['scanOutcome','id','barcode','sku','kind','inputSource','at','batch','receipt','workStoreKey','holdForStore','holdOrigin']),allowed=new Set([...stringKeys,'qty','sequence','allocationConfirmed']);
   if(!Array.isArray(value))throw fail('입력 기록 목록 형식이 올바르지 않습니다.','Invalid entry list.');
-  for(const event of value){if(!event||typeof event!=='object'||Array.isArray(event)||Object.keys(event).some(k=>!allowed.has(k))||Object.entries(event).some(([k,v])=>stringKeys.has(k)&&typeof v!=='string')||!validTimestamp(event.at)||(event.qty!==undefined&&(!Number.isSafeInteger(event.qty)||event.qty<=0))||(event.sequence!==undefined&&(!Number.isSafeInteger(event.sequence)||event.sequence<0))||(event.allocationConfirmed!==undefined&&typeof event.allocationConfirmed!=='boolean')||(event.kind!==undefined&&!['barcode','code','sku'].includes(event.kind)))throw fail('입력 기록에 지원하지 않는 추가 정보 또는 형식이 있습니다.','Unsupported fields or values in an entry.');}
+  for(const event of value){if(!event||typeof event!=='object'||Array.isArray(event)||Object.keys(event).some(k=>!allowed.has(k))||Object.entries(event).some(([k,v])=>stringKeys.has(k)&&typeof v!=='string')||!validTimestamp(event.at)||(event.scanOutcome!==undefined&&!['accepted','excess','unknown','conflict','held'].includes(event.scanOutcome))||(event.qty!==undefined&&(!Number.isSafeInteger(event.qty)||event.qty<=0))||(event.sequence!==undefined&&(!Number.isSafeInteger(event.sequence)||event.sequence<0))||(event.allocationConfirmed!==undefined&&typeof event.allocationConfirmed!=='boolean')||(event.kind!==undefined&&!['barcode','code','sku'].includes(event.kind)))throw fail('입력 기록에 지원하지 않는 추가 정보 또는 형식이 있습니다.','Unsupported fields or values in an entry.');}
   return value;
  }
  function validateWorkSheets(work){
@@ -1428,16 +1521,17 @@ function inspectionReport(){
  const held=rows.some(r=>r.heldDisplay),sum=k=>rows.reduce((n,r)=>n+r[k],0),l=printL;
  const label=isB2C()?l('고객명','Customer'):l('매장명','Store');
  const party=isB2C()?MappingCore.checkedCustomerNames(state.customerNames,state.data.raw)[receipt]?.join(' / ')||field('seller'):field('seller');
- const data=rows.map(r=>[tr(r.status==='예정 외'?'WMS 확인 불가':r.status)+(r.heldDisplay?' · '+l('보류 포함','Incl. held'):''),[r.barcode,r.sku].filter(Boolean).join(' / '),uiData(r.name),pickingLocationExport(r),r.expected,r.actual,signedDifference(r.actual-r.expected)]);
+ const data=rows.map(r=>[(r.status==='예정 외'?(language==='en'?'Not on this ASN':'현재 ASN에 없음'):tr(r.status))+(r.heldDisplay?' · '+l('보류 포함','Incl. held'):''),[r.barcode,r.sku].filter(Boolean).join(' / '),uiData(r.name),pickingLocationExport(r),r.expected,r.actual,signedDifference(r.actual-r.expected)]);
  return printSheet(l('반품 검수 대조표','RETURN INSPECTION RECORD'),l('RETURN ASN · 현재 오더 대조 결과','RETURN ASN · SELECTED ORDER COMPARISON'),
  [[l('입고 오더 ID','Receiving order ID'),receipt],[l('외부 오더 ID','External order ID'),field('external')],[label,party],[l('회사','Company'),field('company')],[l('검수 유형','Mode'),isB2C()?'B2C':'B2B'],[l('ASN에 배정된 실물','Assigned physical units'),assigned.reduce((n,e)=>n+Engine.units(e),0)+' EA']],
- [printGrid(l('01  현재 오더 대조 결과','01  CURRENT ORDER COMPARISON'),[l('상태','Status'),'ALTSKU / SKU',l('상품명','Product'),l('피킹 위치','Picking Loc'),l('예정','Expected'),l('실물','Counted'),l('차이','Delta')],[16,21,23,19,7,7,7],data,{numeric:[4,5,6],total:[l('합계','TOTAL'),'','','',sum('expected'),sum('actual'),signedDifference(sum('actual')-sum('expected'))]})],
+ [printGrid(l('01  현재 오더 대조 결과','01  CURRENT ORDER COMPARISON'),[l('상태','Status'),l('상품 바코드 / SKU','Barcode / SKU'),l('상품명','Product'),l('피킹 위치','Picking location'),l('예정','Expected'),l('실물','Counted'),l('차이','Delta')],[16,21,23,19,7,7,7],data,{numeric:[4,5,6],total:[l('합계','TOTAL'),'','','',sum('expected'),sum('actual'),signedDifference(sum('actual')-sum('expected'))]})],
  l('현재 ASN의 전체 행을 인쇄합니다. 다른 ASN에 배정된 입력은 제외합니다.','All comparison rows of the selected ASN are printed. Entries assigned to other ASNs are excluded.')+(held?' '+l('보류 포함 행의 실물은 대조표에 표시하되, ASN 배정 수량에는 포함하지 않습니다.','Held units are shown for review but are not assigned to the ASN.'):'') ,{external:field('external'),party,quantity:sum('expected').toLocaleString()+' EA',barcode:printReceiptPda(receipt)});
 }
 function signedDifference(n){return (n>0?'+':'')+n;}
 function scanHistoryReport(){
  const l=printL,active=sheetEvents(true,'all'),audit=activeWorkAudit();
- const inputs=active.map(e=>[printLocalTime(e.at),e.receipt||e.holdOrigin||'—',Engine.eventCode(e),Engine.units(e),e.receipt?l('배정됨','Assigned'):l('보류','Held'),e.id||'—']).sort((a,b)=>a[0].localeCompare(b[0]));
+ const inferred=active.some(e=>!e.scanOutcome)?legacyScanOutcomes(active):null;
+ const inputs=active.map(e=>{const result=e.scanOutcome??inferred?.get(e);const labels={accepted:l('정상','Accepted'),excess:l('수량 초과','Excess'),unknown:l('현재 ASN에 없음','Not on this ASN'),conflict:l('상품 정보 충돌','Product data conflict'),held:l('보류','Held')};return [printLocalTime(e.at),e.receipt||e.holdOrigin||'—',Engine.eventCode(e),Engine.units(e),labels[result]||'—',e.id||'—'];}).sort((a,b)=>a[0].localeCompare(b[0]));
  const log=audit.flatMap(a=>(a.events?.length?a.events:[null]).map(e=>{return [printLocalTime(a.at),a.action||'—',a.receipt||'—',e?Engine.eventCode(e):'—',e?Engine.units(e):'',e?printLocalTime(e.at):'—',[a.note,e?.id,a.id].filter(Boolean).join(' · ')||'—'];}));
  return printSheet(l('반품 검수 스캔 이력','RETURN INSPECTION SCAN HISTORY'),l('현재 작업 · 스캔 및 변경 기록','CURRENT WORK · INPUT AND AUDIT LOG'),
  [[l('기록 범위','Scope'),workLabel(state)],[l('유효·보류 입력','Retained inputs'),active.length],[l('변경 사건','Audit events'),audit.length],[l('시간 기준','Time basis'),Intl.DateTimeFormat().resolvedOptions().timeZone||'local']],
@@ -1487,11 +1581,11 @@ function confirmInspection(skipPending=false,summaryOnly=false){
   if(!r.unregistered&&r.actual===r.expected)continue;
   const item=label(r),delta=r.actual-r.expected,units=n=>'[ '+n+' EA ]';
   if(r.unregistered){
-   diff.push(item+' '+units(r.actual)+' '+tr('WMS 확인 불가')+'\nWMS: '+tr('ASN 예정 없음')+' ▶ '+item+' '+units(r.actual)+' ('+tr('WMS 확인 불가')+' +'+r.actual+')');
+   diff.push(item+' '+units(r.actual)+' '+(language==='en'?'Unverified barcode':'미확인 바코드')+'\n'+(language==='en'?'Expected: ':'예정 수량: ')+tr('ASN 예정 없음')+' ▶ '+item+' '+units(r.actual)+' ('+(language==='en'?'Unverified barcode':'미확인 바코드')+' +'+r.actual+')');
    continue;
   }
   const kind=delta<0?'미입고':'과입고';
-  diff.push(item+' '+units(Math.abs(delta))+' '+tr(kind)+'\nWMS: '+item+' '+units(r.expected)+' ▶ '+item+' '+units(r.actual)+' ('+tr('전산 수량보다')+' '+(delta>0?'+':'')+delta+')');
+  diff.push(item+' '+units(Math.abs(delta))+' '+tr(kind)+'\n'+(language==='en'?'Expected: ':'예정 수량: ')+item+' '+units(r.expected)+' ▶ '+item+' '+units(r.actual)+' ('+tr('전산 수량보다')+' '+(delta>0?'+':'')+delta+')');
  }
 
  return {blocked:false,message:prefix+(diff.length?diff.join('\n\n'):tr('예정 수량과 검수 수량이 모두 일치합니다.'))};
@@ -1510,7 +1604,7 @@ function inspectionReportState(summaryOnly=false){
  if(pending.length&&summaryOnly)parts.push('pending');
  if(pending.length&&!summaryOnly){
   const storeRows=state.data.raw.filter(r=>asnStoreKey(r.receipt)===key),names=[...new Set(storeRows.map(r=>r.seller||r.company).filter(Boolean))],store=names.length===1?names[0]:(language==='en'?'Store needs verification':'매장명 확인 필요');
-  const lines=pending.map(e=>{const known=storeRows.some(r=>matchesReference(r,e));return Engine.eventCode(e)+' [ '+Engine.units(e)+' EA ] · '+(known?(language==='en'?'Order unassigned':'오더 미배정'):tr('WMS 확인 불가'));});
+  const lines=pending.map(e=>{const known=storeRows.some(r=>matchesReference(r,e));return Engine.eventCode(e)+' [ '+Engine.units(e)+' EA ] · '+(known?(language==='en'?'Order unassigned':'오더 미배정'):(language==='en'?'Unverified barcode':'미확인 바코드'));});
   parts.push((language==='en'?'Store unassigned entries: ':'매장 미배정 입력: ')+store+'\n'+(language==='en'?'Separate from selected-ASN totals; not confirmed as misdelivery.':'선택 ASN 수량 합계와 별도 · 오입고로 확정하지 않음')+'\n'+lines.join('\n')+'\n'+(language==='en'?'Unassigned total: ':'미배정 합계: ')+pending.reduce((n,e)=>n+Engine.units(e),0)+' EA');
  }
  if(!parts.length)return {blocked:true,mode:'waiting',message:language==='en'?'Select a store/order and scan a product first.':'매장 또는 오더를 선택하고 상품을 먼저 스캔해 주세요.'};
@@ -1621,9 +1715,9 @@ function updateConfirmButton(){
  $('activeAsnMark').innerHTML=record?completionMark(state.receipt):'';
  const isReport=inspectionReportState(true).mode==='report',reference=referenceFingerprintState();
  report.hidden=!isReport;
- report.textContent='ASN Report';report.setAttribute('aria-label',language==='en'?'ASN Report for active order':'현재 ASN 보고문 복사');
+ report.textContent=language==='en'?'Inspection report':'검수 보고';report.setAttribute('aria-label',language==='en'?'ASN Report for active order':'현재 ASN 보고문 복사');
  button.hidden=!!record;button.disabled=result.blocked||reference.status!=='ready';
- button.textContent='Confirm';button.setAttribute('data-mode',result.mode);
+ button.textContent=language==='en'?'Finish inspection':'검수 완료';button.setAttribute('data-mode',result.mode);
  const hint=result.blocked?result.message:reference.status!=='ready'?fingerprintReadinessMessage(reference.status):result.mode==='report'?(language==='en'?'Complete inspection with discrepancies retained':'차이 기록을 남기고 검수 완료'):(language==='en'?'Confirm matched inspection':'수량 일치 검수 완료');
  $('confirmHint').textContent=hint;button.title=hint;button.setAttribute('aria-label',hint);
  if(result.mode==='report'){button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-controls','confirmDifferenceDialog');}else{button.removeAttribute('aria-haspopup');button.removeAttribute('aria-controls');}
@@ -1641,9 +1735,29 @@ $('startNewWork').onclick=startNewWork;
 
 function workAsnNavigation(){
  const key=selectedWorkStoreKey();if(!key)return [];
- const held=[...(state.pending||[]).filter(e=>e.batch===state.currentBatch&&e.holdForStore===key),...state.scans.filter(e=>excessAllocationSource(e))];
- return sameStoreAsns(key).map(id=>{let matches=0,fit=0;const evidence=new Set();for(const e of held){const o=allocationOptions(e).find(o=>o.id===id);if(o){matches++;if(o.fits)fit++;if(o.fits){const row=reconcileView(state.data,id,state.scans).find(r=>!r.unregistered&&matchesReference(r,e));evidence.add((row?.name||Engine.eventCode(e))+' ['+Engine.eventCode(e)+'] · '+tr('잔여')+' '+o.remaining+' EA');}}}return {id,matches,fit,evidence:[...evidence]};}).sort((a,b)=>b.fit-a.fit||b.matches-a.matches||a.id.localeCompare(b.id,'en',{numeric:true}));
+ const list=sameStoreAsns(key).map(id=>({id,matches:0,fit:0,evidence:[]}));
+ const byId=new Map(list.map(item=>[item.id,item]));
+ const exceptions=[...(state.pending||[]).filter(e=>e.batch===state.currentBatch&&e.holdForStore===key),...state.scans.filter(excessAllocationSource)];
+ const groups=new Map();
+ for(const event of exceptions){
+  const signature=JSON.stringify([event.receipt,event.kind,Engine.eventCode(event),Engine.units(event)]);
+  const previous=groups.get(signature);if(previous)previous.count++;else groups.set(signature,{event,count:1});
+ }
+ for(const {event,count} of groups.values()){
+  for(const option of allocationOptions(event)){
+   const entry=byId.get(option.id);if(!entry)continue;
+   entry.matches+=count;
+   if(option.fits){
+    entry.fit+=count;
+    const {row}=inspectEntry(state.data,option.id,state.scans,event);
+    const evidence=(row?.name||Engine.eventCode(event))+' ['+Engine.eventCode(event)+'] · '+tr('잔여')+' '+option.remaining+' EA';
+    if(entry.evidence.length<5&&!entry.evidence.includes(evidence))entry.evidence.push(evidence);
+   }
+  }
+ }
+ return list.sort((a,b)=>b.fit-a.fit||b.matches-a.matches||asnOrderCollator().compare(a.id,b.id));
 }
+function asnOrderCollator(){return (asnOrderCollator.value??=new Intl.Collator('en',{numeric:true}));}
 function drawAsnNavigation(){const list=workAsnNavigation(),index=list.findIndex(o=>o.id===state.receipt),locked=!!state.receiptLocked;
  $('asnPrevious').disabled=locked||index<=0;$('asnNext').disabled=locked||!list.length||index>=list.length-1;
  $('asnPrevious').setAttribute('title',tr(locked?'고정 해제 후 ASN을 탐색할 수 있습니다.':!list.length?'선택 매장 ASN 없음':index<=0?'이전 ASN 없음':'이전 ASN'));$('asnNext').setAttribute('title',tr(locked?'고정 해제 후 ASN을 탐색할 수 있습니다.':!list.length?'선택 매장 ASN 없음':index>=list.length-1?'다음 ASN 없음':'다음 ASN'));
@@ -1664,41 +1778,20 @@ function selectedWorkStoreKey(){
  if(!state.store?.trim())return '';
  const keys=[...new Set(storeReceiptCandidates().map(asnStoreKey).filter(Boolean))];return keys.length===1?keys[0]:'';
 }
-function workUnverifiedCount(){
- const key=selectedWorkStoreKey(),batch=state.currentBatch;if(!key||!batch)return {held:0,unregistered:0,total:0};
- const seen=new Set();let held=0,unregistered=0;
- const count=(e,type)=>{if(e.id&&seen.has(e.id))return;if(e.id)seen.add(e.id);if(type==='held')held+=Engine.units(e);else unregistered+=Engine.units(e);};
- const assigned=state.scans.filter(e=>e.batch===batch&&asnStoreKey(e.receipt)===key);
- for(const id of new Set(assigned.map(e=>e.receipt))){
-  const rows=reconcileView(state.data,id,assigned);
-  for(const e of assigned.filter(e=>e.receipt===id)){const outsideKey=(e.kind==='sku'?'M:':'X:')+Engine.eventCode(e);if(rows.some(r=>r.key===outsideKey&&r.unregistered&&!r.matchedInAsn))count(e,'unregistered');}
- }
- // A stale duplicate in pending must not add to an already assigned event.
- const assignedIds=new Set(state.scans.map(e=>e.id).filter(Boolean));
- for(const e of state.pending||[])if(e.batch===batch&&e.holdForStore===key&&(!e.id||!assignedIds.has(e.id)))count(e,'held');
- return {held,unregistered,total:held+unregistered};
-}
-function workResolutionCounts(){
- const key=selectedWorkStoreKey(),batch=state.currentBatch,seen=new Set();let candidate=0,unverified=0;
- if(!key||!batch)return {candidate,unverified};
- const assigned=state.scans.filter(e=>e.batch===batch&&asnStoreKey(e.receipt)===key),assignedIds=new Set(state.scans.map(e=>e.id).filter(Boolean));
- const count=(e,possible)=>{if(e.id&&seen.has(e.id))return;if(e.id)seen.add(e.id);if(possible)candidate+=Engine.units(e);else unverified+=Engine.units(e);};
- for(const e of assigned){const rows=reconcileView(state.data,e.receipt,assigned),outsideKey=(e.kind==='sku'?'M:':'X:')+Engine.eventCode(e),outside=rows.some(r=>r.key===outsideKey&&r.unregistered&&!r.matchedInAsn);
- const possible=excessAllocationSource(e)&&allocationOptions(e).some(o=>o.fits&&o.id!==e.receipt);
- if(possible||outside)count(e,possible);
- }
- for(const e of state.pending||[])if(e.batch===batch&&e.holdForStore===key&&(!e.id||!assignedIds.has(e.id)))count(e,allocationOptions(e).some(o=>o.fits&&o.id!==(e.holdOrigin||state.receipt)));
- return {candidate,unverified};
-}
 function wmsUnverifiedEntries(){
+ if(renderReadCache?.has('wms-entries'))return renderReadCache.get('wms-entries');
  const key=selectedWorkStoreKey(),batch=state.currentBatch,seen=new Set(),items=[],assignedIds=new Set(state.scans.map(e=>e.id).filter(Boolean));
  const add=(e,held=false)=>{const token=e.id||e;if(seen.has(token))return;seen.add(token);const master=Engine.masterInfo(state.data,e);items.push({event:e,qty:Engine.units(e),name:master.name||e.name||'상품 정보 없음',sku:master.sku||e.sku||'',barcode:Engine.eventCode(e),receipt:e.receipt||'',held});};
- const outside=(e,scans)=>{const r=reconcileView(state.data,e.receipt,scans),k=(e.kind==='sku'?'M:':'X:')+Engine.eventCode(e);return r.some(x=>x.key===k&&x.unregistered&&!x.matchedInAsn);};
  // Union, never addition of two overlapping counters. Selected ASN includes saved history.
- for(const e of state.scans)if(e.receipt===state.receipt&&state.receipt&&outside(e,state.scans))add(e);
+ if(state.receipt){
+  const outside=new Set(reconcileView(state.data,state.receipt,state.scans).filter(row=>row.unregistered&&!row.matchedInAsn).map(row=>row.key));
+  if(outside.size)for(const event of readScanIndex(state.scans).byReceipt.get(state.receipt)||[]){
+   if(outside.has((event.kind==='sku'?'M:':'X:')+Engine.eventCode(event)))add(event);
+  }
+ }
  // Other assigned orders belong to their own sheets, not this counter.
- for(const e of state.pending||[]){if(!eventInCurrentMode(e)||state.receipt&&e.holdOrigin!==state.receipt)continue;const unassignedUnknown=!e.holdForStore&&(!e.workStoreKey||e.workStoreKey===key)&&!state.data.raw.some(r=>modeAllowsReceipt(r.receipt)&&asnStoreKey(r.receipt)===key&&matchesReference(r,e));if(batch&&e.batch===batch&&key&&(e.holdForStore===key||unassignedUnknown)&&(!e.id||!assignedIds.has(e.id)))add(e,true);}
- return items.filter(x=>!hasOtherAsnCandidate(x.event));
+ for(const e of state.pending||[]){if(!eventInCurrentMode(e)||state.receipt&&e.holdOrigin!==state.receipt)continue;const unassignedUnknown=!e.holdForStore&&(!e.workStoreKey||e.workStoreKey===key)&&![...candidateReceipts(state.data,e)].some(id=>modeAllowsReceipt(id)&&asnStoreKey(id)===key);if(batch&&e.batch===batch&&key&&(e.holdForStore===key||unassignedUnknown)&&(!e.id||!assignedIds.has(e.id)))add(e,true);}
+ const result=items.filter(x=>!hasOtherAsnCandidate(x.event));renderReadCache?.set('wms-entries',result);return result;
 }
 function currentOrderComparison(rows=reconcileView(state.data,state.receipt,state.scans)){
  if(!state.receipt)return rows;
@@ -1723,11 +1816,11 @@ function routeUniqueOrder(id){
  const e=allocationEvent(id);if(!e||e.batch!==state.currentBatch)return false;
  const fits=allocationOptions(e).filter(o=>o.fits);if(fits.length!==1)return false;
  const target=fits[0].id,origin=e.receipt||e.holdOrigin||state.receipt;
- const {holdForStore,holdOrigin,...original}=e,routed={...original,receipt:target,allocationConfirmed:true};
+ const {holdForStore,holdOrigin,...original}=e,routed={...original,receipt:target,scanOutcome:entryOutcome(state.data,target,state.scans,e),allocationConfirmed:true};
  const tabs=Array.isArray(state.orderTabs)?state.orderTabs:[];
  const next={...state,receipt:target,assignment:'자동 연결',autoPaused:true,orderTabs:[...new Set([...tabs,origin,target].filter(Boolean))],scans:[...state.scans.filter(x=>x.id!==id),routed],pending:(state.pending||[]).filter(x=>x.id!==id)};
  next.audit=[...(state.audit||[]),{id:makeId(),at:new Date().toISOString(),action:'혼입 유일 후보 자동 배정',events:[{...e}],receipt:target,note:origin+' → '+target}];
- try{Engine.validateSession(next);}catch{return false;}
+ // The target came from the current validated reference and this move conserves quantities.
  state=next;lastBarcode=lastKey(routed);return true;
 }
 function eventInCurrentMode(e){const origin=e.receipt||e.holdOrigin;return origin?modeAllowsReceipt(origin):!isB2C();}
@@ -1755,35 +1848,36 @@ function switchOrderTab(id){
 }
 function hasOtherAsnCandidate(e){return allocationOptions(e).some(o=>o.fits&&o.id!==(e.receipt||e.holdOrigin||state.receipt));}
 function otherAsnEntries(){
+ if(renderReadCache?.has('other-entries'))return renderReadCache.get('other-entries');
  const key=selectedWorkStoreKey(),batch=state.currentBatch,seen=new Set(),assignedIds=new Set(state.scans.map(e=>e.id)),entries=[];
  for(const e of [...state.scans,...(state.pending||[])]){
   if(!e.id||seen.has(e.id)||e.batch!==batch)continue;
   const eligible=e.receipt?e.receipt===state.receipt:e.holdForStore===key&&!assignedIds.has(e.id);
   if(eligible&&hasOtherAsnCandidate(e)){seen.add(e.id);entries.push(e);}
- }return entries;
+ }renderReadCache?.set('other-entries',entries);return entries;
 }
 function drawWorkUnverified(){
  const entries=wmsUnverifiedEntries(),value=entries.reduce((n,x)=>n+x.qty,0),candidates=otherAsnEntries(),candidateQty=candidates.reduce((n,e)=>n+Engine.units(e),0);
  $('unregistered').textContent=value.toLocaleString();$('unverifiedScope').textContent='';
- const info=(language==='en'?'WMS unverified':'WMS 확인 불가')+' '+value+' EA · '+(language==='en'?'No assignable order found; entries counted once.':'배정 가능한 오더를 찾지 못한 입력 · 같은 입력은 한 번만 집계');
+ const info=(language==='en'?'Unverified barcode':'미확인 바코드')+' '+value+' EA · '+(language==='en'?'No assignable order found; entries counted once.':'배정 가능한 오더를 찾지 못한 입력 · 같은 입력은 한 번만 집계');
  $('outsideDetails').setAttribute('title',info);$('outsideDetails').setAttribute('aria-label',info);
- const button=$('otherAsnDetails');button.hidden=!candidateQty;$('otherAsnCount').textContent=candidateQty.toLocaleString();button.querySelector('span').firstChild.nodeValue=language==='en'?'Possible other ASN':'다른 ASN 추정';button.disabled=state.receiptLocked===true;button.setAttribute('aria-label',(language==='en'?'Review possible other ASN entries':'다른 ASN 추정 입력 확인')+' · '+candidateQty+' EA');
+ const button=$('otherAsnDetails');button.hidden=!candidateQty;$('otherAsnCount').textContent=candidateQty.toLocaleString();button.querySelector('span').firstChild.nodeValue=language==='en'?'Possible other ASN':'다른 ASN 혼입 후보';button.disabled=state.receiptLocked===true;button.setAttribute('aria-label',(language==='en'?'Review possible other ASN entries':'다른 ASN 추정 입력 확인')+' · '+candidateQty+' EA');
 }
 function openOtherAsnEntries(){
  const entries=otherAsnEntries();if(!entries.length||state.receiptLocked)return;
  if(entries.length===1){openAllocation(entries[0].id,$('otherAsnDetails'));return;}
  let dialog=$('otherAsnDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='otherAsnDialog';dialog.className='phone-mapping-dialog';dialog.setAttribute('aria-labelledby','otherAsnTitle');document.body.append(dialog);dialog.addEventListener('close',()=>{$('otherAsnDetails').focus();});}
- dialog.replaceChildren();const title=document.createElement('h2');title.id='otherAsnTitle';title.textContent=language==='en'?'Possible other ASN':'다른 ASN 추정';const list=document.createElement('div');list.className='phone-actions';
+ dialog.replaceChildren();const title=document.createElement('h2');title.id='otherAsnTitle';title.textContent=language==='en'?'Possible other ASN':'다른 ASN 혼입 후보';const list=document.createElement('div');list.className='phone-actions';
  for(const e of entries){const button=document.createElement('button');button.type='button';button.textContent=Engine.eventCode(e)+' · '+Engine.units(e)+' EA';button.onclick=()=>{dialog.close();openAllocation(e.id,$('otherAsnDetails'));};list.append(button);}
  const close=document.createElement('button');close.type='button';close.textContent=language==='en'?'Close':'닫기';close.onclick=()=>dialog.close();dialog.append(title,list,close);dialog.showModal();
 }
 $('otherAsnDetails').onclick=openOtherAsnEntries;
 
-function stageOutsideScans(){
- const key=asnStoreKey(state.receipt);if(!state.currentBatch||sameStoreAsns(key).length<2)return;
+function stageOutsideScans(newEntry=null){
+ const key=asnStoreKey(state.receipt);if(!state.currentBatch||state.receiptLocked||(Engine.getIndex(state.data).storeReceipts.get(key)?.length||0)<2)return;
  const rows=reconcileView(state.data,state.receipt,state.scans);
  const outsideKeys=new Set(rows.filter(r=>r.unregistered&&!r.matchedInAsn).map(r=>r.key));
- const outside=state.scans.filter(e=>{
+ const outside=(newEntry?[newEntry]:(readScanIndex(state.scans).byReceipt.get(state.receipt)||[])).filter(e=>{
   if(e.receipt!==state.receipt||e.batch!==state.currentBatch||e.allocationConfirmed||!outsideKeys.has((e.kind==='sku'?'M:':'X:')+Engine.eventCode(e)))return false;
   const {receipt,...entry}=e;
   return hasOtherAsnCandidate({...entry,holdForStore:key,holdOrigin:receipt});
@@ -1792,23 +1886,44 @@ function stageOutsideScans(){
  state.scans=state.scans.filter(e=>!outside.includes(e));state.pending=[...(state.pending||[]),...outside.map(({receipt,...e})=>({...e,holdForStore:key,holdOrigin:receipt}))];audit('ASN 밖 입력 보류',outside,state.receipt);
 }
 // Only whole latest input events entirely within a verified excess may be reassigned.
-function excessAllocationSource(e){
- if(!e?.id||!e.receipt||e.batch!==state.currentBatch||asnStoreKey(e.receipt)!==selectedWorkStoreKey())return false;
- const rows=reconcileView(state.data,e.receipt,state.scans),matches=rows.filter(r=>!r.unregistered&&matchesReference(r,e));
- if(matches.length!==1||matches[0].unresolved||matches[0].status==='정보 충돌'||matches[0].excess<=0)return false;
- const r=matches[0];let budget=r.excess;
- const entries=state.scans.filter(x=>x.batch===state.currentBatch&&x.receipt===e.receipt&&matchesReference(r,x)).sort((a,b)=>(b.sequence||0)-(a.sequence||0)||Date.parse(b.at)-Date.parse(a.at));
- for(const x of entries){const n=Engine.units(x);if(n>budget)return false;if(x.id===e.id)return true;budget-=n;if(budget<=0)return false;}
- return false;
+function excessAllocationSource(event){
+ if(!event?.id||!event.receipt||event.batch!==state.currentBatch||asnStoreKey(event.receipt)!==selectedWorkStoreKey())return false;
+ const cacheKey='allocation-excess';
+ let eligible=renderReadCache?.get(cacheKey);
+ if(!eligible){
+  const key=selectedWorkStoreKey();
+  eligible=excessEntrySet(state.data,state.scans,state.currentBatch,id=>asnStoreKey(id)===key);
+  renderReadCache?.set(cacheKey,eligible);
+ }
+ return eligible.has(event.id);
 }
 function allocationEvent(id){return [...(state.pending||[]),...state.scans].find(e=>e.id===id);}
-function allocationOptions(e){
- const origin=e?.receipt||e?.holdOrigin;if(origin&&!modeAllowsReceipt(origin)||!origin&&isB2C())return [];const excess=excessAllocationSource(e),key=excess?asnStoreKey(e.receipt):e?.holdForStore;
- if(!e?.id||!key||key!==selectedWorkStoreKey()||e.batch!==state.currentBatch||(!excess&&e.receipt))return [];
- const info=Engine.masterInfo(state.data,e);if(info.conflict)return [];
- return sameStoreAsns(key).filter(id=>!excess||id!==e.receipt).flatMap(id=>{const matches=reconcileView(state.data,id,state.scans).filter(r=>!r.unregistered&&matchesReference(r,e));if(matches.length!==1||matches[0].unresolved||matches[0].status==='정보 충돌')return [];const r=matches[0],remaining=Math.max(0,r.expected-r.actual);return [{id,expected:r.expected,remaining,fits:remaining>=Engine.units(e)}];}).sort((a,b)=>Number(b.fits)-Number(a.fits)||a.remaining-b.remaining||a.id.localeCompare(b.id));
+function allocationOptions(event){
+ const origin=event?.receipt||event?.holdOrigin;
+ if(!event?.id||event.batch!==state.currentBatch||(origin?!modeAllowsReceipt(origin):isB2C()))return [];
+ const excess=event.receipt&&excessAllocationSource(event),store=excess?asnStoreKey(event.receipt):event.holdForStore;
+ if(!store||store!==selectedWorkStoreKey()||(!excess&&event.receipt))return [];
+ const optionsKey='allocation-options';
+ let cache=renderReadCache?.get(optionsKey);
+ if(!cache&&renderReadCache){cache=new Map();renderReadCache.set(optionsKey,cache);}
+ const signature=JSON.stringify([event.receipt,event.kind,Engine.eventCode(event),Engine.units(event)]);
+ if(cache?.has(signature))return cache.get(signature);
+ const options=[];
+ if(!Engine.masterInfo(state.data,event).conflict){
+  const allow=workReceiptGate();
+  for(const id of candidateReceipts(state.data,event)){
+   if(id===event.receipt||asnStoreKey(id)!==store||!allow(id)||(isB2C()&&id!==state.receipt))continue;
+   const {row,actual}=inspectEntry(state.data,id,state.scans,event);
+   if(!row||row.unresolved||row.conflict)continue;
+   const remaining=Math.max(0,row.expected-actual);
+   options.push({id,expected:row.expected,remaining,fits:remaining>=Engine.units(event)});
+  }
+ }
+ options.sort((a,b)=>Number(b.fits)-Number(a.fits)||a.remaining-b.remaining||a.id.localeCompare(b.id));
+ cache?.set(signature,options);
+ return options;
 }
-function allocationReviewEntries(){return [...(state.pending||[]),...state.scans].filter(e=>allocationOptions(e).some(o=>o.fits)).sort((a,b)=>(a.sequence||0)-(b.sequence||0)||Date.parse(a.at)-Date.parse(b.at));}
+function allocationReviewEntries(){if(renderReadCache?.has('allocation-entries'))return renderReadCache.get('allocation-entries');const result=[...(state.pending||[]),...state.scans].filter(e=>allocationOptions(e).some(o=>o.fits)).sort((a,b)=>(a.sequence||0)-(b.sequence||0)||Date.parse(a.at)-Date.parse(b.at));renderReadCache?.set('allocation-entries',result);return result;}
 // Allocation dialogs are transient: bind to the immutable reference revision, not a persisted digest.
 function allocationFingerprint(){return JSON.stringify([referenceFingerprintState().revision,state.scans,state.pending,state.receipt,state.currentBatch,state.receiptLocked]);}
 function drawAllocationHint(){const held=allocationReviewEntries();$('allocationNotice').classList.toggle('hidden',!held.length);$('allocationHint').textContent=held.length?tr(held.some(e=>allocationOptions(e).length)?'다른 ASN에 포함된 제품이 혼입되었을 가능성이 있습니다':'보류 입력의 상품 및 ASN 정보를 확인하세요.'):'';}
@@ -1835,7 +1950,7 @@ for(const id of ['scanActivity','activityHistory'])$(id).onclick=e=>{const b=e.t
 
 var discrepancyMode='',discrepancyPinned=false,discrepancyTimer=null,suppressPreviewFocus=false;
 function closeDiscrepancyPreview(returnFocus=false){const target=discrepancyMode+'Details';if(discrepancyTimer)clearTimeout(discrepancyTimer);discrepancyMode='';discrepancyPinned=false;$('discrepancyPopover').classList.toggle('hidden',true);for(const id of ['missingDetails','excessDetails','outsideDetails'])$(id).setAttribute('aria-expanded','false');if(returnFocus){suppressPreviewFocus=true;$(target).focus();suppressPreviewFocus=false;}}
-function showDiscrepancyPreview(mode,pin=false){$('discrepancyPopover').setAttribute('data-mode',mode);if(discrepancyTimer)clearTimeout(discrepancyTimer);discrepancyMode=mode;discrepancyPinned=pin;const button=$(mode+'Details'),rows=mode==='outside'?wmsUnverifiedEntries().map(x=>({name:x.name,sku:x.sku,barcode:x.barcode,actual:x.qty,expected:0,status:x.held?'보류':'WMS 확인 불가'})):reconcileView(state.data,state.receipt,state.scans).filter(r=>mode==='missing'?r.missing>0:mode==='outside'?r.unregistered&&r.actual>0:!r.unregistered&&r.excess>0);$('discrepancyTitle').textContent=tr(mode==='missing'?'부족 상품':mode==='outside'?'WMS 확인 불가':'초과 상품');$('discrepancyProducts').innerHTML=rows.length?rows.map(r=>'<div class="discrepancy-product"><span>'+esc(uiData(r.name))+'</span><b>'+(r.actual-r.expected>0?'+':'')+(r.actual-r.expected)+'</b><small>'+esc([r.sku?'SKU '+r.sku:'',r.barcode?'Barcode '+r.barcode:'',tr(r.status==='예정 외'?'WMS 확인 불가':r.status)].filter(Boolean).join(' · '))+'</small></div>').join(''):'<div class="discrepancy-empty">'+esc(tr('해당 상품이 없습니다.'))+'</div>';for(const id of ['missingDetails','excessDetails','outsideDetails'])$(id).setAttribute('aria-expanded',String(id===button.id));const panel=$('discrepancyPopover');panel.classList.toggle('hidden',false);const rect=button.getBoundingClientRect?.()||{left:12,bottom:80,top:40},vw=window.innerWidth||800,vh=window.innerHeight||600,width=Math.min(400,vw-24),height=Math.min(panel.offsetHeight||220,340,vh-24);panel.style.left=Math.max(12,Math.min(rect.left,vw-width-12))+'px';panel.style.top=Math.max(12,rect.bottom+8+height<=vh?rect.bottom+8:rect.top-height-8)+'px';}
+function showDiscrepancyPreview(mode,pin=false){$('discrepancyPopover').setAttribute('data-mode',mode);if(discrepancyTimer)clearTimeout(discrepancyTimer);discrepancyMode=mode;discrepancyPinned=pin;const button=$(mode+'Details'),rows=mode==='outside'?wmsUnverifiedEntries().map(x=>({name:x.name,sku:x.sku,barcode:x.barcode,actual:x.qty,expected:0,status:x.held?'보류':(language==='en'?'Unverified barcode':'미확인 바코드')})):reconcileView(state.data,state.receipt,state.scans).filter(r=>mode==='missing'?r.missing>0:mode==='outside'?r.unregistered&&r.actual>0:!r.unregistered&&r.excess>0);$('discrepancyTitle').textContent=mode==='outside'?(language==='en'?'Unverified barcode':'미확인 바코드'):tr(mode==='missing'?'부족 상품':'초과 상품');$('discrepancyProducts').innerHTML=rows.length?rows.map(r=>'<div class="discrepancy-product"><span>'+esc(uiData(r.name))+'</span><b>'+(r.actual-r.expected>0?'+':'')+(r.actual-r.expected)+'</b><small>'+esc([r.sku?'SKU '+r.sku:'',r.barcode?'Barcode '+r.barcode:'',(r.status==='예정 외'?(language==='en'?'Not on this ASN':'현재 ASN에 없음'):tr(r.status))].filter(Boolean).join(' · '))+'</small></div>').join(''):'<div class="discrepancy-empty">'+esc(tr('해당 상품이 없습니다.'))+'</div>';for(const id of ['missingDetails','excessDetails','outsideDetails'])$(id).setAttribute('aria-expanded',String(id===button.id));const panel=$('discrepancyPopover');panel.classList.toggle('hidden',false);const rect=button.getBoundingClientRect?.()||{left:12,bottom:80,top:40},vw=window.innerWidth||800,vh=window.innerHeight||600,width=Math.min(400,vw-24),height=Math.min(panel.offsetHeight||220,340,vh-24);panel.style.left=Math.max(12,Math.min(rect.left,vw-width-12))+'px';panel.style.top=Math.max(12,rect.bottom+8+height<=vh?rect.bottom+8:rect.top-height-8)+'px';}
 function scheduleDiscrepancyClose(){if(discrepancyPinned)return;if(discrepancyTimer)clearTimeout(discrepancyTimer);discrepancyTimer=setTimeout(()=>closeDiscrepancyPreview(),180);}
 for(const mode of ['missing','excess','outside']){const b=$(mode+'Details');b.onmouseenter=()=>{if(!discrepancyPinned)showDiscrepancyPreview(mode);};b.onmouseleave=scheduleDiscrepancyClose;b.onfocus=()=>{if(!suppressPreviewFocus)showDiscrepancyPreview(mode);};b.onclick=()=>{if(discrepancyMode===mode&&discrepancyPinned)closeDiscrepancyPreview();else showDiscrepancyPreview(mode,true);};b.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();closeDiscrepancyPreview();}};b.onblur=e=>{if(!e.relatedTarget?.closest?.('#discrepancyPopover'))scheduleDiscrepancyClose();};}
 $('discrepancyPopover').onmouseenter=()=>{if(discrepancyTimer)clearTimeout(discrepancyTimer);};$('discrepancyPopover').onmouseleave=scheduleDiscrepancyClose;$('discrepancyPopover').onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();closeDiscrepancyPreview(true);}};$('discrepancyClose').onclick=()=>closeDiscrepancyPreview(true);window.addEventListener('resize',()=>closeDiscrepancyPreview());
@@ -1864,19 +1979,31 @@ function undoSheetEvent(scope='order'){
  audit(latest.receipt?'오더 최근 입력 취소':'매장 미배정 최근 입력 취소',[latest],latest.receipt||'');
  changed();draw();setUI('feedback',Engine.eventCode(latest)+(language==='en'?' · ':' 입력 ')+Engine.units(latest)+(language==='en'?' cancelled · ':'개를 취소했습니다. · ')+(latest.receipt?(receiptDisplay(latest.receipt)||latest.receipt):(language==='en'?'Store unassigned':'매장 미배정')),false,true);if(!$('activityDialog').open)$('barcode').focus();return true;
 }
+function legacyScanOutcomes(events){
+ const outcomes=new Map(),prefix=[];
+ for(const {e} of events.map((e,i)=>({e,i})).sort((a,b)=>Date.parse(a.e.at)-Date.parse(b.e.at)||a.i-b.i)){
+  if(!e.scanOutcome)outcomes.set(e,entryOutcome(state.data,e.receipt,prefix,e));
+  if(e.receipt)prefix.push(e);
+ }
+ return outcomes;
+}
 function scanActivityRows(rows,all=false){
  const events=sheetEvents(all,all?$('historyScope').value:'order');
- return events.map((e,i)=>({e,i})).sort((a,b)=>Date.parse(a.e.at)-Date.parse(b.e.at)||a.i-b.i).slice(all?historyPage*200:-5,all?(historyPage+1)*200:undefined).map(({e})=>{
-  const pending=!e.receipt,master=Engine.masterInfo(state.data,e);const eventRows=e.receipt&&(all||e.receipt!==state.receipt)?reconcileView(state.data,e.receipt,state.scans.filter(x=>x.batch===e.batch)):rows;
-  const inAsn=pending?state.data.raw.filter(r=>matchesStore(r)&&matchesReference(r,e)):eventRows.filter(r=>!r.unregistered&&matchesReference(r,e));
+ const cacheKey=all?'activity-history':'activity-recent';
+ if(renderReadCache?.has(cacheKey))return renderReadCache.get(cacheKey);
+ let historical;
+ const values=events.map((e,i)=>({e,i})).sort((a,b)=>Date.parse(a.e.at)-Date.parse(b.e.at)||a.i-b.i).slice(all?historyPage*200:-5,all?(historyPage+1)*200:undefined).map(({e})=>{
+  const pending=!e.receipt,master=Engine.masterInfo(state.data,e);const eventRows=e.receipt&&e.receipt!==state.receipt?reconcileView(state.data,e.receipt,state.scans):rows;
+  const inAsn=pending?[...candidateReceipts(state.data,e)].flatMap(id=>{const {row}=inspectEntry(state.data,id,state.scans,e);return row&&matchesStore(row)?[row]:[];}):eventRows.filter(r=>!r.unregistered&&matchesReference(r,e));
   const outsideKey=(e.kind==='sku'?'M:':'X:')+Engine.eventCode(e);
   const matched=pending?inAsn:inAsn.length===1?inAsn:eventRows.filter(r=>r.key===outsideKey);
   const external=!inAsn.length,conflict=matched.some(r=>r.status==='정보 충돌'||r.unresolved)||(external&&master.conflict);
   const names=[...new Set(matched.map(r=>r.name).filter(n=>n&&!['상품 정보 없음','ASN 상품명 없음'].includes(n)))];
   const name=conflict?tr('상품명 확인 필요'):external&&master.name?master.name:names.length===1?names[0]:tr(names.length>1?'상품명 확인 필요':'상품 정보 없음');
   const status=conflict?'정보 충돌':pending?'입력 기록 유지':matched.length===1?matched[0].status:matched.length>1?'정보 충돌':'확인 필요';
-  return {sku:!conflict&&matched.length===1?(matched[0].sku||master.sku||''):(!conflict?master.sku||'':''),altsku:!conflict&&matched.length===1?(matched[0].barcode||''):(!conflict&&e.kind!=='sku'?e.barcode||'':''),expected:matched.length===1?matched[0].expected:null,actual:matched.length===1?matched[0].actual:null,id:e.id,name,code:Engine.eventCode(e),qty:Engine.units(e),at:e.at,pending,status,priorWork:e.batch!==state.currentBatch,assignedReceipt:e.receipt||'',held:pending&&!!e.holdForStore,reallocatable:!pending&&excessAllocationSource(e)&&allocationOptions(e).some(o=>o.fits),canAssign:!state.receiptLocked&&allocationOptions(e).some(o=>o.fits)};
+  return {sku:!conflict&&matched.length===1?(matched[0].sku||master.sku||''):(!conflict?master.sku||'':''),altsku:!conflict&&matched.length===1?(matched[0].barcode||''):(!conflict&&e.kind!=='sku'?e.barcode||'':''),expected:matched.length===1?matched[0].expected:null,actual:matched.length===1?matched[0].actual:null,id:e.id,name,code:Engine.eventCode(e),qty:Engine.units(e),at:e.at,pending,status,scanOutcome:e.scanOutcome??(historical??=legacyScanOutcomes(events)).get(e),priorWork:e.batch!==state.currentBatch,assignedReceipt:e.receipt||'',held:pending&&!!e.holdForStore,reallocatable:!pending&&excessAllocationSource(e)&&allocationOptions(e).some(o=>o.fits),canAssign:!state.receiptLocked&&allocationOptions(e).some(o=>o.fits)};
  });
+ renderReadCache?.set(cacheKey,values);return values;
 }
 
 function activityDateLabel(date){
@@ -1884,14 +2011,21 @@ function activityDateLabel(date){
  const weekday=date.toLocaleDateString(language==='ko'?'ko-KR':'en-GB',{weekday:'short'});
  return day+' ('+weekday+')';
 }
-function activityCellState(e){
+function activityCellState(e,ledger=false){
+ if(ledger&&e.held&&!e.assignedReceipt)return {kind:'hold',symbol:'Ⅱ',label:language==='en'?'Another ASN may match':'다른 ASN 혼입 후보 · 배정 확인'};
+ if(ledger&&e.scanOutcome==='held')return {kind:'hold',symbol:'Ⅱ',label:language==='en'?'Held at scan time':'입력 당시 보류'};
+ if(ledger&&e.scanOutcome==='accepted')return {kind:'complete',symbol:'O',label:language==='en'?'Accepted at scan time':'입력 당시 정상'};
+ if(ledger&&e.scanOutcome==='excess')return {kind:'excess',symbol:'⚠',label:language==='en'?'This entry exceeded the expected quantity':'이 입력부터 예정 수량 초과'};
+ if(ledger&&e.scanOutcome==='unknown')return {kind:'unknown',symbol:'⚠',label:language==='en'?'Entry not on the selected order':'현재 ASN에 없는 입력'};
+ if(ledger&&e.scanOutcome==='conflict')return {kind:'review',symbol:'⚠',label:language==='en'?'Product identifiers conflict':'상품 식별 정보 충돌'};
  const count=Number.isFinite(e.expected)&&Number.isFinite(e.actual)?` · ${e.actual} / ${e.expected} EA`:'';
  if(e.held)return {kind:'hold',symbol:'Ⅱ',label:language==='en'?'On hold · Assign an ASN':'보류 · ASN 배정 필요'};
  if(e.status==='일치')return {kind:'complete',symbol:'O',label:(language==='en'?'Quantity matched':'수량 일치')+count};
  if(e.status==='부족')return {kind:'progress',symbol:'◔',label:(language==='en'?'Inspection in progress':'검수 진행 중')+count+(language==='en'?` · ${e.expected-e.actual} remaining`:` · ${e.expected-e.actual}개 남음`)};
- if(e.status==='초과'||e.status==='예정 외')return {kind:'excess',symbol:'X',label:tr(e.status==='예정 외'?'WMS 확인 불가':e.status)+count};
+ if(e.status==='초과')return {kind:'excess',symbol:'⚠',label:tr(e.status)+count};
+ if(e.status==='예정 외')return {kind:'unknown',symbol:'⚠',label:(language==='en'?'Unverified barcode':'미확인 바코드')+count};
  if(e.pending||e.status==='입력 기록 유지')return {kind:'waiting',symbol:'…',label:language==='en'?'Waiting for ASN · Entry preserved':'ASN 선택 대기 · 입력 기록 유지'};
- return {kind:'review',symbol:'?',label:tr(e.status==='예정 외'?'WMS 확인 불가':e.status)};
+ return {kind:'review',symbol:'?',label:tr(e.status)};
 }
 
 function syncAvailabilitySetting(){const on=state.availabilityEnabled===true;$('availabilityToggle').setAttribute('aria-checked',String(on));$('availabilityState').textContent=on?'ON':'OFF';}
@@ -1926,7 +2060,7 @@ function pickingLocationData(item){
  return {reason:'',missingType,putaway:[...new Set(typed.map(r=>r.putawayZone).filter(Boolean))],groups:[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([zone,locs])=>({zone,locs:locs.sort()}))};
 }
 function pickingLocationExport(item){const info=pickingLocationData(item);if(info.reason)return tr(info.reason);return info.groups.flatMap(g=>g.locs).join(', ')+(info.missingType?(language==='en'?' · Some location types need verification':' · 일부 위치 유형 확인 필요'):'');}
-function pickingLocationText(item){const info=pickingLocationData(item);if(info.reason==='NEW LOCATION')return '';if(info.reason)return tr(info.reason);return (language==='en'?'Picking location · ':'피킹 위치 · ')+info.groups.flatMap(g=>g.locs).join(', ')+(info.missingType?(language==='en'?' · Some location types need verification':' · 일부 위치 유형 확인 필요'):'');}
+function pickingLocationText(item){const info=pickingLocationData(item);if(info.reason)return '';return (language==='en'?'Picking location · ':'피킹 위치 · ')+info.groups.flatMap(g=>g.locs).join(', ')+(info.missingType?(language==='en'?' · Some location types need verification':' · 일부 위치 유형 확인 필요'):'');}
 function pickingLocationLine(item){const value=pickingLocationText(item);return value?'<div class="small">'+esc(value)+'</div>':'';}
 function pickingLocationInfo(last){
  if(!last)return {reason:'마지막 입력 없음',groups:[]};
@@ -1938,11 +2072,11 @@ function drawPickingLocation(last){
  const node=$('lastScannedPicking'),card=$('overviewPutaway');node.replaceChildren();$('putawayLabel').textContent=language==='en'?'Putaway location':'적치 위치';card.hidden=state.availabilityEnabled!==true||!last;if(card.hidden)return;
  const info=pickingLocationInfo(last);
  if(info.reason){const note=document.createElement('p');note.className='picking-note';note.textContent=info.reason==='NEW LOCATION'?(language==='en'?'New location':'신규 위치'):tr(info.reason);node.append(note);return;}
- for(const group of info.groups){const section=document.createElement('div');section.className='picking-zone-group';const title=document.createElement('strong');title.textContent=group.zone||tr('Zone 확인 필요');title.setAttribute('aria-label',group.zone?'Zone · '+group.zone:tr('Zone 확인 필요'));section.append(title);for(const loc of group.locs){const row=document.createElement('span');row.className='picking-loc';row.textContent=loc;row.setAttribute('aria-label',(language==='en'?'Location · ':'위치 · ')+loc);section.append(row);}node.append(section);}
+ for(const group of info.groups){const section=document.createElement('div');section.className='picking-zone-group';const title=document.createElement('strong');title.textContent=group.zone||(language==='en'?'Zone needs verification':'구역 확인 필요');title.setAttribute('aria-label',group.zone?'Zone · '+group.zone:(language==='en'?'Zone needs verification':'구역 확인 필요'));section.append(title);for(const loc of group.locs){const row=document.createElement('span');row.className='picking-loc';row.textContent=loc;row.setAttribute('aria-label',(language==='en'?'Location · ':'위치 · ')+loc);section.append(row);}node.append(section);}
  if(info.missingType){const note=document.createElement('p');note.className='picking-note';note.textContent=tr('위치 유형 열을 연결한 자료를 다시 불러오세요');node.append(note);}
- if(info.putaway?.length&&!(info.groups.length===1&&info.putaway.length===1&&info.putaway[0]===info.groups[0].zone)){const note=document.createElement('p');note.className='picking-note';note.textContent='Putaway zone · '+info.putaway.join(' / ');node.append(note);}
- if(info.groups.some(g=>!g.zone)){const note=document.createElement('p');note.className='picking-note';note.textContent=tr('위치 형식 또는 구역을 확인해 주세요');node.append(note);}
- if(info.groups.length>1){const note=document.createElement('p');note.className='picking-note';note.textContent=language==='en'?'Multiple zones · destination not selected':'여러 구역 · 이동 위치 미확정';node.append(note);}
+ if(info.putaway?.length&&!(info.groups.length===1&&info.putaway.length===1&&info.putaway[0]===info.groups[0].zone)){const note=document.createElement('p');note.className='picking-note';note.textContent=(language==='en'?'Putaway zone · ':'적치 구역 · ')+info.putaway.join(' / ');node.append(note);}
+ if(info.groups.some(g=>!g.zone)){const note=document.createElement('p');note.className='picking-note';note.textContent=language==='en'?'Verify the zone for this location':'이 위치의 구역을 확인하세요.';node.append(note);}
+ if(info.groups.length>1){const note=document.createElement('p');note.className='picking-note';note.textContent=language==='en'?'Multiple zones · destination not selected':'구역이 여러 곳입니다. 적치 위치를 확인하세요.';node.append(note);}
 }
 
 
@@ -1952,7 +2086,7 @@ function lastScannedOutsideStore(last){
  const events=[...state.scans,...(state.pending||[])].filter(e=>e.id===last.id&&e.batch===state.currentBatch);if(events.length!==1)return false;
  const e=events[0],eventStore=e.receipt?asnStoreKey(e.receipt):e.holdForStore||e.workStoreKey||'';if(eventStore!==key)return false;
  const master=Engine.masterInfo(state.data,e);if(master.conflict)return false;
- return !state.data.raw.some(r=>modeAllowsReceipt(r.receipt)&&asnStoreKey(r.receipt)===key&&(matchesReference(r,e)||(master.sku&&r.sku===master.sku)));
+ return ![...candidateReceipts(state.data,e,{allowMasterSku:true})].some(id=>modeAllowsReceipt(id)&&asnStoreKey(id)===key);
 }
 
 function drawLastScanned(rows){
@@ -1991,7 +2125,7 @@ document.addEventListener('keyup',e=>{if(e.key==='F2')endQuestPeek();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')endQuestPeek();});
 window.addEventListener('blur',endQuestPeek);document.addEventListener('visibilitychange',()=>{if(document.hidden)endQuestPeek();});
 
-function questItemMarkup(r){const v=activityCellState({status:r.status,actual:r.actual,expected:r.expected}),note=r.status==='부족'?(language==='en'?`${r.missing} left`:`${r.missing}개 남음`):r.status==='일치'?(language==='en'?'Complete':'완료'):tr(r.status==='예정 외'?'WMS 확인 불가':r.status);return `<li class="quest-item" data-phase="${v.kind}" title="${esc(r.name+' · '+(r.sku||r.barcode||'—')+' · '+v.label)}"><span class="quest-symbol" aria-label="${esc(v.label)}">${v.symbol}</span><div class="quest-product"><strong>${esc(r.name)}</strong><small tabindex="0">${esc(r.sku||r.barcode||'—')}</small></div><div class="quest-count"><b>${r.actual.toLocaleString()} <span>/ ${r.expected.toLocaleString()}</span></b><small>${esc(note)}</small></div></li>`;}
+function questItemMarkup(r){const v=activityCellState({status:r.status,actual:r.actual,expected:r.expected}),note=r.status==='부족'?(language==='en'?`${r.missing} left`:`${r.missing}개 남음`):r.status==='일치'?(language==='en'?'Complete':'완료'):(r.status==='예정 외'?(language==='en'?'Not on this ASN':'현재 ASN에 없음'):tr(r.status));return `<li class="quest-item" data-phase="${v.kind}" title="${esc(r.name+' · '+(r.sku||r.barcode||'—')+' · '+v.label)}"><span class="quest-symbol" aria-label="${esc(v.label)}">${v.symbol}</span><div class="quest-product"><strong>${esc(r.name)}</strong><small tabindex="0">${esc(r.sku||r.barcode||'—')}</small></div><div class="quest-count"><b>${r.actual.toLocaleString()} <span>/ ${r.expected.toLocaleString()}</span></b><small>${esc(note)}</small></div></li>`;}
 function setVirtualList(id,rows){const el=$(id);virtualLists.set(id,{rows,start:-1,end:-1});el.scrollTop=0;renderVirtualList(id);}
 function renderVirtualList(id){const el=$(id),model=virtualLists.get(id);if(!model)return;const height=64,start=Math.max(0,Math.floor(el.scrollTop/height)-6),end=Math.min(model.rows.length,start+Math.ceil((el.clientHeight||600)/height)+18);if(model.start===start&&model.end===end)return;model.start=start;model.end=end;const spacer=n=>n?`<li class="virtual-spacer" aria-hidden="true" style="height:${n*height}px"></li>`:'';el.innerHTML=spacer(start)+model.rows.slice(start,end).map((r,i)=>questItemMarkup(r).replace('<li ',`<li aria-posinset="${start+i+1}" aria-setsize="${model.rows.length}" `)).join('')+spacer(model.rows.length-end);if(!model.rows.length)el.innerHTML='<li class="quest-empty">'+(language==='en'?'No expected items':'예정 상품 없음')+'</li>';}
 function drawSkuQuest(rows){const expected=rows.filter(r=>!r.unregistered),done=expected.filter(r=>r.status==='일치').length;questRows=expected;$('skuQuest').hidden=!state.receipt;$('questTitle').textContent=language==='en'?'Expected return receipts':'반품 입고 예정 수량';$('questSummary').textContent=language==='en'?`${done} / ${expected.length} SKU complete`:`${done} / ${expected.length} SKU 완료`;$('questNote').textContent=language==='en'?'Inspected / expected · EA':'검수 / 예정 · EA';$('questAlerts').textContent='';$('questList').replaceChildren();}
@@ -2000,8 +2134,8 @@ function activityMarkup(events,compact=false){
  const columns=compact?(language==='en'?['Barcode / SKU','Product','Qty','Timestamp','Status']:['상품 바코드 / SKU','제품명','수량','타임스탬프','상태']):(language==='en'?['#','Barcode','SKU','Product','Qty','Timestamp','Status']:['#','Barcode','SKU','제품명','수량','타임스탬프','상태']);
  const codeLine=(label,value,secondary=false)=>'<span class="'+(secondary?'secondary-code':'primary-code')+'" title="'+esc(label+': '+(value||'—'))+'"><span class="sr-only">'+label+' </span>'+esc(value||'—')+'</span>';
  const head='<thead><tr>'+columns.map((label,i)=>'<th scope="col" class="'+(compact?'compact-col-':'sheet-col-')+i+'">'+esc(label)+'</th>').join('')+'</tr></thead>';
- const body=events.map((e,i)=>{const visual=activityCellState(e);const date=new Date(e.at),validDate=Number.isFinite(date.getTime()),time=!validDate?'—':date.toLocaleTimeString(language==='ko'?'ko-KR':'en-GB',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
- return `<tr class="sheet-row" data-status="${esc(e.held?'보류':e.status)}">${compact?'<td class="sheet-code activity-code-pair">'+codeLine(language==='en'?'Barcode':'바코드',e.altsku)+codeLine('SKU',e.sku,true)+'</td>':`<th scope="row" class="sheet-index">${historyPage*200+i+1}</th><td class="sheet-code sheet-altsku">${esc(e.altsku||'—')}</td><td class="sheet-code sheet-sku">${esc(e.sku||'—')}</td>`}<td class="sheet-name" title="${esc(e.name)}">${esc(e.name)}${e.code&&e.code!==e.altsku&&e.code!==e.sku?'<small class="original-input">'+esc((language==='en'?'Input: ':'입력: ')+e.code)+'</small>':''}</td><td class="sheet-qty"><b>${e.qty.toLocaleString()}</b><small>EA</small></td><td class="sheet-time"><time datetime="${esc(validDate?e.at:'')}" title="${esc(validDate?date.toString():(language==='en'?'Timestamp unavailable':'입력 시각 확인 필요'))}"><span>${esc(time)}</span><small>${esc(validDate?activityDateLabel(date):'—')}</small></time>${e.priorWork?'<small>'+esc(tr('이전 작업'))+'</small>':''}</td><td class="sheet-status" data-cell-state="${visual.kind}" title="${esc(visual.label)}" aria-label="${esc(visual.label)}"><span class="status-symbol" aria-hidden="true">${visual.symbol}</span>${(e.held||e.reallocatable)&&!e.priorWork?'<button type="button" class="assign-entry" data-assign-event="'+esc(e.id)+'" aria-haspopup="dialog" aria-label="'+esc(e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr('이 입력을 ASN에 배정'))+'" title="'+esc(e.canAssign&&e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr(e.canAssign?'이 입력을 ASN에 배정':state.receiptLocked?'검수 대상 고정을 먼저 해제해 주세요.':'배정 가능한 ASN 없음'))+'"'+(e.canAssign?'':' disabled')+'>↗</button>':''}</td></tr>`;
+ const body=events.map((e,i)=>{const visual=activityCellState(e,true);const date=new Date(e.at),validDate=Number.isFinite(date.getTime()),time=!validDate?'—':date.toLocaleTimeString(language==='ko'?'ko-KR':'en-GB',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+ return `<tr class="sheet-row" data-status="${esc(e.held?'보류':e.status)}">${compact?'<td class="sheet-code activity-code-pair">'+codeLine(language==='en'?'Barcode':'상품 바코드',e.altsku)+codeLine('SKU',e.sku,true)+'</td>':`<th scope="row" class="sheet-index">${historyPage*200+i+1}</th><td class="sheet-code sheet-altsku">${esc(e.altsku||'—')}</td><td class="sheet-code sheet-sku">${esc(e.sku||'—')}</td>`}<td class="sheet-name" title="${esc(e.name)}">${esc(e.name)}${e.code&&e.code!==e.altsku&&e.code!==e.sku?'<small class="original-input">'+esc((language==='en'?'Input: ':'입력: ')+e.code)+'</small>':''}</td><td class="sheet-qty"><b>${e.qty.toLocaleString()}</b><small>EA</small></td><td class="sheet-time"><time datetime="${esc(validDate?e.at:'')}" title="${esc(validDate?date.toString():(language==='en'?'Timestamp unavailable':'입력 시각 확인 필요'))}"><span>${esc(time)}</span><small>${esc(validDate?activityDateLabel(date):'—')}</small></time>${e.priorWork?'<small>'+esc(tr('이전 작업'))+'</small>':''}</td><td class="sheet-status" data-cell-state="${visual.kind}" title="${esc(visual.label)}" aria-label="${esc(visual.label)}"><span class="status-symbol" aria-hidden="true">${visual.symbol}</span>${(e.held||e.reallocatable)&&!e.priorWork?'<button type="button" class="assign-entry" data-assign-event="'+esc(e.id)+'" aria-haspopup="dialog" aria-label="'+esc(e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr('이 입력을 ASN에 배정'))+'" title="'+esc(e.canAssign&&e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr(e.canAssign?'이 입력을 ASN에 배정':state.receiptLocked?'검수 대상 고정을 먼저 해제해 주세요.':'배정 가능한 ASN 없음'))+'"'+(e.canAssign?'':' disabled')+'>↗</button>':''}</td></tr>`;
  }).join('')||'<tr><td colspan="'+columns.length+'" class="sheet-empty">'+esc(tr('스캔 기록이 없습니다.'))+'</td></tr>';
  return '<table class="activity-sheet'+(compact?' compact-activity':'')+'" aria-label="'+esc(tr(compact?'최근 입력 5건':'입력 기록'))+'">'+head+'<tbody>'+body+'</tbody></table>';
 }
@@ -2803,6 +2937,24 @@ function beamInspectionEscape(e){
  beamNewSearch();
 }
 document.addEventListener('keydown',beamInspectionEscape,true);
+const scanBurst=createScannerBurst();
+document.addEventListener('keydown',e=>{
+ const editable=e.composedPath().some(el=>el.matches?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role=textbox]'));
+ if(beam.visible||dataImportBusy||!state.receipt||$('barcode').disabled||$('barcode').value||editable||
+    e.isComposing||e.keyCode===229||e.ctrlKey||e.altKey||e.metaKey||e.repeat||
+    document.querySelector('dialog[open]')||!$('fileMenuPanel').hidden){
+  scanBurst.clear();return;
+ }
+ const value=scanBurst.consume(e.key,performance.now());
+ if(!value)return;
+ e.preventDefault();e.stopImmediatePropagation();
+ const field=$('barcode');field.value=value;field.focus({preventScroll:true});
+ $('scanform').requestSubmit();
+},true);
+document.addEventListener('focusin',()=>scanBurst.clear());
+window.addEventListener('blur',()=>scanBurst.clear());
+$('scanSound').checked=scanSoundEnabled();
+$('scanSound').onchange=()=>{try{localStorage.setItem('beam.scanSound',$('scanSound').checked?'on':'off');}catch{}if($('scanSound').checked)playScanFeedback('accepted');};
 $('beamConnect').onclick=()=>$('dataLauncher').click();
 function beamEnter(){
  const id=beam.candidate,mode=beam.mode,rows=rawRows(id);
@@ -2891,7 +3043,7 @@ function beamSaveState(){
 }
 new MutationObserver(beamSaveState).observe($('saved'),{childList:true,subtree:true,characterData:true});
 const beamDrawOriginal=draw;
-draw=function(){beamDrawOriginal();beamSaveState();if(beam.visible)beamRender();if(!$('beamSidebar').hidden)beamDrawJobs();};
+draw=function(scanOnly=false){beamDrawOriginal(scanOnly);beamSaveState();if(beam.visible)beamRender();if(scanOnly!==true&&!$('beamSidebar').hidden)beamDrawJobs();};
 const beamOldDemo=$('demo').onclick;
 $('demo').onclick=()=>{let old=state;beamOldDemo();if(state!==old){beam.mode='b2b';beamNewSearch(true);}};
 const beamOldRestore=$('backup').onchange;

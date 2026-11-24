@@ -243,8 +243,8 @@
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-barcode"/></svg>
 </button>
 <div id="currentAsnActions" role="group" aria-label="현재 ASN 검수 작업" hidden>
-<button id="confirmInspection" type="button" aria-describedby="confirmHint" disabled>Confirm</button>
-<button id="directReport" type="button" aria-haspopup="dialog" aria-controls="reportDialog" hidden>ASN Report</button>
+<button id="confirmInspection" type="button" aria-describedby="confirmHint" disabled>검수 완료</button>
+<button id="directReport" type="button" aria-haspopup="dialog" aria-controls="reportDialog" hidden>검수 보고</button>
 <button id="orderMixReview" type="button" aria-haspopup="dialog" aria-controls="allocationDialog" hidden>배정 검토</button>
 <button id="asnShare" type="button" title="PDF 저장" aria-label="현재 ASN PDF 저장" aria-haspopup="dialog" aria-controls="asnShareDialog">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-share"/></svg>
@@ -433,7 +433,7 @@
 </span>
 </button>
 <button class="metric discrepancy-trigger" id="outsideDetails" type="button" aria-expanded="false" aria-controls="discrepancyPopover">
-<span>WMS 확인 불가<small id="unverifiedScope" class="sheet-scope-note">
+<span>미확인 바코드<small id="unverifiedScope" class="sheet-scope-note">
 </small>
 </span>
 <span class="metric-quantity">
@@ -668,6 +668,8 @@
 </select>
 </label>
 </div>
+
+<label class="beam-scan-sound"><input id="scanSound" type="checkbox"> <span id="scanSoundLabel" data-ko="스캔 결과 소리" data-en="Scan sounds">스캔 결과 소리</span></label>
 <details class="data-disclosure" id="dataProfileDetails">
 <summary>
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-profile"/></svg>
@@ -906,7 +908,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</pre>
 </dialog>
 <article id="printReport">
 </article>
-<footer>로컬 작업 · v1.57</footer>
+<footer>로컬 작업 · v1.58</footer>
 <input id="file" type="file" accept=".xlsx,.xlsm" class="hidden">
 <input id="backup" type="file" accept=".json" class="hidden">
 </body></html>

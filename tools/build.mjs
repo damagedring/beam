@@ -8,7 +8,7 @@ const source = join(root, 'src');
 const destination = join(root, 'dist');
 const files = Object.freeze([
   'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js',
-  'domain/search-keys.js', 'ui/translations.js', 'vendor/xml-parser.js',
+  'domain/search-keys.js', 'domain/reconcile.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
 ]);
 const styles = ['styles/glass.css', 'styles/workspace.css'];
