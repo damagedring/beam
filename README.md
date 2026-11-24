@@ -35,5 +35,4 @@ Inspection records are autosaved in this browser. After a reload, import the sam
 ## Internal workspaces
 
 For an optional company-network-only setup with separate brand invites and no
-worker account in Beam, see [Internal Beam workspaces](docs/workspaces.md).
 This feature is not shipped on the public static site.
