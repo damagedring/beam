@@ -156,17 +156,15 @@
  <div class="beam-stage" id="beamStage" role="group" aria-label="반품 ASN 후보">
 </div>
  <div class="beam-empty" id="beamEmpty" hidden>
-<i aria-hidden="true">
-</i>
 <strong id="beamEmptyTitle">
 </strong>
 <p id="beamEmptyText">
 </p>
-<button id="beamConnect" type="button" data-ko="기준 자료 연결" data-en="Connect reference data">기준 자료 연결</button>
+<button id="beamConnect" type="button" data-ko="기준 자료 불러오기" data-en="Load reference data">기준 자료 불러오기</button>
 </div>
  <div class="beam-start-area" id="beamStartArea" hidden>
   <button id="beamStart" type="button">
-<span>Start</span>
+<span>검수 시작</span>
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-diagonal"/></svg>
 </button>
   <button type="button" id="beamFolderReceiptOpen" hidden aria-haspopup="dialog" aria-controls="beamFolderReceiptDialog">
@@ -308,11 +306,11 @@
 </div>
 </div>
 <section class="scan">
-<label for="barcode">Barcode / SKU</label>
+<label for="barcode">바코드 / SKU</label>
 <form id="scanform">
 <svg class="beam-ui-icon beam-scan-prompt" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-prompt"/></svg>
 <svg class="beam-ui-icon beam-scan-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-scan"/></svg>
-<input id="barcode" autocomplete="off" spellcheck="false" placeholder="Barcode 또는 SKU · 스캔하거나 입력" disabled>
+<input id="barcode" autocomplete="off" spellcheck="false" placeholder="바코드 또는 SKU 입력" disabled>
 <button id="scanbutton" class="primary" disabled>스캔</button>
 <button id="undo" type="button" aria-label="최근 입력 취소" title="최근 입력 취소" disabled>
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-undo"/></svg>
@@ -363,7 +361,7 @@
 </div>
 <div id="scanReadout" hidden>
 <div id="lastScanned" class="last-scanned" hidden aria-live="polite" aria-atomic="true">
-<span class="last-scanned-label">Last Scanned</span>
+<span class="last-scanned-label" data-ko="최근 스캔 상품" data-en="Last scanned item">최근 스캔 상품</span>
 <span id="lastScannedStoreWarning" class="last-scanned-store-warning" hidden>
 </span>
 <div class="last-scanned-item-layout">
@@ -373,7 +371,7 @@
 </strong>
 <span id="lastScannedProgress">
 </span>
-<progress id="lastScannedBar" max="100" value="0" aria-label="Last scanned SKU progress" hidden>
+<progress id="lastScannedBar" max="100" value="0" aria-label="최근 스캔 상품 검수 진행률" hidden>
 </progress>
 </div>
 <div class="last-scanned-codes">
@@ -392,7 +390,7 @@
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-location"/></svg>
 <strong id="putawayLabel">적치 위치</strong>
 </div>
-<section id="lastScannedPicking" class="last-scanned-picking" aria-label="피킹 위치 안내 피킹 위치">
+<section id="lastScannedPicking" class="last-scanned-picking" aria-label="피킹 위치 안내">
 </section>
 </aside>
 </div>
