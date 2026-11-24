@@ -1,39 +1,34 @@
 # Beam
 
-Browser-based inbound returns inspection. Connect your own spreadsheet with a reusable column profile, find a return order, and compare a scan with expected quantities. No WMS integration, backend, analytics, or third-party runtime requests.
+Beam is a browser-based workbench for warehouse operations. It helps operators find the right work, check physical items against the expected record, and leave a usable record when something differs. Those steps matter across receiving, shipping, inventory, and returns.
 
-## Run locally
+A returns check illustrates the workflow: connect a workbook once with a reusable column profile, find the order by store, customer or tracking number, scan the items, and review discrepancies before saving the result. Beam works alongside the warehouse system; it does not change inventory or require a WMS integration.
 
-Requires Node.js 22 or later to build and serve, with no npm dependencies.
+[Open Beam](https://damagedring.github.io/beam/)
+
+## Try it
+
+In **Settings → Help & examples**, load the fictional example data. To connect your own data, use **Settings → Reference data** to open an XLSX/XLSM workbook or load a saved connection profile. Review whether you are replacing or appending orders. Location categories are opt-in and defined by the profile.
+
+## Where data stays
+
+The hosting service serves the app. Workbooks, searches, and scans are processed in the browser. The public build has no analytics, backend, or third-party runtime requests. Profiles and saved work can remain on the device; use fictional data when showing Beam publicly.
+
+Beam keeps a local draft while you work. After a reload, connect the same reference data and select **Recover work**. A different reference or customer-lookup set cannot restore that draft. Browser storage is not a backup; save a separate work file if you need to keep the record. Drafts do not contain the reference workbook or lookup file.
+
+## Develop and deploy
+
+Use the current Node.js 24 LTS security patch. There are no npm dependencies.
 
 ```sh
 npm test
 npm run serve
 ```
 
-Open the local /beam/ URL printed by the server. In Settings → Help & examples, load fictional example data. For another spreadsheet use Settings → Reference data, choose an XLSX/XLSM file, and map its columns. Review Replace versus Append before submitting a new workbook. Location categories are opt-in and defined by the local profile.
+GitHub Pages publishes only the allowlisted static assets from `dist/` after tests pass on the default branch. Do not commit company workbooks, mapping profiles, hosted internal endpoints, or inspection exports.
 
-## Deploy
-
-For GitHub Pages, select **GitHub Actions** as the Pages source. The Pages workflow tests the exact static build and publishes only the allowlisted contents of `dist/` from the default branch. Asset URLs are relative to the project path. No company workbook, cloud URL, mapping profile, logos, or inspection export belongs in this repository.
-
-## Code map
-
-- `src/index.html`: semantic app shell and restrictive content security policy.
-- `src/app.js`: application state, profile settings, rendering, and event wiring.
-- `src/import/workbook.js`: bounded XLSX/XLSM import, sheet streaming and mapped value decoding. Domain conversions are injected by the app.
-- `src/domain/`: directly tested reconciliation, scanner input detection, tracking, search normalization, and Code 128 encoding.
-- `src/styles/`: glass details and main workbench CSS. The release preserves cascade order.
-- `src/vendor/` and `src/assets/`: bundled XML parser and font. Notices are retained with the distribution.
-
-## Data boundary
-
-The hosting service serves static application assets. XLSX files, searches, and scans are processed in the browser, not by the hosting service. Profiles and saved work may remain in the browser or in files an operator explicitly saves. A shared workstation or an exported file has its own access-control risks. Use synthetic data on public demos. The site is not a WMS and never writes to inventory.
-
-Inspection records are autosaved in this browser. After a reload, import the same reference workbook and mappings and choose **Recover work**. A different reference or customer-lookup set cannot restore that draft. Browser storage can be cleared by browser settings, private browsing, or storage limits; download a separate work file if you need a durable backup. No reference workbook or lookup file is included in the browser recovery draft.
-
-## Internal workspaces
-
-For an optional company-network-only setup with separate brand invites and no
-worker account in Beam, see [Internal Beam workspaces](docs/workspaces.md).
-This feature is not shipped on the public static site.
+- `src/domain/`: reconciliation, scan ordering, recovery, Code 128, and report formatting.
+- `src/import/`: workbook reading and mapped-cell decoding.
+- `src/app.js` and `src/styles/`: workbench state, actions, and presentation.
+- [Internal Beam workspaces](docs/workspaces.md): optional company-network setup with brand-scoped invitations.
+- [Security and safe operation](docs/security.md): update guidance and data boundaries.

@@ -62,3 +62,11 @@ test('satin glass uses filter support rather than requiring a transparency prefe
   assert.match(layer,/@supports \(backdrop-filter:blur\(2px\)\) or \(-webkit-backdrop-filter:blur\(2px\)\)/);
   assert.match(layer,/@media \(prefers-reduced-transparency:reduce\)[\s\S]+background:revert-layer!important;[\s\S]+backdrop-filter:none!important/);
 });
+
+test('v0.11 release keeps the approved document and styles except its version and module revision',async()=>{
+ const [html,css]=await Promise.all([read('index.html'),read('app.css')]);
+ const normalized=html.replace(/src="\.\/app\.js\?v=[0-9a-f]{12}"/,'src="./app.js"').replace(' · v0.11',' · v0.10');
+ const sha=value=>createHash('sha256').update(value).digest('hex');
+ assert.equal(sha(normalized),'b9874b80234bdc030c8819ba2934ca25f4b391bb7951e130c5868e90ad5c995d');
+ assert.equal(sha(css),'cc1868c74b49a556e8f2a8a23d3d204b462d7395eb30c74b2b3316d4e95c23b6');
+});
