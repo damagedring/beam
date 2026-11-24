@@ -3245,6 +3245,9 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
   transition:transform 390ms cubic-bezier(.2,.75,.25,1),opacity 165ms ease;
   backface-visibility:hidden;
  }
+ #beamSearch .beam-stage .beam-receipt:not([data-folder=true]){
+  transition:transform 520ms cubic-bezier(.28,.08,.22,1),opacity 320ms cubic-bezier(.25,.1,.25,1);
+ }
  #beamSearch .beam-stage .beam-receipt[data-center=false]{width:clamp(157px,15vw,209px);height:auto!important}
  #beamSearch .beam-stage .beam-receipt[data-center=false] :is(.beam-paper-top,.beam-paper-body){padding:11px 12px}
  #beamSearch .beam-stage .beam-receipt[data-center=false] .beam-paper-body{min-height:150px}

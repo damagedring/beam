@@ -2489,24 +2489,25 @@ function beamPlaceOnRibbon(el,slot,slide=0){
  el.style.setProperty('--ribbon-layer',String(9-Math.round(dist)));
 }
 function beamTurnPaper(phase,axis,direction){
- const ordered=[...beam.nodes.values()].sort((a,b)=>Math.abs(a.dataset.ribbonSlot)-Math.abs(b.dataset.ribbonSlot));
- for(const el of ordered){
-  const slot=Number(el.dataset.ribbonSlot);
-  if(Math.abs(slot)>2)continue;
-  const paper=el.firstElementChild;
-  if(!paper?.animate)continue;
-  beam.paperTurns??=new WeakMap();
-  beam.paperTurns.get(paper)?.cancel();
-  const side=Math.sign(slot)||direction;
-  const lean=slot===0?(phase==='query'?52:41):22;
-  const x=axis==='y'?side*lean:side*(phase==='query'?24:7);
-  const y=axis==='y'?side*7:side*lean;
-  const shift=axis==='y'?`0, ${side*34}px`:`${side*38}px, ${side*12}px`;
-  beam.paperTurns.set(paper,paper.animate([
-   {transform:`perspective(650px) translate(${shift}) rotateX(${x}deg) rotateY(${y}deg) scale(.93)`,opacity:.56},
-   {transform:'perspective(650px) translate(0,0) rotateX(0deg) rotateY(0deg) scale(1)',opacity:1}
-  ],{duration:slot===0?390:360,delay:Math.abs(slot)*28,easing:'cubic-bezier(.17,.74,.24,1)',fill:'backwards'}));
- }
+ const el=[...beam.nodes.values()].find(node=>node.dataset.ribbonSlot==='0');
+ const paper=el?.firstElementChild;
+ if(!paper?.animate||el.dataset.folder==='true')return;
+ beam.paperTurns??=new WeakMap();
+ const existing=beam.paperTurns.get(paper);
+ if(existing?.playState==='running')return;
+ const searching=phase==='query',vertical=axis==='y';
+ // Let the reel carry the translation. A shallow turn of the new face reads as
+ // the same sheet settling, rather than a separate pop or a second full flip.
+ const pitch=direction*(vertical?(searching?34:22):searching?16:4);
+ const yaw=direction*(vertical?3:searching?32:11);
+ const frame=(factor,opacity)=>({
+  transform:`perspective(850px) rotateX(${pitch*factor}deg) rotateY(${yaw*factor}deg)`,opacity
+ });
+ beam.paperTurns.set(paper,paper.animate([
+  {...frame(1,.90),offset:0,easing:'cubic-bezier(.25,.12,.22,1)'},
+  {...frame(.12,.99),offset:.76,easing:'cubic-bezier(.28,.02,.2,1)'},
+  {...frame(0,1),offset:1}
+ ],{duration:searching?540:480}));
 }
 function beamRender(animate=false){
  if(!beam.visible)return;

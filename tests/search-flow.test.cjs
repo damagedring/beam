@@ -37,15 +37,17 @@ const type=(which,v)=>{$(which).value=v;$(which).focus();$(which).oninput();};
 const inputKey=(which,name,more={})=>$(which).onkeydown(ev(name,$(which),more));
 c.R.beamRender();assert.equal($('beamStart').disabled,true);inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');
 reduced=false;
-type('beamQuery','성수');assert.ok(turns.some(t=>/rotateY\(52deg\)/.test(t.frames[0].transform)));
+type('beamQuery','성수');assert.ok(turns.some(t=>/rotateY\(32deg\)/.test(t.frames[0].transform)));
+assert.ok(turns[0].frames.every((f,i,a)=>i===0||f.offset>a[i-1].offset));
+assert.equal(turns[0].frames.at(-1).opacity,1);
 const moving=turns.length;
 type('beamQuery','성수점');assert.equal(turns.length,moving); // the same anchor must not jitter
 type('beamQuery','성수');
 inputKey('beamQuery','ArrowDown');assert.equal(active.element.dataset.id,'A1');
 key('ArrowDown');assert.equal(beam.candidate,'B1');
-assert.ok(turns.slice(moving).some(t=>/rotateX\(41deg\)/.test(t.frames[0].transform)));
+assert.ok(turns.slice(moving).some(t=>/rotateX\(22deg\)/.test(t.frames[0].transform)));
 key('ArrowLeft');assert.equal(beam.candidate,'A1');
-assert.ok(turns.slice(moving).some(t=>/rotateY\(-41deg\)/.test(t.frames[0].transform)));
+assert.ok(turns.slice(moving).some(t=>/rotateY\(-11deg\)/.test(t.frames[0].transform)));
 reduced=true;const motionBefore=turns.length;
 type('beamQuery','');assert.equal(turns.length,motionBefore);
 
