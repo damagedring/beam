@@ -2824,7 +2824,7 @@ function beamPeekFolder(el,step){
  beam.folderPeek.set(group.key,to);beamFolderFace(el,group,true);beamSizeLongFolder();
  const paper=el.querySelector('.beam-file-paper');
  if(paper?.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-  paper.animate([{translate:'0 '+(step>0?26:-12)+'px',opacity:.4},{translate:'0 0',opacity:1}],{duration:260,easing:'cubic-bezier(.17,.74,.24,1)'});
+  paper.animate([{translate:'0 '+(step>0?26:-12)+'px',opacity:.4},{translate:'0 0',opacity:1}],{duration:475,easing:'cubic-bezier(.28,.08,.22,1)'});
  }
  return true;
 }
@@ -3141,11 +3141,47 @@ function beamShowHome(focus=true){
  search.hidden=true;search.inert=true;work.hidden=true;work.inert=true;
  $('beamBack').hidden=true;$('beamHomeBack').hidden=true;
  document.body.dataset.beamView='home';
- if(focus){window.scrollTo(0,0);$('beamHomeReturns').focus({preventScroll:true});}
+ beamCenterHome(beamHomeAt,focus);
+ if(focus)window.scrollTo(0,0);
+}
+const beamHomeModes=['Inbound','Outbound','Inventory','Returns'];
+let beamHomeAt=beamHomeModes.length-1,beamHomeDrag=null,beamHomeIgnoreClick=0;
+function beamCenterHome(index,focus=false){
+ const n=beamHomeModes.length;beamHomeAt=((index%n)+n)%n;
+ for(const [i,name] of beamHomeModes.entries()){
+  const slot=$('beamHomeSlot'+name),button=$('beamHome'+name),d=(i-beamHomeAt+n)%n,delta=d>2?d-n:d;
+  slot.dataset.center=String(delta===0);
+  slot.style.setProperty('--home-slot',String(delta));
+  slot.style.setProperty('--home-offset',String(delta===2?1.65:delta));
+  slot.style.setProperty('--home-depth',String(Math.abs(delta)));
+  slot.style.setProperty('--home-yaw',(delta*-16)+'deg');
+  button.setAttribute('aria-current',String(i===beamHomeAt));button.tabIndex=i===beamHomeAt?0:-1;
+ }
+ if(focus)$('beamHome'+beamHomeModes[beamHomeAt]).focus({preventScroll:true});
 }
 $('beamBack').onclick=()=>beamNewSearch();
 $('beamHomeBack').onclick=()=>beamShowHome();
-$('beamHomeReturns').onclick=()=>beamView(true);
+for(const [i,name] of beamHomeModes.entries())$('beamHome'+name).onclick=()=>{
+ if(beamHomeIgnoreClick&&performance.now()<beamHomeIgnoreClick)return;
+ if(name==='Returns'&&i===beamHomeAt){beamView(true);return;}
+ beamCenterHome(i,true);
+};
+$('beamHome').addEventListener?.('keydown',e=>{
+ if(e.defaultPrevented||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;
+ const step={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];
+ if(step){e.preventDefault();beamCenterHome(beamHomeAt+step,true);}
+});
+$('beamHome').addEventListener?.('pointerdown',e=>{
+ if(e.isPrimary&&e.button===0)beamHomeDrag={id:e.pointerId,x:e.clientX,y:e.clientY};
+});
+$('beamHome').addEventListener?.('pointercancel',()=>{beamHomeDrag=null;});
+$('beamHome').addEventListener?.('pointerup',e=>{
+ const from=beamHomeDrag;beamHomeDrag=null;
+ if(!from||from.id!==e.pointerId)return;
+ const x=e.clientX-from.x,y=e.clientY-from.y;
+ if(Math.abs(x)<40||Math.abs(x)<Math.abs(y)*1.25)return;
+ beamHomeIgnoreClick=performance.now()+325;beamCenterHome(beamHomeAt+(x<0?1:-1),true);
+});
 
 function beamInspectionEscape(e){
  if(e.key!=='Escape'||beam.visible||dataImportBusy||e.defaultPrevented||e.repeat||

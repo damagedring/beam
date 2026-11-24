@@ -148,10 +148,10 @@
 <main id="beamHome" aria-labelledby="beamHomeTitle" tabindex="-1">
  <h1 id="beamHomeTitle" class="beam-sr" data-ko="업무 선택" data-en="Work selection">업무 선택</h1>
  <ul class="beam-home-choices" aria-label="업무 선택">
-  <li><span class="beam-home-word"><span class="beam-home-en" lang="en">Inbound</span> <span class="beam-home-ko" lang="ko">입고</span></span><small data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
-  <li><span class="beam-home-word"><span class="beam-home-en" lang="en">Outbound</span> <span class="beam-home-ko" lang="ko">출고</span></span><small data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
-  <li><span class="beam-home-word"><span class="beam-home-en" lang="en">Inventory</span> <span class="beam-home-ko" lang="ko">재고관리</span></span><small data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
-  <li><button type="button" id="beamHomeReturns" class="beam-home-word" aria-controls="beamSearch"><span class="beam-home-en" lang="en">Returns</span> <span class="beam-home-ko" lang="ko">반품</span></button></li>
+  <li id="beamHomeSlotInbound"><button type="button" id="beamHomeInbound" class="beam-home-word" aria-describedby="beamHomeInboundHint"><span class="beam-home-en" lang="en">Inbound</span> <span class="beam-home-ko" lang="ko">입고</span></button><small id="beamHomeInboundHint" data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
+  <li id="beamHomeSlotOutbound"><button type="button" id="beamHomeOutbound" class="beam-home-word" aria-describedby="beamHomeOutboundHint"><span class="beam-home-en" lang="en">Outbound</span> <span class="beam-home-ko" lang="ko">출고</span></button><small id="beamHomeOutboundHint" data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
+  <li id="beamHomeSlotInventory"><button type="button" id="beamHomeInventory" class="beam-home-word" aria-describedby="beamHomeInventoryHint"><span class="beam-home-en" lang="en">Inventory</span> <span class="beam-home-ko" lang="ko">재고관리</span></button><small id="beamHomeInventoryHint" data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
+  <li id="beamHomeSlotReturns"><button type="button" id="beamHomeReturns" class="beam-home-word" aria-controls="beamSearch"><span class="beam-home-en" lang="en">Returns</span> <span class="beam-home-ko" lang="ko">반품</span></button></li>
  </ul>
 </main>
 <section id="beamSearch" aria-labelledby="beamSearchTitle" hidden inert>
