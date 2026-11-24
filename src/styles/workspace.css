@@ -3886,3 +3886,54 @@ body>header{padding-inline:9px!important;gap:4px!important}
  }
  #beamTerminal #scanActivitySection :is(button,[tabindex]):focus-visible{outline-color:var(--neon-cyan)!important}
 }
+
+/* Header pills share one content box. Their radius never replaces text insets. */
+@media screen{
+ html[data-theme] body>header .beam-identity{
+  flex-wrap:wrap;column-gap:clamp(7px,1vw,13px);row-gap:5px;
+ }
+ html[data-theme] body>header .beam-identity>button:is(#beamHomeBack,#beamBack):not([hidden]),
+ html[data-theme] body>header .beam-identity #beamSaveHint:not([hidden]){
+  display:inline-flex;align-items:center;justify-content:center;flex:none;gap:7px;
+  inline-size:auto;block-size:auto;min-inline-size:0;min-block-size:38px;margin:0;
+  padding:6px 14px!important;border-radius:999px!important;
+  font:650 .75rem/1.3 var(--font-ui)!important;white-space:nowrap;
+ }
+ html[data-theme] body>header .beam-identity :is(#beamSaveHint,#beamBack) svg{
+  flex:0 0 16px;width:16px;height:16px;margin:0;
+ }
+ html[data-theme] body>header .beam-identity #beamBack span{display:inline;font:inherit}
+ html[data-theme] body>header #beamSaveHint::before{
+  inset-block-start:50%;inset-inline-start:-2px;width:7px;height:7px;
+  transform:translateY(-50%) rotate(45deg);pointer-events:none;
+ }
+ @media(max-width:560px){
+  html[data-theme] body>header .beam-identity>button:is(#beamHomeBack,#beamBack):not([hidden]),
+  html[data-theme] body>header .beam-identity #beamSaveHint:not([hidden]){
+   gap:5px;padding-inline:9px!important;font-size:.6875rem!important;
+  }
+ }
+ @media(pointer:coarse){
+  html[data-theme] body>header .beam-identity>button:is(#beamHomeBack,#beamBack):not([hidden]),
+  html[data-theme] body>header .beam-identity #beamSaveHint:not([hidden]){min-block-size:44px}
+ }
+}
+
+
+/* A ledger row marks one accepted scan, not a reconciled order quantity. */
+@media screen{
+ html[data-theme] #sheetWorkspace #scanActivitySection .compact-activity td.sheet-status[data-cell-state=accepted]{
+  text-align:center;vertical-align:middle;padding-block:0!important;
+ }
+ html[data-theme] .activity-sheet td.sheet-status[data-cell-state=accepted]{
+  color:var(--complete-ink)!important;background:transparent!important;
+ }
+ html[data-theme] .activity-sheet td.sheet-status>.status-accepted{
+  display:inline-grid!important;place-items:center;padding:0!important;min-width:0!important;
+  vertical-align:middle;line-height:1;background:none!important;color:inherit!important;box-shadow:none!important;
+ }
+ .activity-sheet .sheet-status>.status-accepted .beam-ui-icon{width:16px;height:16px}
+}
+@media screen and (forced-colors:active){
+ html[data-theme] .activity-sheet td.sheet-status[data-cell-state=accepted]{color:CanvasText!important}
+}
