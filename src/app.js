@@ -2011,9 +2011,15 @@ function drawOrderWorkspace(){
  const heading=$('beamWorkName'),partyRow=known.get(state.receipt)?.[0],partyEntry=state.receipt?uiIndex().orderSearch.get(state.receipt):null;
  const party=isB2C()?partyEntry?.names?.join(' / ')||partyRow?.seller:partyRow?.seller||partyRow?.company||state.store;
  heading.textContent=party||'';heading.hidden=!state.receipt||!party;
- const activeIndex=ids.indexOf(state.receipt),active=$('activeOrderSheet');active.dataset.orderPeek=state.receipt;$('activeOrderInfo').dataset.orderInfo=state.receipt;$('activeOrderInfo').disabled=!state.receipt;$('activeOrderInfo').setAttribute('aria-label',(receiptDisplay(state.receipt)||state.receipt||'')+' · '+(language==='en'?'Order inspection info':'오더 검수 정보'));active.style.order=String(Math.max(0,activeIndex));active.classList.toggle('is-order-active',!!state.receipt);active.setAttribute('aria-label',(language==='en'?'Selected order: ':'선택 오더: ')+(receiptDisplay(state.receipt)||state.receipt||'External order ID'));
- $('orderTabs').innerHTML=ids.map((id,i)=>{if(id===state.receipt)return '';const label=receiptDisplay(id)||id;return '<div class="order-sheet" style="order:'+i+'" role="group" data-order-peek="'+esc(id)+'" aria-label="'+esc(label)+'"><button type="button" class="order-sheet-select" data-order-tab="'+esc(id)+'" aria-controls="orderInspectionPanel" title="'+esc('Order ID '+id)+'"'+(state.receiptLocked?' disabled':'')+'><span class="order-key">'+esc(label)+'</span>'+completionMark(id)+'</button><button type="button" class="order-sheet-action order-info-button" data-order-info="'+esc(id)+'" aria-label="오더 검수 정보" aria-haspopup="dialog" aria-controls="orderInfoPopover">'+beamIcon('info')+'</button><button type="button" class="order-sheet-action" data-order-open="'+esc(id)+'" aria-label="'+esc(language==='en'?'Select order':'오더 선택')+'"'+(state.receiptLocked?' disabled':'')+'>'+beamIcon('chevron-down')+'</button><button type="button" class="order-sheet-action" data-order-barcode="'+esc(id)+'" aria-label="Order ID PDA 바코드"'+(state.receiptLocked?' disabled':'')+'>'+beamIcon('barcode')+'</button></div>';}).join('');
- for(const b of $('orderTabs').querySelectorAll('[data-order-info]'))b.setAttribute('aria-label',(receiptDisplay(b.dataset.orderInfo)||b.dataset.orderInfo)+' · '+(language==='en'?'Order inspection info':'오더 검수 정보'));
+ const active=$('activeOrderSheet');active.dataset.orderPeek=state.receipt;
+ const info=$('activeOrderInfo');info.dataset.orderInfo=state.receipt;info.disabled=!state.receipt;
+ info.setAttribute('aria-label',(receiptDisplay(state.receipt)||state.receipt||'')+' · '+(language==='en'?'Order inspection info':'오더 검수 정보'));
+ active.classList.toggle('is-order-active',!!state.receipt);
+ active.setAttribute('aria-label',(language==='en'?'Selected order: ':'선택 오더: ')+(receiptDisplay(state.receipt)||state.receipt||'External order ID'));
+ $('orderTabs').innerHTML=ids.filter(id=>id!==state.receipt).map(id=>{
+  const label=esc(receiptDisplay(id)||id);
+  return '<button type="button" class="order-tab-link" data-order-tab="'+esc(id)+'" aria-controls="orderInspectionPanel"'+(state.receiptLocked?' disabled':'')+'><span class="order-key">'+label+'</span>'+completionMark(id)+'</button>';
+ }).join('');
  $('orderInspectionPanel').removeAttribute('aria-labelledby');$('orderInspectionPanel').setAttribute('aria-label',(language==='en'?'Selected order inspection: ':'선택 오더 검수: ')+(receiptDisplay(state.receipt)||state.receipt||'—'));
 }
 function switchOrderTab(id){
@@ -2426,7 +2432,7 @@ $('resultNext').onclick=()=>{resultPage++;draw();$('results').querySelector('.ta
 $('historyPrev').onclick=()=>{historyPage=Math.max(0,historyPage-1);drawActivityHistory(reconcileView(state.data,state.receipt,state.scans));$('activityHistoryViewport').scrollTop=0;};
 $('historyNext').onclick=()=>{historyPage++;drawActivityHistory(reconcileView(state.data,state.receipt,state.scans));$('activityHistoryViewport').scrollTop=0;};
 
-$('orderTabs').onclick=e=>{const b=e.target.closest?.('[data-order-tab],[data-order-open],[data-order-barcode]');if(!b||b.disabled)return;const id=b.dataset.orderTab||b.dataset.orderOpen||b.dataset.orderBarcode,open=!!b.dataset.orderOpen,barcode=!!b.dataset.orderBarcode;if(switchOrderTab(id)){if(barcode)showReceiptBarcode();else if(open)$('receiptToggle').click();}};
+$('orderTabs').onclick=e=>{const tab=e.target.closest?.('[data-order-tab]');if(tab&&!tab.disabled)switchOrderTab(tab.dataset.orderTab);};
 $('orderTabs').onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const list=[...$('orderTabs').querySelectorAll('[data-order-tab]:not(:disabled)')],at=list.indexOf(e.target);if(at<0)return;e.preventDefault();const n=e.key==='Home'?0:e.key==='End'?list.length-1:(at+(e.key==='ArrowRight'?1:-1)+list.length)%list.length;list[n].focus();};
 /* Replace the existing apply/file/workbookFile handlers, do not append duplicates. */
 // Reclassify only a positively identified live source; never replace an appended set or alter scan entries.
@@ -2606,7 +2612,7 @@ function trackingMatches(query,allow){
 function trackingOrders(query){return trackingMatches(query,workReceiptGate());}
 
 let trackingToastTimer=null;
-function trackingNotFound(){let toast=$('trackingSearchToast');if(!toast){toast=document.createElement('div');toast.id='trackingSearchToast';toast.setAttribute('role','status');toast.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:calc(100vw - 32px);padding:12px 18px;background:#ffdb69;color:#151515;border:1px solid #8b711e;border-radius:5px;z-index:2000;transition:opacity .8s;pointer-events:none';document.body.append(toast);}clearTimeout(trackingToastTimer);toast.textContent=language==='en'?(isB2C()?'Return tracking number not found. Search by customer name.':'Return tracking number not found. Search by store name.'):(isB2C()?'반송장번호를 찾지 못했어요. 고객명으로 검색해 주세요.':'반송장번호를 찾지 못했어요. 매장명으로 검색해 주세요.');toast.style.opacity='1';trackingToastTimer=setTimeout(()=>{toast.style.opacity='0';},3200);}
+function trackingNotFound(){let toast=$('trackingSearchToast');if(!toast){toast=document.createElement('div');toast.id='trackingSearchToast';toast.setAttribute('role','status');toast.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:calc(100vw - 32px);padding:12px 18px;background:var(--lemon-alert);color:var(--alert-ink);border:1px solid var(--lemon-edge);border-radius:5px;z-index:2000;transition:opacity .8s;pointer-events:none';document.body.append(toast);}clearTimeout(trackingToastTimer);toast.textContent=language==='en'?(isB2C()?'Return tracking number not found. Search by customer name.':'Return tracking number not found. Search by store name.'):(isB2C()?'반송장번호를 찾지 못했어요. 고객명으로 검색해 주세요.':'반송장번호를 찾지 못했어요. 매장명으로 검색해 주세요.');toast.style.opacity='1';trackingToastTimer=setTimeout(()=>{toast.style.opacity='0';},3200);}
 const trackingSyncMode=syncSearchMode;
 syncSearchMode=function(){trackingSyncMode();$('customerQuery').placeholder=language==='en'?'Customer name or return tracking number':'고객명 또는 반송장번호';$('customerQuery').previousElementSibling.textContent=language==='en'?'Customer name':'고객명';$('store').placeholder=language==='en'?'Store name or return tracking number':'매장명 또는 반송장번호';};
 const trackingReceiptOptions=receiptOptions;
@@ -2788,17 +2794,33 @@ function beamAppendReceiptItems(){
  more.hidden=remaining<=0;
  more.textContent=beamL('다음 '+Math.min(remaining,200).toLocaleString()+'종 보기','Show next '+Math.min(remaining,200).toLocaleString()+' items');
 }
+function beamDrawFolderReceipt(group,at){
+ const id=group.ids[at],sheet=beamFolderItems(rawRows(id));
+ beamLongReceipt={group,at,items:sheet.items,next:0};
+ const title=receiptDisplay(id)||id;
+ $('beamFolderReceiptTitle').textContent=title;
+ $('beamFolderReceiptStore').textContent=beamPartyLabel(id,beam.mode);
+ $('beamFolderReceiptTotal').textContent=beamL('합계','Total')+' · '+beamFolderCount(sheet.items.length)+' · '+beamFolderTotal(sheet.total);
+ $('beamFolderReceiptNav').hidden=group.ids.length<2;
+ $('beamFolderReceiptPosition').textContent=(at+1)+' / '+group.ids.length;
+ $('beamFolderReceiptPosition').setAttribute('aria-label',title+' · '+(at+1)+' / '+group.ids.length);
+ const more=$('beamFolderReceiptMore'),hadMoreFocus=document.activeElement===more;
+ $('beamFolderReceiptRows').replaceChildren();beamAppendReceiptItems();
+ if(hadMoreFocus&&more.hidden)$('beamFolderReceiptScroll').focus({preventScroll:true});
+ $('beamFolderReceiptScroll').scrollTop=0;
+}
 function beamOpenFolderReceipt(){
  const group=beam.phase!=='asn'&&beam.groups?.byId.get(beam.browseAnchor);
  if(!group||dataImportBusy)return;
- const id=group.ids[beam.folderPeek.get(group.key)||0],sheet=beamFolderItems(rawRows(id));
- beamLongReceipt={items:sheet.items,next:0};
- $('beamFolderReceiptTitle').textContent=receiptDisplay(id)||id;
- $('beamFolderReceiptStore').textContent=beamPartyLabel(id,beam.mode);
- $('beamFolderReceiptTotal').textContent=beamL('합계','Total')+' · '+beamFolderCount(sheet.items.length)+' · '+beamFolderTotal(sheet.total);
- $('beamFolderReceiptRows').replaceChildren();beamAppendReceiptItems();
+ beamDrawFolderReceipt(group,beam.folderPeek.get(group.key)||0);
  openUtilityDialog('beamFolderReceiptDialog','beamFolderReceiptOpen','beamFolderReceiptClose');
- $('beamFolderReceiptScroll').scrollTop=0;
+}
+function beamStepFolderReceipt(step){
+ if(!beamLongReceipt||dataImportBusy)return false;
+ const {group,at}=beamLongReceipt,count=group.ids.length;
+ if(count<2)return false;
+ beamDrawFolderReceipt(group,(at+step+count)%count);
+ return true;
 }
 function beamSizeLongFolder(){
  const stage=$('beamStage'),el=beam.nodes.get(beam.browseAnchor);
@@ -3096,8 +3118,19 @@ beamRibbon.onclick=e=>{
 $('beamFolderReceiptOpen').onclick=beamOpenFolderReceipt;
 $('beamFolderReceiptMore').onclick=beamAppendReceiptItems;
 $('beamFolderReceiptClose').onclick=()=>$('beamFolderReceiptDialog').close();
+$('beamFolderReceiptPrev').onclick=()=>beamStepFolderReceipt(-1);
+$('beamFolderReceiptNext').onclick=()=>beamStepFolderReceipt(1);
+$('beamFolderReceiptDialog').addEventListener('keydown',e=>{
+ if(e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
+ const step=e.key==='ArrowLeft'?-1:e.key==='ArrowRight'?1:0;
+ if(step&&beamStepFolderReceipt(step))e.preventDefault();
+});
 $('beamFolderReceiptDialog').onclose=()=>{
+ const viewed=beamLongReceipt;
  beamLongReceipt=null;$('beamFolderReceiptRows').replaceChildren();
+ if(viewed&&beam.groups?.byKey.get(viewed.group.key)===viewed.group&&(beam.folderPeek.get(viewed.group.key)||0)!==viewed.at){
+  beam.folderPeek.set(viewed.group.key,viewed.at);beamRender();
+ }
  $('beamFolderReceiptOpen').focus({preventScroll:true});
 };
 $('beamPrev').onclick=()=>beamStep(-1);
@@ -3153,18 +3186,39 @@ function beamShowHome(focus=true){
 }
 const beamHomeModes=['Inbound','Outbound','Inventory','Returns'];
 let beamHomeAt=beamHomeModes.length-1,beamHomeDrag=null,beamHomeIgnoreClick=0;
+function beamHomeLayout(){
+ if($('beamHome').hidden)return;
+ const n=beamHomeModes.length,rail=$('beamHome').querySelector?.('.beam-home-choices'),gap=Math.max(15,Math.min(34,(rail?.clientWidth||0)*.026));
+ const slots=beamHomeModes.map((name,i)=>{
+  const d=(i-beamHomeAt+n)%n,delta=d>2?d-n:d;
+  const button=$('beamHome'+name),slot=$('beamHomeSlot'+name);
+  return {delta,slot,button,width:(button.offsetWidth||0)*(1-Math.abs(delta)*.18)};
+ });
+ const index=new Map(slots.map(s=>[s.delta,s]));
+ let offset=0;
+ for(const delta of [1,2]){
+  offset+=(index.get(delta-1).width+index.get(delta).width)/2+gap;
+  index.get(delta).slot.style.setProperty('--home-x',offset+'px');
+ }
+ index.get(-1).slot.style.setProperty('--home-x',-((index.get(0).width+index.get(-1).width)/2+gap)+'px');
+ index.get(0).slot.style.setProperty('--home-x','0px');
+}
 function beamCenterHome(index,focus=false){
  const n=beamHomeModes.length;beamHomeAt=((index%n)+n)%n;
+ beamHomeLayout();
  for(const [i,name] of beamHomeModes.entries()){
   const slot=$('beamHomeSlot'+name),button=$('beamHome'+name),d=(i-beamHomeAt+n)%n,delta=d>2?d-n:d;
   slot.dataset.center=String(delta===0);
-  slot.style.setProperty('--home-slot',String(delta));
-  slot.style.setProperty('--home-offset',String(delta===2?1.65:delta));
+  slot.style.setProperty('--home-offset',String(delta));
   slot.style.setProperty('--home-depth',String(Math.abs(delta)));
-  slot.style.setProperty('--home-yaw',(delta*-16)+'deg');
+  slot.style.setProperty('--home-yaw',(delta*-10)+'deg');
   button.setAttribute('aria-current',String(i===beamHomeAt));button.tabIndex=i===beamHomeAt?0:-1;
  }
  if(focus)$('beamHome'+beamHomeModes[beamHomeAt]).focus({preventScroll:true});
+}
+if(typeof ResizeObserver==='function'){
+ const beamHomeResize=new ResizeObserver(beamHomeLayout);
+ for(const name of beamHomeModes)beamHomeResize.observe($('beamHome'+name));
 }
 $('beamBack').onclick=()=>beamNewSearch();
 $('beamHomeBack').onclick=()=>beamShowHome();

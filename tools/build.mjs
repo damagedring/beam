@@ -11,7 +11,7 @@ const files = Object.freeze([
   'domain/search-keys.js', 'domain/reconcile.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
 ]);
-const styles = ['styles/glass.css', 'styles/workspace.css', 'styles/inspection-print.css'];
+const styles = ['styles/status-colors.css', 'styles/glass.css', 'styles/workspace.css', 'styles/inspection-print.css'];
 
 async function readSource(relative) {
   const file = join(source, relative);

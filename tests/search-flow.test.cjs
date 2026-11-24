@@ -10,7 +10,7 @@ class El {
  removeAttribute(k){delete this[k];}
  addEventListener(k,f){this.events[k]=f;}
  setPointerCapture(id){this.captured=id;}
- replaceChildren(){for(const c of this.children)c.isConnected=false;this.children=[];}
+ replaceChildren(){for(const c of this.children)c.isConnected=false;this.children=[];this.html='';}
  append(e){e.isConnected=true;this.children.push(e);}
  insertAdjacentHTML(place,markup){this.html=(this.html||'')+markup;}
  remove(){this.isConnected=false;}
@@ -114,6 +114,30 @@ assert.equal($('beamFolderReceiptMore').hidden,false);
 $('beamFolderReceiptMore').onclick();$('beamFolderReceiptMore').onclick();
 assert.equal(($('beamFolderReceiptRows').html.match(/<tr>/g)||[]).length,401);
 assert.equal($('beamFolderReceiptMore').hidden,true);
+const receiptKeys=$('beamFolderReceiptDialog').events.keydown,receiptScroll=$('beamFolderReceiptScroll');
+const leftReceipt=ev('ArrowLeft',receiptScroll);
+receiptScroll.scrollTop=530;receiptKeys(leftReceipt);
+assert.equal(leftReceipt.defaultPrevented,true);
+assert.equal($('beamFolderReceiptPosition').textContent,'2 / 2');
+assert.equal($('beamFolderReceiptTitle').textContent,'Ext-A2');
+assert.match($('beamFolderReceiptRows').html,/Paper Two/);
+assert.doesNotMatch($('beamFolderReceiptRows').html,/Product 0|Paper Three/);
+assert.equal(receiptScroll.scrollTop,0);
+assert.equal($('beamFolderReceiptMore').hidden,true);
+const vertical=ev('ArrowDown',receiptScroll);receiptKeys(vertical);
+assert.equal(vertical.defaultPrevented,undefined);
+const modified=ev('ArrowRight',receiptScroll,{ctrlKey:true});receiptKeys(modified);
+assert.equal(modified.defaultPrevented,undefined);
+assert.equal($('beamFolderReceiptTitle').textContent,'Ext-A2');
+receiptKeys(ev('ArrowRight',receiptScroll));
+assert.equal($('beamFolderReceiptPosition').textContent,'1 / 2');
+assert.equal(($('beamFolderReceiptRows').html.match(/<tr>/g)||[]).length,200);
+$('beamFolderReceiptNext').onclick();
+$('beamFolderReceiptDialog').onclose();
+assert.equal(beam.folderPeek.get(beam.groups.byId.get('A1').key),1);
+assert.doesNotMatch($('beamFolderReceiptRows').html,/Paper Two/);
+c.R.beamOpenFolderReceipt();assert.equal($('beamFolderReceiptTitle').textContent,'Ext-A2');
+$('beamFolderReceiptPrev').onclick();
 $('beamFolderReceiptDialog').onclose();
 const longFolder=beam.nodes.get('A1'),stage=$('beamStage');
 stage.clientHeight=400;stage.getBoundingClientRect=()=>({top:100});

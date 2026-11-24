@@ -928,7 +928,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</pre>
  <tbody id="beamFolderReceiptRows"></tbody></table>
  <button type="button" id="beamFolderReceiptMore" hidden></button>
 </div>
-<p id="beamFolderReceiptTotal"></p>
+<div class="beam-long-receipt-foot">
+ <p id="beamFolderReceiptTotal"></p>
+ <div id="beamFolderReceiptNav" hidden>
+  <button type="button" id="beamFolderReceiptPrev" aria-label="이전 영수증" data-ko-label="이전 영수증" data-en-label="Previous receipt"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-arrow-left"/></svg></button>
+  <span id="beamFolderReceiptPosition" role="status" aria-atomic="true"></span>
+  <button type="button" id="beamFolderReceiptNext" aria-label="다음 영수증" data-ko-label="다음 영수증" data-en-label="Next receipt"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-arrow-right"/></svg></button>
+ </div>
+</div>
 </dialog>
 <dialog id="asnShareDialog" aria-labelledby="asnShareTitle">
 <div class="dialog-heading">

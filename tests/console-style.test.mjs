@@ -4,31 +4,40 @@ import {test} from 'node:test';
 import {runInNewContext} from 'node:vm';
 
 const css=await readFile(new URL('../src/styles/workspace.css',import.meta.url),'utf8');
+const palette=await readFile(new URL('../src/styles/status-colors.css',import.meta.url),'utf8');
 const styles=css.slice(css.indexOf('/* Inspection glass: neutral outer material'));
 const readToken=name=>styles.match(new RegExp('--'+name+':(#[0-9a-f]{6})(?:;|\\s)'))?.[1];
 const luminance=hex=>hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255)
  .map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4).reduce((sum,x,i)=>sum+x*[.2126,.7152,.0722][i],0);
 const contrast=(a,b)=>{const l=[luminance(a),luminance(b)].sort((x,y)=>y-x);return (l[0]+.05)/(l[1]+.05);};
 
+const readSwatch=name=>palette.match(new RegExp('--status-'+name+':(#[0-9a-f]{6})'))?.[1];
+const mix=(a,b,weight)=>'#'+a.slice(1).match(/../g).map((x,i)=>Math.round(parseInt(x,16)*weight+parseInt(b.slice(i*2+1,i*2+3),16)*(1-weight)).toString(16).padStart(2,'0')).join('');
 test('scanner and ledger keep legible status and text over their neutral dark surfaces',()=>{
  assert.match(styles,/@media screen and \(forced-colors:none\)/);
- for(const [ink,bg] of [['scan-text','scan-well'],['scan-hint','scan-well'],['neon-cyan','scan-well']]){
-  assert.ok(contrast(readToken(ink),readToken(bg))>=4.5,ink);
+ for(const ink of ['scan-text','scan-hint'])assert.ok(contrast(readToken(ink),readToken('scan-well'))>=4.5,ink);
+ assert.ok(contrast(readSwatch('info'),readToken('scan-well'))>=4.5);
+ for(const swatch of ['match','short','over','info']){
+  const color=readSwatch(swatch);
+  assert.ok(contrast(color,mix(color,'#1d1d1d',.15))>=4.5,swatch+' on dark');
+  assert.ok(contrast(mix(color,'#111111',.28),mix(color,'#ffffff',.30))>=4.5,swatch+' on light');
  }
- for(const [ink,swatch,panel] of [
-  ['complete-ink','neon-lime','#293624'],['lemon-ink','neon-yellow','#353621'],['coral-ink','neon-red','#412d2d'],
- ]){
-  assert.match(styles,new RegExp('--'+ink+':var\\(--'+swatch+'\\)'));
-  assert.ok(contrast(readToken(swatch),panel)>=4.5,swatch);
- }
- assert.match(styles,/--shortage-ink:var\(--lemon-ink\)/);
- assert.match(styles,/--excess-ink:var\(--coral-ink\)/);
- assert.match(styles,/#scanActivitySection \.compact-activity td\.sheet-status\[data-cell-state=accepted\]\{[^}]*background:var\(--recent-surface\)!important;color:var\(--neon-lime\)!important/);
+ assert.match(styles,/#scanActivitySection \.compact-activity td\.sheet-status\[data-cell-state=accepted\]\{[^}]*background:var\(--recent-surface\)!important;color:var\(--complete-ink\)!important/);
  assert.match(styles,/--tui-dim:var\(--term-dim\);--muted:var\(--term-dim\)/);
- assert.ok(contrast(readToken('neon-lime'),readToken('recent-surface'))>=4.5);
+ assert.ok(contrast(readSwatch('match'),readToken('recent-surface'))>=4.5);
  assert.ok(contrast('#bdbdbd',readToken('recent-surface'))>=4.5);
 });
-
+test('screen information colors are sourced from the shared palette, including the order popover',async()=>{
+ const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
+ const live=css+'\n'+glass;
+ for(const role of ['match','short','over','info']){
+  assert.equal([...palette.matchAll(new RegExp('--status-'+role+':','g'))].length,1);
+  assert.doesNotMatch(live,new RegExp(readSwatch(role),'i'));
+ }
+ assert.doesNotMatch(live,/--(?:complete|warning|shortage|progress|excess|lemon|coral|beam-error)-(?:bg|ink|fill|edge|alert)\s*:/);
+ assert.match(css,/:is\(#orderInfoList,#questPeekList\) \.quest-item\[data-phase=progress\]\{--quest-fill:var\(--shortage-bg\);--quest-ink:var\(--shortage-ink\)/);
+ assert.match(css,/:is\(#orderInfoList,#questPeekList\) \.quest-item\[data-phase\]\{\s*color:var\(--quest-ink\);background:var\(--quest-fill\)/);
+});
 
 test('last scan shows a visible quantity, with shortage, equality or surplus spelled out',async()=>{
  const src=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
@@ -67,5 +76,40 @@ test('order identity, order actions and both inspection tables are inside the sa
   assert.match(sheet,new RegExp('id="'+id+'"'));
  }
  assert.match(sheet,/<\/main>\s*<\/div>\s*<\/section>\s*<\/div>/);
- assert.match(css,/#inspectionOrderSurface::after\{\s*inset:0 var\(--order-pocket\)/);
+ assert.match(css,/#inspectionOrderSurface::before\{\s*content:"";position:absolute;inset:0/);
+});
+
+test('switching inspection orders never regenerates a second action header',async()=>{
+ const src=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
+ const workspace=src.slice(src.indexOf('function drawOrderWorkspace()'),src.indexOf('function hasOtherAsnCandidate('));
+ const orders=new Map([['i-1',[{seller:'Test store'}]],['i-2',[{seller:'Test store'}]]]);
+ const nodes=new Map();
+ const $=id=>{
+  if(!nodes.has(id))nodes.set(id,{dataset:{},classList:{toggle(){}},setAttribute(k,v){this[k]=v},removeAttribute(){},focus(){this.focused=true}});
+  return nodes.get(id);
+ };
+ const state={data:{},orderTabs:['i-1','i-2'],currentBatch:'b',scans:[{batch:'b',receipt:'i-1'}],pending:[],receipt:'i-1'};
+ const ctx={$,state,language:'en',lastBarcode:'',selectedWorkStoreKey:()=>'s',Engine:{getIndex:()=>({rawByReceipt:orders})},
+  workReceiptGate:()=>id=>orders.has(id),workAllowsReceipt:id=>orders.has(id),isB2C:()=>false,asnStoreKey:()=>'s',
+  uiIndex:()=>({orderSearch:new Map()}),receiptDisplay:id=>'Ext-'+id,completionMark:()=>'',esc:String,changed(){}};
+ const api=runInNewContext(workspace+'\nfunction draw(){drawOrderWorkspace()}\n({drawOrderWorkspace,switchOrderTab})',ctx);
+ const originalScan=state.scans[0];
+ for(const [id,other] of [['i-1','i-2'],['i-2','i-1'],['i-1','i-2']]){
+  assert.equal(api.switchOrderTab(id),true);
+  assert.equal($('activeOrderInfo').dataset.orderInfo,id);
+  assert.equal(($('orderTabs').innerHTML.match(/<button/g)||[]).length,1);
+  assert.match($('orderTabs').innerHTML,new RegExp('data-order-tab="'+other+'"'));
+  assert.doesNotMatch($('orderTabs').innerHTML,/data-order-info|data-order-open|data-order-barcode|<svg|type="text"/);
+  assert.strictEqual(state.scans[0],originalScan);
+ }
+ assert.equal($('barcode').focused,true);
+});
+
+test('long receipts keep a native scroll track inside the paper and retain their own header and footer',async()=>{
+ const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8');
+ const receipt=html.slice(html.indexOf('<dialog id="beamFolderReceiptDialog"'),html.indexOf('<dialog id="asnShareDialog"'));
+ assert.match(receipt,/beam-long-receipt-head[\s\S]*<div id="beamFolderReceiptScroll" tabindex="0">[\s\S]*<\/table>[\s\S]*<\/div>\s*<div class="beam-long-receipt-foot">[\s\S]*id="beamFolderReceiptNav"/);
+ assert.match(css,/#beamFolderReceiptDialog\[open\]\{[^}]*grid-template-rows:auto minmax\(0,1fr\) auto/);
+ assert.match(css,/#beamFolderReceiptScroll\{[^}]*overflow-y:auto[^}]*scrollbar-gutter:stable/);
+ assert.match(css,/#beamFolderReceiptScroll::-webkit-scrollbar-thumb\{[^}]*border:4px solid transparent/);
 });
