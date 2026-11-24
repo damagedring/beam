@@ -3221,7 +3221,7 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
 }
 @layer beam-action-shape{
  @media screen{
-  #beamTerminal :is(#scanbutton,#undo,#activityMinimize,#activityExpand,#reset,.count-exceptions button){border-radius:0!important}
+  #beamTerminal :is(#scanbutton,#undo,#activityMinimize,#activityExpand,#reset,.count-exceptions button){border-radius:5px!important}
   #beamTerminal #undo{--beam-icon-size:37px}
  }
 }
@@ -3391,6 +3391,131 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
  }
 }
 
+
+/* Matte inspection glass: one optical surface, with data rows etched into it. */
+@media screen and (forced-colors:none){
+ html[data-theme] #sheetWorkspace #beamTerminal{
+  --term-bg:#eeefeb;
+  --term-field:#ffffff53;
+  --term-head:#f8faf47a;
+  --console-sticky-head:#eaf0e8;
+  --term-ink:#222d29;
+  --term-dim:#4a5750;
+  --term-rule:#34463c18;
+  --term-edge:#34463c31;
+  --term-select:#667f7130;
+  --term-side:#ffffff38;
+  --term-focus:#346758;
+  --console-go:#41534a;
+  --console-go-ink:#fff;
+  --console-blend:linear-gradient(148deg,#f5f4f0eb 0%,#e4e8e6cf 58%,#ece9e3df 100%);
+  --console-cast:#2c3e321c;
+  --console-inset:#ffffff9c;
+  background:var(--console-blend);border:0;border-radius:12px;
+  box-shadow:inset 0 1px 0 var(--console-inset),0 9px 27px var(--console-cast);
+ }
+ html[data-theme=dark] #sheetWorkspace #beamTerminal{
+  --term-bg:#262726;
+  --term-field:#0f181a46;
+  --term-head:#d5ddca0c;
+  --console-sticky-head:#353f37;
+  --term-ink:#edf2e9;
+  --term-dim:#bbc9bd;
+  --term-rule:#e1e9de18;
+  --term-edge:#e1e9de32;
+  --term-select:#819b8844;
+  --term-side:#e5ead917;
+  --term-focus:#b7dac6;
+  --console-go:#d6dfda;
+  --console-go-ink:#162b22;
+  --console-blend:linear-gradient(148deg,#353736e8 0%,#262827ee 60%,#302e2bed 100%);
+  --console-cast:#0006;
+  --console-inset:#effbe525;
+ }
+ @supports (backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px)){
+  html[data-theme] #sheetWorkspace #beamTerminal{
+   -webkit-backdrop-filter:blur(20px) saturate(.72);
+   backdrop-filter:blur(20px) saturate(.72);
+  }
+ }
+ #beamTerminal .beam-term-bar{
+  border-radius:12px 12px 0 0;
+  border-bottom-color:var(--term-rule);
+ }
+ #beamTerminal .beam-term-bar kbd{
+  border:0;border-radius:3px;background:var(--term-side);
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #barcode{
+  background:var(--term-field)!important;border:0!important;border-radius:5px!important;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #barcode:focus{
+  background:var(--term-head)!important;
+  box-shadow:inset 0 -2px var(--term-focus),0 0 12px color-mix(in srgb,var(--term-focus) 22%,transparent)!important;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform :is(#scanbutton,#undo),
+ html[data-theme] body #sheetWorkspace #beamTerminal .inspection-workbench :is(#activityMinimize,#activityExpand,#filter),
+ html[data-theme] body #sheetWorkspace #beamTerminal .output-tools #reset{
+  border:0!important;background:var(--term-side)!important;color:var(--term-ink)!important;
+  box-shadow:none!important;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #scanbutton:not(:disabled){
+  background:var(--console-go)!important;color:var(--console-go-ink)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal :is(#asnPrevious,#asnNext,#overviewDetailsToggle){
+  border:0!important;border-radius:5px!important;background:var(--term-side)!important;
+  color:var(--term-ink)!important;box-shadow:none!important;
+ }
+ #beamTerminal :is(button,select):focus-visible{
+  outline:2px solid var(--term-focus)!important;outline-offset:-2px;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .count-exceptions .metric:not(:has(b:not(.quiet))){
+  border:0!important;background:var(--term-side)!important;color:var(--term-dim)!important;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .count-exceptions .metric{
+  border:0!important;box-shadow:none!important;
+ }
+ #beamTerminal #lastScannedPicking .picking-zone-group{
+  border:0;border-radius:4px;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench{
+  background:none;border:0;border-top:1px solid var(--term-rule);gap:0;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(#scanActivitySection,#results){
+  background:transparent!important;
+ }
+ @media(min-width:1061px){
+  html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #results{
+   border-inline-start:1px solid var(--term-rule)!important;
+  }
+ }
+ @media(max-width:1060px){
+  html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #results{
+   border-top:1px solid var(--term-rule)!important;
+  }
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(#scanActivitySection .scan-activity-head,#results>summary){
+  border-bottom-color:var(--term-rule)!important;
+ }
+ #beamTerminal .inspection-workbench :is(.tablebar,#scanActivityViewport,.tablewrap){
+  background:transparent!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet) th{
+  background:var(--console-sticky-head)!important;border-bottom-color:var(--term-rule)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet) tbody tr>td:not(.sheet-status):not(.status-cell){
+  background:transparent!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet) tbody tr:is(:hover,:focus-within)>td:not(.sheet-status):not(.status-cell){
+  background:var(--term-select)!important;
+ }
+ #beamTerminal .output-tools{border-radius:0 0 12px 12px}
+ #beamTerminal .tablewrap,#beamTerminal #scanActivityViewport{scrollbar-color:var(--term-edge) transparent}
+ @media(prefers-reduced-transparency:reduce){
+  html[data-theme] #sheetWorkspace #beamTerminal{
+   background:var(--term-bg);-webkit-backdrop-filter:none;backdrop-filter:none;
+  }
+ }
+}
 
 /* v1.54: no wallpaper or moving light, only the launch canvas. */
 @media screen and (forced-colors:none){
