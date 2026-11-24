@@ -3668,9 +3668,6 @@ body>header{padding-inline:9px!important;gap:4px!important}
 }
 
 /* Beam's original utility artwork: role stays with the control, not the glyph. */
-:root{
- --beam-upload-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16.25V3.75m-3.5 3.5 3.5-3.5 3.5 3.5M4.75 15.5v3.25a1.5 1.5 0 0 0 1.5 1.5h11.5a1.5 1.5 0 0 0 1.5-1.5V15.5'/%3E%3C/svg%3E");
-}
 .beam-icon-library{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
 .beam-ui-icon{width:18px;height:18px;flex:none;vertical-align:middle;display:inline-block;pointer-events:none}
 #theme .beam-ui-icon{width:18px;height:18px}
@@ -3686,7 +3683,6 @@ body>header{padding-inline:9px!important;gap:4px!important}
 }
 @media print{.beam-scan-prompt,.beam-icon-library{display:none!important}}
 @media (forced-colors:active){
- #dataDialog #openWorkbook::before{background:ButtonText;forced-color-adjust:none}
 }
 
 /* Paper preview: the translucent sleeve stays in place; reading happens on paper. */
@@ -3936,4 +3932,31 @@ body>header{padding-inline:9px!important;gap:4px!important}
 }
 @media screen and (forced-colors:active){
  html[data-theme] .activity-sheet td.sheet-status[data-cell-state=accepted]{color:CanvasText!important}
+}
+
+
+/* The last item's quantity owns the emphasis previously given to scan log marks. */
+@media screen{
+ #beamTerminal .last-scanned-progress-group[hidden]{display:none!important}
+ #beamTerminal .last-scanned-progress-group{
+  display:inline-grid;grid-template-columns:auto minmax(50px,104px);align-items:center;
+  gap:3px 11px;max-inline-size:100%;min-inline-size:0;margin-block:3px;
+  padding:5px 9px 6px;border-radius:6px;color:var(--term-ink);background:var(--term-side);
+ }
+ #beamTerminal .last-scanned-progress-group[data-phase=progress]{color:var(--warning-ink);background:var(--warning-bg)}
+ #beamTerminal .last-scanned-progress-group[data-phase=complete]{color:var(--complete-ink);background:var(--complete-bg)}
+ #beamTerminal .last-scanned-progress-group[data-phase=excess]{color:var(--excess-ink);background:var(--excess-bg)}
+ #beamTerminal .last-scanned-progress-group #lastScannedProgress{
+  align-self:center;font:790 clamp(18px,1.6vw,23px)/1.08 var(--font-terminal);color:inherit;
+ }
+ #beamTerminal #lastScannedRemaining{
+  grid-column:1 / -1;grid-row:2;color:inherit;font:660 12px/1.25 var(--font-ui);
+ }
+ #beamTerminal .last-scanned-progress-group #lastScannedBar{
+  grid-column:2;grid-row:1;min-width:0;max-width:none;width:100%;height:6px;border-radius:9px;
+  background:transparent;accent-color:currentColor;color:inherit;
+ }
+ #beamTerminal #lastScannedBar::-webkit-progress-bar{background:color-mix(in srgb,currentColor 26%,transparent);border-radius:9px}
+ html[data-theme] body #beamTerminal #lastScannedBar[data-phase]::-webkit-progress-value{background:currentColor!important;border-radius:9px}
+ html[data-theme] body #beamTerminal #lastScannedBar[data-phase]::-moz-progress-bar{background:currentColor!important;border-radius:9px}
 }

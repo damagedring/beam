@@ -755,6 +755,26 @@ const MappingUI=(()=>{
   persist(next,t('선택한 프로필은 다음 파일에 적용돼요.','The selected profile applies to the next file.'));
   return true;
  }
+ function importProfile(f){
+  if(!f||busy)return false;
+  return loadProfile(f);
+ }
+ async function loadProfile(f){
+   let settleImport;profileImport=new Promise(resolve=>{settleImport=resolve;});
+   busy=true;storageNote=t('프로필 JSON 확인 중…','Reading profile JSON…');refresh();
+   let applied=false;
+   try{
+    const incoming=await readProfileFile(f);
+    if(!uiConfirm(t('현재 프로필 목록을 가져온 목록으로 바꿀까요? 검수 데이터는 바뀌지 않아요.','Replace the current profile list with the imported list? Inspection data stays unchanged.'))){
+     storageNote=t('가져오기를 취소했어요. 기존 프로필을 유지합니다.','Import cancelled. Existing profiles retained.');return;
+    }
+    forgetSources();offerWorkbookRetry();applied=true;
+    const count=fileMappingCount(incoming.profiles[incoming.active]);
+    persist(incoming,count?t('프로필 적용 완료 · 저장된 Excel 시트 '+count+'개','Profile applied · '+count+' saved Excel worksheets'):t('프로필을 적용했어요. 첫 파일에서 연결할 시트를 골라 주세요.','Profile applied. Choose the worksheets on the first import.'));
+   }catch(e){storageNote=e.message;}
+   finally{busy=false;profileImport=null;settleImport(applied);refresh();if(applied)document.getElementById(lastWorkbook?.offer?'retryCombinedWorkbook':'openWorkbook')?.focus({preventScroll:true});}
+   return applied;
+ }
  function init(){
   load();
   const shelf=document.getElementById('profileShelf'),details=document.getElementById('dataProfileDetails');
@@ -772,7 +792,7 @@ const MappingUI=(()=>{
   const activeInfo=node('p','',{className:'profile-active-info'});activeInfo.setAttribute('role','status');
   const status=node('p','',{className:'small profile-storage-note'});status.setAttribute('role','status');
   statusNodes.push(status);row.append(prev,rail,next);
-  const retry=node('button','',{type:'button',className:'profile-workbook-button profile-retry-workbook'});
+  const retry=node('button','',{id:'retryCombinedWorkbook',type:'button',className:'profile-workbook-button profile-retry-workbook'});
   retry.onclick=()=>{if(lastWorkbook?.offer&&!busy)void runCombinedWorkbook(lastWorkbook.file,{retry:true});};
   shelf.append(top,row,activeInfo,retry,status);
   let direction=0,gesture=null,suppressUntil=0;
@@ -811,7 +831,7 @@ const MappingUI=(()=>{
   const io=node('div',undefined,{className:'profile-json-actions'});
   function icon(id){
    const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),use=document.createElementNS(ns,'use');
-   const role={rename:'edit',out:'download',in:'upload',back:'chevron-left',forward:'chevron-right'}[id]||id;
+   const role={rename:'edit',out:'download',back:'chevron-left',forward:'chevron-right'}[id]||id;
    svg.setAttribute('class','beam-ui-icon');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');
    use.setAttribute('href','#beam-glyph-'+role);svg.append(use);return svg;
   }
@@ -824,36 +844,18 @@ const MappingUI=(()=>{
   action(actions,'열 연결 편집','Edit column mapping',editConnection,'columns','',()=>!savedConnections().length);
   action(actions,'이름 변경','Rename',editName,'rename');
   action(actions,'위치 표시 규칙','Location display rules',editLocationRules,null,'locationRulesButton');
-  const file=node('input',undefined,{type:'file',accept:'.json,application/json',hidden:true});
-  action(io,'JSON 불러오기','Import JSON',()=>{if(!busy)file.click();},'in');
   action(io,'JSON 내보내기','Export JSON',()=>{
    if(busy)return;download('mapping-profiles.json',JSON.stringify(db,null,2),'application/json');
    storageNote=t('프로필 다운로드 요청됨 · 파일 저장 여부를 확인하세요.','Profile download requested · verify the saved file.');refresh();
   },'out');
-  file.onchange=async()=>{
-   const f=file.files[0];file.value='';if(!f||busy)return;
-   let settleImport;profileImport=new Promise(resolve=>{settleImport=resolve;});
-   busy=true;storageNote=t('프로필 JSON 확인 중…','Reading profile JSON…');refresh();
-   let applied=false;
-   try{
-    const incoming=await readProfileFile(f);
-    if(!uiConfirm(t('현재 프로필 목록을 가져온 목록으로 바꿀까요? 검수 데이터는 바뀌지 않아요.','Replace the current profile list with the imported list? Inspection data stays unchanged.'))){
-     storageNote=t('가져오기를 취소했어요. 기존 프로필을 유지합니다.','Import cancelled. Existing profiles retained.');return;
-    }
-    forgetSources();offerWorkbookRetry();applied=true;
-    const count=fileMappingCount(incoming.profiles[incoming.active]);
-    persist(incoming,count?t('프로필 적용 완료 · 저장된 Excel 시트 '+count+'개','Profile applied · '+count+' saved Excel worksheets'):t('프로필을 적용했어요. 첫 파일에서 연결할 시트를 골라 주세요.','Profile applied. Choose the worksheets on the first import.'));
-   }catch(e){storageNote=e.message;}
-   finally{busy=false;profileImport=null;settleImport(applied);refresh();if(applied)(lastWorkbook?.offer?retry:document.getElementById('openWorkbook'))?.focus({preventScroll:true});}
-  };
-  io.append(file);group.append(named,mappings,actions,io);details.append(group);
+  group.append(named,mappings,actions,io);details.append(group);
   localizers.push(()=>{
    const list=entries(),index=activeIndex(list),profile=list[index][1],files=fileMappingCount(profile);
    retry.hidden=!lastWorkbook?.offer;retry.disabled=busy;
    retry.textContent=lastWorkbook?.offer?t('이 프로필로 다시 연결: ','Reconnect with this profile: ')+lastWorkbook.file.name:'';
    title.textContent=t('사용 중인 프로필','Active profile');
    page.textContent=list.length>1?(index+1)+' / '+list.length:'';page.hidden=list.length===1;
-   const workbookLabel=t('통합 RAW 불러오기','Import combined workbook');
+   const workbookLabel=t('RAW 또는 프로필 불러오기','Import workbook or profile');
    openWorkbook.setAttribute('aria-label',workbookLabel);openWorkbook.title=workbookLabel;
    openWorkbook.disabled=busy||(typeof dataImportBusy!=='undefined'&&dataImportBusy);
    row.dataset.count=String(Math.min(list.length,3));
@@ -888,7 +890,7 @@ const MappingUI=(()=>{
   });
   refresh();
  }
- return {begin,init,refresh,editConnection,forgetSources,locationRules,rememberWorkbook,offerWorkbookRetry,waitForProfileImport,isBusy:()=>busy};
+ return {begin,init,refresh,importProfile,editConnection,forgetSources,locationRules,rememberWorkbook,offerWorkbookRetry,waitForProfileImport,isBusy:()=>busy};
 })();
 
 
@@ -2263,6 +2265,11 @@ function lastScannedOutsideStore(last){
  return ![...candidateReceipts(state.data,e,{allowMasterSku:true})].some(id=>modeAllowsReceipt(id)&&asnStoreKey(id)===key);
 }
 
+function lastScannedCountLabel(actual,expected,english){
+ const delta=expected-actual, count=Math.abs(delta).toLocaleString(english?'en':'ko');
+ const quantity=actual.toLocaleString(english?'en':'ko')+' / '+expected.toLocaleString(english?'en':'ko')+' EA';
+ return {quantity,detail:delta===0?(english?'Quantity matched':'수량 일치'):delta>0?(english?count+' remaining':count+'개 남음'):(english?count+' excess':count+'개 초과')};
+}
 function drawLastScanned(rows){
  const entries=scanActivityRows(rows),last=entries.at(-1),box=$('lastScanned');$('scanReadout').hidden=!last&&!state.availabilityEnabled;
  box.hidden=!last;
@@ -2273,12 +2280,14 @@ function drawLastScanned(rows){
  $('lastScannedSku').textContent='SKU · '+(last.sku||'—');
  $('lastScannedBarcode').textContent=(language==='en'?'Barcode · ':'상품 바코드 · ')+(last.barcode||'—');
  $('lastScannedContext').textContent=last.pending?(language==='en'?'ASN pending':'ASN 미배정'):last.assignedReceipt!==state.receipt?'ASN · '+last.assignedReceipt:'';
- const progress=$('lastScannedProgress');
+ const progress=$('lastScannedProgress'),group=$('lastScannedProgressGroup'),bar=$('lastScannedBar');
  const valid=last.assignedReceipt===state.receipt&&!last.pending&&Number.isFinite(last.actual)&&Number.isFinite(last.expected)&&last.expected>0&&!['정보 충돌','식별자 없음','예정 외','확인 필요'].includes(last.status);
- progress.textContent=valid?`${last.actual.toLocaleString()} / ${last.expected.toLocaleString()} EA`:'';
- progress.hidden=!valid;const bar=$('lastScannedBar');bar.hidden=!valid;bar.value=valid?Math.min(100,Math.max(0,last.actual/last.expected*100)):0;bar.dataset.phase=valid?activityCellState(last).kind:'';bar.setAttribute('aria-valuetext',valid?`${last.actual} / ${last.expected} EA`:'');
- progress.title=valid?(language==='en'?'Current inspected quantity / expected quantity for this SKU in the selected ASN':'선택 ASN 내 이 SKU의 현재 검수 수량 / 예정 수량'):'';
- progress.dataset.phase=valid?activityCellState(last).kind:'';
+ const phase=valid?activityCellState(last).kind:'';
+ const {quantity,detail}=valid?lastScannedCountLabel(last.actual,last.expected,language==='en'):{quantity:'',detail:''};
+ group.hidden=!valid;group.dataset.phase=phase;
+ progress.textContent=quantity;$('lastScannedRemaining').textContent=detail;
+ bar.value=valid?Math.min(100,Math.max(0,last.actual/last.expected*100)):0;
+ bar.dataset.phase=phase;bar.setAttribute('aria-valuetext',valid?quantity+' · '+detail:'');
  box.title=(language==='en'?'Last input: ':'마지막 입력: ')+last.code;
 }
 
@@ -2539,8 +2548,14 @@ async function runCombinedWorkbook(file,{retry=false}={}){
   if(beam.visible&&(!document.activeElement||document.activeElement===document.body||document.activeElement===$('dataLauncher')))$('beamQuery').focus({preventScroll:true});
  }
 }
-$('workbookFile').onchange=async e=>{
- const file=e.target.files[0];e.target.value='';await runCombinedWorkbook(file);
+function importReferenceFile(file){
+ if(!file||dataImportBusy)return;
+ if(/\.json$/iu.test(file.name))return MappingUI.importProfile(file);
+ if(/\.xls[xm]$/iu.test(file.name))return runCombinedWorkbook(file);
+ notice(language==='en'?'Select a RAW workbook (.xlsx, .xlsm) or a profile (.json).':'RAW 엑셀(.xlsx, .xlsm)이나 프로필(.json)을 선택하세요.','warning');
+}
+$('workbookFile').onchange=e=>{
+ const file=e.target.files[0];e.target.value='';return importReferenceFile(file);
 };
 $('file').onchange=async e=>{
  const file=e.target.files[0],kind=$('kind').value;if(!file||dataImportBusy||!dataDefinitions[kind])return;let tx;mappingBusyUI(true);

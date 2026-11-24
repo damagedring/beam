@@ -27,6 +27,7 @@
 <symbol id="beam-glyph-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.05"/><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4m0-12.8L17 7M7 17l-1.4 1.4"/></g></symbol>
 <symbol id="beam-glyph-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5h4l.65 2.3 1.64.95 2.3-.6 2 3.45-1.67 1.68v1.9l1.67 1.68-2 3.46-2.3-.61-1.64.95L14 21h-4l-.65-2.34-1.64-.95-2.3.61-2-3.46 1.67-1.68v-1.9L3.41 9.6l2-3.45 2.3.6 1.64-.95Z"/><circle cx="12" cy="12.25" r="2.65"/></g></symbol>
 <symbol id="beam-glyph-database" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6.45" rx="7.25" ry="2.95"/><path d="M4.75 6.5v11.1c0 1.6 3.25 2.9 7.25 2.9s7.25-1.3 7.25-2.9V6.5M4.75 12c0 1.6 3.25 2.9 7.25 2.9s7.25-1.3 7.25-2.9"/></g></symbol>
+<symbol id="beam-glyph-open-file" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 18.5V6.8a1.6 1.6 0 0 1 1.6-1.6h4.1l2.1 2.2h6.2a1.6 1.6 0 0 1 1.6 1.6v1.3M4.9 19.7h12.4a1.8 1.8 0 0 0 1.7-1.2l2.2-6.1a1.2 1.2 0 0 0-1.1-1.6H8.2a1.6 1.6 0 0 0-1.5 1l-3 6.1a1.2 1.2 0 0 0 1.2 1.8Z"/></g></symbol>
 <symbol id="beam-glyph-folder" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.2A1.7 1.7 0 0 1 5.2 5.5h4.2l2.05 2.3h7.3a1.7 1.7 0 0 1 1.7 1.7v8.8A1.7 1.7 0 0 1 18.75 20H5.2a1.7 1.7 0 0 1-1.7-1.7Z"/></g></symbol>
 <symbol id="beam-glyph-warning" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.72 3.52a1.48 1.48 0 0 1 2.56 0l9.01 15.7a1.52 1.52 0 0 1-1.32 2.28H3.03a1.52 1.52 0 0 1-1.32-2.28l9.01-15.7ZM12 8a1 1 0 0 0-1 1v4.75a1 1 0 1 0 2 0V9a1 1 0 0 0-1-1Zm0 10.4a1.15 1.15 0 1 0 0-2.3 1.15 1.15 0 0 0 0 2.3Z"/></symbol>
 <symbol id="beam-glyph-add" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.25v13.5M5.25 12h13.5"/></g></symbol>
@@ -406,10 +407,11 @@
 <div class="last-scanned-product-line">
 <strong id="lastScannedName">
 </strong>
-<span id="lastScannedProgress">
-</span>
-<progress id="lastScannedBar" max="100" value="0" aria-label="최근 스캔 상품 검수 진행률" hidden>
-</progress>
+<div id="lastScannedProgressGroup" class="last-scanned-progress-group" hidden>
+<strong id="lastScannedProgress"></strong>
+<span id="lastScannedRemaining"></span>
+<progress id="lastScannedBar" max="100" value="0" data-ko-label="최근 스캔 상품 검수 진행률" data-en-label="Last scanned product progress" aria-label="최근 스캔 상품 검수 진행률"></progress>
+</div>
 </div>
 <div class="last-scanned-codes">
 <span id="lastScannedSku">
@@ -693,9 +695,9 @@
 </div>
 <div class="panel" id="dataPanel">
 <div class="workbook-import">
-<section id="profileShelf" class="profile-shelf" aria-labelledby="profileShelfTitle"><button id="openWorkbook" type="button" data-ko="불러오기" data-en="Import">불러오기</button></section>
-<p class="small data-privacy" data-ko="XLSX · XLSM / 파일은 이 브라우저에서만 읽어요." data-en="XLSX · XLSM / Files are read only in this browser.">XLSX · XLSM / 파일은 이 브라우저에서만 읽어요.</p>
-<input id="workbookFile" type="file" accept=".xlsx,.xlsm" hidden>
+<section id="profileShelf" class="profile-shelf" aria-labelledby="profileShelfTitle"><button id="openWorkbook" type="button" aria-describedby="referenceFileTypes"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-open-file"/></svg><span data-ko="불러오기" data-en="Import">불러오기</span></button></section>
+<p id="referenceFileTypes" class="small data-privacy" data-ko="RAW 엑셀 (.xlsx, .xlsm) · 프로필 (.json) / 브라우저에서만 읽어요." data-en="RAW workbook (.xlsx, .xlsm) · Profile (.json) / Read only in this browser.">RAW 엑셀 (.xlsx, .xlsm) · 프로필 (.json) / 브라우저에서만 읽어요.</p>
+<input id="workbookFile" type="file" accept=".xlsx,.xlsm,.json,application/json" hidden>
 <label class="raw-import-mode" for="rawImportMode">
 <span id="rawImportModeLabel">예정 자료 적용</span>
 <select id="rawImportMode">

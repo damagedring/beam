@@ -20,7 +20,8 @@ class Element {
 
 function boot(profiles,active){
  const html=fs.readFileSync(__dirname+'/../dist/index.html','utf8'),js=fs.readFileSync(__dirname+'/../dist/app.js','utf8');
- assert.match(html,/<section id="profileShelf"[^>]*><button id="openWorkbook"[^>]*>불러오기<\/button><\/section>/);
+ assert.match(html,/<section id="profileShelf"[^>]*><button id="openWorkbook"[^>]*>.*beam-glyph-open-file.*>불러오기<\/span><\/button><\/section>/);
+ assert.match(html,/id="workbookFile" type="file" accept="\.xlsx,\.xlsm,\.json,application\/json"/);
  const elements=new Map(),document={activeElement:null,createElement(tag){const e=new Element();e.doc=document;e.tag=tag;return e;},createElementNS(){return this.createElement();},getElementById(id){if(!elements.has(id))elements.set(id,this.createElement());return elements.get(id);}};
  document.body=document.createElement('body');
  let state=JSON.stringify({version:1,profiles,active});
@@ -74,13 +75,14 @@ test('single-profile shelf does not show decorative navigation or a position cou
  assert.equal(byClass(details,'profile-empty-mapping').textContent,'아직 저장된 연결이 없어요.');
 });
 
-test('the workbook picker is in the former plus slot and separate profile JSON import remains',async()=>{
+test('one file picker handles workbook and profile imports from the former plus slot',async()=>{
  const {shelf,details,c,document}=boot({a:profile('Alpha')},'a');
  const button=document.getElementById('openWorkbook');
  assert.equal(byClass(shelf,'profile-shelf-tools').children.at(-1),button);
- assert.equal(button.attributes.get('aria-label'),'통합 RAW 불러오기');
+ assert.equal(button.attributes.get('aria-label'),'RAW 또는 프로필 불러오기');
  assert.equal(byClass(shelf,'profile-shelf-add'),null);
- assert.ok(byClass(details,'profile-json-actions').find(el=>el.textContent==='JSON 불러오기'));
+ assert.ok(!byClass(details,'profile-json-actions').find(el=>el.textContent==='JSON 불러오기'));
+ assert.ok(byClass(details,'profile-json-actions').find(el=>el.textContent==='JSON 내보내기'));
  const tx=await c.api.begin('sku','file');
  assert.equal(button.disabled,true);tx.abort();assert.equal(button.disabled,false);
 });
@@ -91,10 +93,8 @@ const work=raw('Example A','Intake A',{receipt:'Ref A',qty:'Count A',sku:'Item A
 const sample=raw('Example B','Intake B',{receipt:'Ticket B',qty:'Units B',sku:'Product B'});
 const sampleFile={name:'example-b.xlsx',sheets:[{name:'Intake B',index:4}],rows:[['Notes'],['Units B','Product B','Ticket B'],['3','TEST-B','RETURN-B']]};
 
-function importProfile(details, readBuffer) {
- const input=details.find(el=>el.tag==='input'&&el.type==='file'&&el.accept.includes('json'));
- input.files=[{size:500,arrayBuffer:readBuffer}];
- return input.onchange();
+function importProfile(c,readBuffer){
+ return c.api.importProfile({name:'profile.json',size:500,arrayBuffer:readBuffer});
 }
 const sampleProfileBytes=()=>new TextEncoder().encode(JSON.stringify({version:1,active:'sample',profiles:{sample}})).buffer;
 async function assertSampleMapping(api) {
@@ -107,7 +107,7 @@ async function assertSampleMapping(api) {
 }
 test('combining an incoming workbook and asynchronous profile import waits for the selected profile',async()=>{
  const {details,read,c}=boot({work},'work');
- let release;const reading=importProfile(details,()=>new Promise(resolve=>{release=resolve;}));
+ let release;const reading=importProfile(c,()=>new Promise(resolve=>{release=resolve;}));
  const ready=c.api.waitForProfileImport();
  assert.equal(read().active,'work');
  release(sampleProfileBytes());
@@ -125,7 +125,7 @@ test('RAW chosen first can return to profiles and replay that exact workbook, ne
  await assert.rejects(review,error=>error.name==='AbortError'&&error.changeProfile===true);
  tx.abort();c.api.offerWorkbookRetry();c.api.refresh();
  assert.equal(read().active,'work');
- await importProfile(details,async()=>sampleProfileBytes());
+ await importProfile(c,async()=>sampleProfileBytes());
  const retry=byClass(shelf,'profile-workbook-button profile-retry-workbook');
  assert.equal(retry.hidden,false);assert.match(retry.textContent,/example-b\.xlsx/);
  assert.equal(retries.length,0);retry.click();
@@ -184,4 +184,16 @@ test('a source already mapped in another profile selects it without making a dup
  assert.deepEqual(Object.keys(read().profiles),['work','sample']);
  assert.equal(read().active,'sample');
  assert.equal(read().profiles.sample.name,sample.name);
+});
+
+
+test('the shared import handler dispatches only JSON and supported workbook extensions',()=>{
+ const js=fs.readFileSync(__dirname+'/../dist/app.js','utf8');
+ const at=js.indexOf('function importReferenceFile('),end=js.indexOf("$('workbookFile').onchange",at),actions=[];
+ const handle=vm.runInNewContext(js.slice(at,end)+'\nimportReferenceFile',{
+  language:'en',dataImportBusy:false,MappingUI:{importProfile:file=>actions.push(['profile',file.name])},
+  runCombinedWorkbook:file=>actions.push(['workbook',file.name]),notice:()=>actions.push(['invalid']),
+ });
+ for(const name of ['setup.JSON','daily.XLSX','data.xlsm','old.xls','text.txt'])handle({name});
+ assert.deepEqual(actions,[['profile','setup.JSON'],['workbook','daily.XLSX'],['workbook','data.xlsm'],['invalid'],['invalid']]);
 });

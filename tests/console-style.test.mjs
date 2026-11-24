@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
+import {runInNewContext} from 'node:vm';
 
 const css=await readFile(new URL('../src/styles/workspace.css',import.meta.url),'utf8');
 const styles=css.slice(css.indexOf('/* Inspection glass: neutral outer material'));
@@ -22,4 +23,16 @@ test('scanner and ledger keep legible status and text over their neutral dark su
  }
  assert.match(styles,/--shortage-ink:var\(--lemon-ink\)/);
  assert.match(styles,/--excess-ink:var\(--coral-ink\)/);
+});
+
+
+test('last scan shows a visible quantity, with shortage, equality or surplus spelled out',async()=>{
+ const src=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
+ const fn=src.slice(src.indexOf('function lastScannedCountLabel('),src.indexOf('function drawLastScanned('));
+ const label=runInNewContext(fn+'\nlastScannedCountLabel');
+ assert.equal(label(1,6,false).quantity,'1 / 6 EA');
+ assert.equal(label(1,6,false).detail,'5개 남음');
+ assert.equal(label(6,6,false).detail,'수량 일치');
+ assert.equal(label(7,6,false).detail,'1개 초과');
+ assert.equal(label(1,6,true).detail,'5 remaining');
 });
