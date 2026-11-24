@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,12 +25,19 @@ async function readSource(relative) {
 const stage = await mkdtemp(join(root, '.beam-dist-'));
 try {
   for (const relative of files) {
+    if (relative === 'index.html') continue;
     const file = join(stage, relative);
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, await readSource(relative));
   }
   const css = await Promise.all(styles.map(readSource));
-  await writeFile(join(stage, 'app.css'), Buffer.concat(css.flatMap((data) => [data, Buffer.from('\n')])));
+  const stylesheet = Buffer.concat(css.flatMap((data) => [data, Buffer.from('\n')]));
+  const revision = createHash('sha256').update(stylesheet).digest('hex').slice(0, 12);
+  const markup = (await readSource('index.html')).toString('utf8');
+  const stylesheetHref = 'href="./app.css"';
+  if (!markup.includes(stylesheetHref)) throw Error('Missing Beam stylesheet reference');
+  await writeFile(join(stage, 'index.html'), markup.replace(stylesheetHref, `href="./app.css?v=${revision}"`));
+  await writeFile(join(stage, 'app.css'), stylesheet);
   await writeFile(join(stage, '.nojekyll'), '');
   await rm(destination, { recursive: true, force: true });
   await rename(stage, destination);

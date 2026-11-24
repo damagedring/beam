@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readdir, readFile } from 'node:fs/promises';
@@ -41,4 +42,10 @@ test('no runtime network submissions, private branding, or external resource lin
   assert.match(html,/id="dataProfileDetails"/);
   assert.match(css,/::-webkit-scrollbar-track/);
   assert.match(await read('assets/OFL-Pretendard.txt'),/SIL OPEN FONT LICENSE/);
+});
+
+test('style URL changes with the deployed CSS bytes', async () => {
+  const css=await read('app.css');
+  const revision=createHash('sha256').update(css).digest('hex').slice(0,12);
+  assert.ok((await read('index.html')).includes(`href="./app.css?v=${revision}"`));
 });
