@@ -1,4 +1,4 @@
-@layer beam-profile-shelf, beam-data-entry, beam-scrollbar, beam-satin, beam-clear-frost, beam-matte;
+@layer beam-workrail, beam-profile-shelf, beam-data-entry, beam-scrollbar, beam-satin, beam-clear-frost, beam-matte;
 @layer beam-data-entry{
  @media screen{
   #dataDialog{width:min(482px,calc(100vw - 28px))!important;padding:clamp(16px,3vw,26px);max-height:calc(100dvh - 32px)}
@@ -248,5 +248,28 @@
    #dataDialog .profile-document[aria-current="true"] {text-decoration:underline}
    #dataDialog .profile-shelf :is(.profile-document,.profile-shelf-arrow):focus-visible {outline:1px solid Highlight!important}
   }
+ }
+}
+
+/* The work rail owns its material and flat list. Other glass controls retain their pills. */
+@layer beam-workrail {
+ @media screen {
+  html[data-theme] body>header .beam-identity>button#workSidebarToggle{border-radius:8px!important}
+  html[data-theme] body #beamSidebar button{border-radius:8px!important}
+ }
+ @media screen and (forced-colors:none){
+  html[data-theme] body>#beamSidebar{background:var(--work-paper)!important;box-shadow:0 15px 36px #17151220!important}
+  html[data-theme] body>#beamSidebar::before{background:none!important}
+  @supports ((backdrop-filter:blur(24px)) or (-webkit-backdrop-filter:blur(24px))){
+   html[data-theme] body>#beamSidebar{background:var(--work-glass)!important;-webkit-backdrop-filter:blur(24px)!important;backdrop-filter:blur(24px)!important}
+  }
+  html[data-theme] body #beamSidebar button{
+   color:var(--work-ink)!important;background:transparent!important;border:0!important;box-shadow:none!important;
+   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+  }
+  html[data-theme] body #beamSidebar button:hover{background:var(--work-hover)!important}
+  html[data-theme] body #beamSidebar button[aria-current=true]{background:var(--work-wash)!important}
+  html[data-theme] body #beamSidebar button:focus-visible{outline:2px solid currentColor!important;outline-offset:-3px}
+  @media(prefers-reduced-transparency:reduce){html[data-theme] body>#beamSidebar{background:var(--work-paper)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}}
  }
 }
