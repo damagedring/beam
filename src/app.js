@@ -462,7 +462,7 @@ const MappingUI=(()=>{
   const confirmKinds=(savedKinds.length?savedKinds:selectedKinds).filter(k=>!resolvedKinds.has(k));
   return {reused,confirmKinds};
  }
- let db=blank(),storageNote='',busy=false,dialog=null,statusNodes=[],modeNodes=[],localizers=[],profileLoaded=false,storageAvailable=null;
+ let db=blank(),storageNote='',busy=false,dialog=null,statusNodes=[],localizers=[],storageAvailable=null;
  function fileMappingCount(profile=db.profiles[db.active]){return Object.keys(profile.file).length;}
  function profileDiagnostic(code,ko,en){return '['+code+'] '+t(ko,en);}
  // Current-window only; no workbook, pasted rows or observed values are serialized in the profile.
@@ -484,7 +484,7 @@ const MappingUI=(()=>{
    out.profiles[id]=dest;
   }if(!Object.hasOwn(out.profiles,out.active))throw Error('Invalid active profile');return out;
  }
- function refresh(){for(const fn of localizers)fn();for(const n of modeNodes){n.replaceChildren();for(const [id,p] of Object.entries(db.profiles))option(n,id,p.name);n.value=db.active;n.disabled=busy;}for(const n of statusNodes)n.textContent=storageNote||t('이 브라우저에만 저장 · 사용할 프로필을 직접 선택하세요.','Saved only in this browser · choose the intended profile');}
+ function refresh(){for(const fn of localizers)fn();for(const n of statusNodes)n.textContent=storageNote;}
  function persist(next,successNote){
   // Commit to the current window first. Browser storage is optional and never decides which mapping this window uses.
   db=copy(next);
@@ -751,42 +751,134 @@ const MappingUI=(()=>{
    return true;
   }catch(e){if(e.name!=='AbortError')storageNote=e.message;return false;}finally{busy=false;refresh();}
  }
+ function chooseProfile(id){
+  if(busy||!Object.hasOwn(db.profiles,id)||id===db.active)return false;
+  const next=copy(db);next.active=id;
+  persist(next,t('선택한 프로필은 다음 파일에 적용돼요.','The selected profile applies to the next file.'));
+  return true;
+ }
  function init(){
-  load();for(const parentId of ['dataDialog']){const parent=document.getElementById(parentId);if(!parent)continue;const group=node('section',undefined,{className:'mapping-controls'}),label=node('label',t('데이터 연결 프로필','Data connection profile')),s=node('select');s.setAttribute('aria-label',t('데이터 연결 프로필','Data connection profile'));modeNodes.push(s);localizers.push(()=>{label.firstChild.nodeValue=t('데이터 연결 프로필','Data connection profile');s.setAttribute('aria-label',t('데이터 연결 프로필','Data connection profile'));});s.onchange=()=>{if(busy){refresh();return;}const next=copy(db);next.active=s.value;persist(next);};label.append(s);group.append(label);const create=node('button',t('새 프로필','New profile'),{type:'button'}),rename=node('button',t('이름 변경','Rename'),{type:'button'});localizers.push(()=>{create.textContent=t('새 프로필','New profile');rename.textContent=t('이름 변경','Rename');create.disabled=rename.disabled=busy;});create.onclick=()=>editName(true);rename.onclick=()=>editName(false);const edit=node('button',t('열 연결 편집','Edit column mapping'),{type:'button'});edit.onclick=editConnection;
-  localizers.push(()=>{edit.textContent=t('열 연결 편집','Edit column mapping');edit.disabled=busy||!savedConnections().length;});
-  const controlIcons={profile:'M4 4h16v16H4z M8 4v16 M11 8h6 M11 12h6',add:'M12 5v14 M5 12h14',rename:'m5 16 0 3 3 0 10-10-3-3z M13 8l3 3',columns:'M4 5h16v14H4z M10 5v14 M15 5v14 M4 9h16',out:'M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4',in:'M12 16V4m-4 4 4-4 4 4M5 16v4h14v-4'};
-  function icon(id){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');path.setAttribute('d',controlIcons[id]);svg.append(path);return svg;}
-  function decorate(button,id){localizers.push(()=>{button.prepend(icon(id));});}
-  const actions=node('div',undefined,{className:'profile-actions'});const rules=node('button',t('위치 표시 규칙','Location display rules'),{type:'button',id:'locationRulesButton'});rules.onclick=editLocationRules;
-  localizers.push(()=>{rules.textContent=t('위치 표시 규칙','Location display rules');rules.disabled=busy;});
-  actions.append(edit,create,rename,rules);group.append(actions);
-  edit.classList.add('profile-edit-main');decorate(edit,'columns');decorate(create,'add');decorate(rename,'rename');
-  const status=node('p','',{className:'small'});status.setAttribute('role','status');statusNodes.push(status);group.append(status);
-   if(parentId==='dataDialog'){
-    const exportBtn=node('button','',{type:'button'}),importBtn=node('button','',{type:'button'}),useBtn=node('button','',{type:'button',hidden:true}),file=node('input',undefined,{type:'file',accept:'.json,application/json',hidden:true});
-    localizers.push(()=>{exportBtn.textContent=t('프로필 JSON 내보내기','Export profile JSON');importBtn.textContent=t('프로필 JSON 불러오기','Import profile JSON');useBtn.textContent=t('이 프로필로 RAW 연결','Connect RAW with this profile');useBtn.hidden=!profileLoaded;for(const b of [exportBtn,importBtn,useBtn])b.disabled=busy;});
-    exportBtn.onclick=()=>{if(busy)return;download('mapping-profiles.json',JSON.stringify(db,null,2),'application/json');storageNote=t('프로필 다운로드 요청됨 · 파일 저장 여부를 확인하세요.','Profile download requested · verify the saved file.');refresh();};
-    importBtn.onclick=()=>{if(!busy)file.click();};
-    useBtn.onclick=()=>{if(!busy)document.getElementById('openWorkbook')?.click();};
-    file.onchange=async()=>{
-     const f=file.files[0];file.value='';if(!f||busy)return;
-     busy=true;storageNote=t('프로필 JSON 확인 중…','Reading profile JSON…');refresh();
-     let applied=false;
-     try{
-      const incoming=await readProfileFile(f);
-      if(!uiConfirm(t('현재 프로필 목록을 가져온 목록으로 바꿀까요? 검수 데이터는 바뀌지 않아요.','Replace the current profile list with the imported list? Inspection data stays unchanged.'))){
-       storageNote=t('가져오기를 취소했어요. 기존 프로필을 유지합니다.','Import cancelled. Existing profiles retained.');return;
-      }
-      forgetSources();profileLoaded=true;applied=true;
-      const count=fileMappingCount(incoming.profiles[incoming.active]);
-      persist(incoming,count?t('프로필 적용 완료 · 저장된 Excel 시트 '+count+'개','Profile applied · '+count+' saved Excel worksheets'):profileDiagnostic('MAP-NO-SHEET','프로필 적용 완료 · 선택한 프로필에 저장된 Excel 시트 연결이 없어요.','Profile applied · the selected profile has no saved Excel worksheets.'));
-     }catch(e){storageNote=e.message;}
-     finally{busy=false;refresh();if(applied)useBtn.focus({preventScroll:true});}
-    };
-    const io=node('div',undefined,{className:'profile-json-actions'});io.append(importBtn,exportBtn,useBtn,file);group.append(io);decorate(importBtn,'in');decorate(exportBtn,'out');
+  load();
+  const shelf=document.getElementById('profileShelf'),details=document.getElementById('dataProfileDetails');
+  if(!shelf||!details)return;
+  const top=node('div',undefined,{className:'profile-shelf-heading'});
+  const title=node('h3','',{id:'profileShelfTitle'});
+  const page=node('span','',{className:'profile-shelf-page'});page.setAttribute('aria-hidden','true');
+  top.append(title,page);
+  const row=node('div',undefined,{className:'profile-shelf-row'});
+  const prev=node('button','‹',{type:'button',className:'profile-shelf-arrow'});
+  const next=node('button','›',{type:'button',className:'profile-shelf-arrow'});
+  const rail=node('div',undefined,{className:'profile-documents'});
+  const activeInfo=node('p','',{className:'profile-active-info'});activeInfo.setAttribute('role','status');
+  const status=node('p','',{className:'small profile-storage-note'});status.setAttribute('role','status');
+  statusNodes.push(status);row.append(prev,rail,next);shelf.append(top,row,activeInfo,status);
+  let direction=0,gesture=null,suppressUntil=0;
+  const entries=()=>Object.entries(db.profiles);
+  const activeIndex=list=>list.findIndex(([id])=>id===db.active);
+  function activate(index,focusDocument=false){
+   const list=entries(),here=activeIndex(list),target=list[index];
+   if(!target||busy||index===here)return;
+   direction=Math.sign(index-here);
+   if(chooseProfile(target[0])&&focusDocument)rail.querySelector('[aria-current="true"]')?.focus({preventScroll:true});
+  }
+  function slide(by,focusDocument=false){activate(activeIndex(entries())+by,focusDocument);}
+  prev.onclick=()=>slide(-1);next.onclick=()=>slide(1);
+  row.addEventListener('keydown',event=>{
+   const move={ArrowLeft:-1,ArrowRight:1};
+   if(Object.hasOwn(move,event.key)){event.preventDefault();slide(move[event.key],rail.contains(document.activeElement));}
+   else if(event.key==='Home'||event.key==='End'){event.preventDefault();activate(event.key==='Home'?0:entries().length-1,true);}
+  });
+  rail.addEventListener('pointerdown',event=>{
+   if(event.pointerType==='touch'&&event.isPrimary&&!busy)gesture={id:event.pointerId,x:event.clientX,y:event.clientY};
+  });
+  rail.addEventListener('pointercancel',()=>{gesture=null;});
+  rail.addEventListener('pointerup',event=>{
+   if(gesture?.id!==event.pointerId)return;
+   const dx=event.clientX-gesture.x,dy=event.clientY-gesture.y;gesture=null;
+   if(Math.abs(dx)<34||Math.abs(dx)<Math.abs(dy)*1.3)return;
+   suppressUntil=performance.now()+350;slide(dx<0?1:-1);
+  });
+  rail.addEventListener('click',event=>{
+   if(event.detail&&performance.now()<suppressUntil){event.preventDefault();event.stopPropagation();}
+  },true);
+  const group=node('div',undefined,{className:'mapping-controls profile-management'});
+  const named=node('strong','',{className:'profile-management-name'});
+  const mappings=node('ul',undefined,{className:'profile-mapping-list'});
+  const actions=node('div',undefined,{className:'profile-actions'});
+  const io=node('div',undefined,{className:'profile-json-actions'});
+  const controlIcons={add:'M12 5v14 M5 12h14',rename:'m5 16 0 3 3 0 10-10-3-3z M13 8l3 3',columns:'M4 5h16v14H4z M10 5v14 M15 5v14 M4 9h16',out:'M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4',in:'M12 16V4m-4 4 4-4 4 4M5 16v4h14v-4'};
+  function icon(id){
+   const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),path=document.createElementNS(ns,'path');
+   svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');
+   path.setAttribute('d',controlIcons[id]);svg.append(path);return svg;
+  }
+  function action(parent,ko,english,fn,symbol=null,id='',blocked=()=>false){
+   const button=node('button',undefined,{type:'button'}),caption=node('span','');if(id)button.id=id;
+   if(symbol)button.append(icon(symbol));button.append(caption);parent.append(button);button.onclick=fn;
+   localizers.push(()=>{caption.textContent=t(ko,english);button.disabled=busy||blocked();});
+   return button;
+  }
+  action(actions,'열 연결 편집','Edit column mapping',editConnection,'columns','',()=>!savedConnections().length);
+  action(actions,'이름 변경','Rename',()=>editName(false),'rename');
+  action(actions,'위치 표시 규칙','Location display rules',editLocationRules,null,'locationRulesButton');
+  action(io,'새 프로필','New profile',()=>editName(true),'add','',()=>entries().length>=50);
+  const file=node('input',undefined,{type:'file',accept:'.json,application/json',hidden:true});
+  action(io,'JSON 불러오기','Import JSON',()=>{if(!busy)file.click();},'in');
+  action(io,'JSON 내보내기','Export JSON',()=>{
+   if(busy)return;download('mapping-profiles.json',JSON.stringify(db,null,2),'application/json');
+   storageNote=t('프로필 다운로드 요청됨 · 파일 저장 여부를 확인하세요.','Profile download requested · verify the saved file.');refresh();
+  },'out');
+  file.onchange=async()=>{
+   const f=file.files[0];file.value='';if(!f||busy)return;
+   busy=true;storageNote=t('프로필 JSON 확인 중…','Reading profile JSON…');refresh();
+   let applied=false;
+   try{
+    const incoming=await readProfileFile(f);
+    if(!uiConfirm(t('현재 프로필 목록을 가져온 목록으로 바꿀까요? 검수 데이터는 바뀌지 않아요.','Replace the current profile list with the imported list? Inspection data stays unchanged.'))){
+     storageNote=t('가져오기를 취소했어요. 기존 프로필을 유지합니다.','Import cancelled. Existing profiles retained.');return;
+    }
+    forgetSources();applied=true;
+    const count=fileMappingCount(incoming.profiles[incoming.active]);
+    persist(incoming,count?t('프로필 적용 완료 · 저장된 Excel 시트 '+count+'개','Profile applied · '+count+' saved Excel worksheets'):t('프로필을 적용했어요. 첫 파일에서 연결할 시트를 골라 주세요.','Profile applied. Choose the worksheets on the first import.'));
+   }catch(e){storageNote=e.message;}
+   finally{busy=false;refresh();if(applied)document.getElementById('openWorkbook')?.focus({preventScroll:true});}
+  };
+  io.append(file);group.append(named,mappings,actions,io);details.append(group);
+  localizers.push(()=>{
+   const list=entries(),index=activeIndex(list),profile=list[index][1],files=fileMappingCount(profile);
+   title.textContent=t('사용 중인 프로필','Active profile');
+   page.textContent=list.length>1?(index+1)+' / '+list.length:'';
+   row.dataset.count=String(Math.min(list.length,3));
+   prev.hidden=next.hidden=list.length===1;
+   for(const [button,edge,label] of [[prev,index===0,t('이전 프로필','Previous profile')],[next,index===list.length-1,t('다음 프로필','Next profile')]]){
+    button.setAttribute('aria-label',label);button.setAttribute('aria-disabled',String(busy||edge));button.disabled=busy;
    }
-   document.getElementById('dataProfileDetails').append(group);
-  }refresh();
+   rail.replaceChildren();
+   for(const offset of [-1,0,1]){
+    const item=list[index+offset];
+    if(!item&&list.length===1)continue;
+    const slot=node('div',undefined,{className:'profile-document-slot'});
+    if(item){
+     const [id,p]=item,active=id===db.active;
+     const button=node('button',undefined,{type:'button',className:'profile-document'});
+     const glyph=node('span',undefined,{className:'profile-file-icon'});
+     glyph.setAttribute('aria-hidden','true');glyph.append(node('span','JSON',{className:'profile-file-type'}));
+     button.append(glyph,node('span',p.name,{className:'profile-document-name'}));button.title=p.name;
+     if(active)button.setAttribute('aria-current','true');
+     button.disabled=busy;button.onclick=()=>activate(index+offset,true);slot.append(button);
+    }
+    rail.append(slot);
+   }
+   if(direction){const selected=rail.querySelector('[aria-current="true"]');selected?.classList.add(direction>0?'profile-doc-from-right':'profile-doc-from-left');direction=0;}
+   activeInfo.replaceChildren(node('span',profile.name+' · ',{className:'beam-sr'}),node('span',files?t('저장된 시트 '+files+'개',files+' saved worksheets'):t('저장된 시트 연결 없음','No saved worksheet mappings')));
+   named.textContent=profile.name;mappings.replaceChildren();
+   const saved=savedConnections();
+   for(const {source,kind,profile:mapping} of saved){
+    const line=node('li');line.append(node('span',role(kind)),node('small',source==='file'?(mapping.sheetName||'Excel'):t('붙여넣기','Paste')));mappings.append(line);
+   }
+   if(!saved.length)mappings.append(node('li',t('아직 저장된 연결이 없어요.','No saved mappings yet.'),{className:'profile-empty-mapping'}));
+  });
+  refresh();
  }
  return {begin,init,refresh,editConnection,forgetSources,locationRules,isBusy:()=>busy};
 })();
