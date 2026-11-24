@@ -1403,8 +1403,10 @@ html[data-theme] .count-summary #actual{margin:0!important;font-size:22px!import
 #fileMenuPanel #language,#fileMenuPanel #helpLauncher{width:100%;height:auto;min-height:36px;text-align:left;justify-content:flex-start;border-radius:5px;font-size:12px}
 .availability-setting{border-top:1px solid var(--line);margin-top:6px;padding-top:6px}
 #availabilityToggle{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:40px}
-#availabilityState{font-family:var(--font-ui);font-size:11px;border:1px solid var(--line);border-radius:4px;padding:2px 6px;color:var(--muted)}
-#availabilityToggle[aria-checked="true"] #availabilityState{color:var(--complete-ink);border-color:currentColor}
+#availabilityState[hidden]{display:none!important}
+#availabilityToggle .loc-eye{width:19px;height:19px;flex:none;display:block}
+#availabilityToggle[aria-checked="false"] .loc-eye-open,
+#availabilityToggle[aria-checked="true"] .loc-eye-closed{display:none}
 #availabilityNote{font-size:11px;line-height:1.6;color:var(--muted);margin:4px 8px 7px;white-space:normal}
 .last-scanned-picking{border-top:1px solid var(--line);margin-top:10px;padding-top:8px;max-height:220px;overflow:auto}
 .picking-heading{font-size:11px;color:var(--muted);margin-bottom:5px}
@@ -1450,7 +1452,6 @@ html:not([data-theme="dark"]) :is(input,select,textarea):focus-visible{outline-c
 header .header-availability{border:0;margin:0;padding:0;flex:0 0 auto}
 header .header-availability #availabilityToggle{width:auto;min-height:36px;height:36px;gap:8px;padding:6px 9px;font-size:12px;line-height:1.2;white-space:nowrap}
 header .header-availability #availabilityNote{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-header .header-availability #availabilityState{display:inline-block;min-width:32px;text-align:center;line-height:1.2}
 @media(pointer:coarse){header .header-availability #availabilityToggle{min-height:44px;height:44px}}
 
 /* v1.10: order summaries belong to their sheet, not a repeated Overview block. */
@@ -2038,13 +2039,10 @@ body>header{padding-inline:9px!important;gap:4px!important}
  body>header>.toolbar{gap:3px!important}
  body>header #beamBack{position:absolute;left:52px;top:50%;transform:translateY(-50%)}
  body>header .header-availability #availabilityToggle{gap:3px!important;font-size:10px!important;padding-inline:4px!important}
- body>header .header-availability #availabilityState{min-width:20px!important}
  body>header #theme{width:27px!important;min-width:27px!important;padding-inline:0!important}
  body>header #fileMenuButton{width:29px!important;min-width:29px!important;padding-inline:0!important}
 }
 @media screen and (max-width:355px){
- body>header .header-availability #availabilityToggle>span:first-child{font-size:0}
- body>header .header-availability #availabilityToggle>span:first-child::after{content:"A";font-size:10px}
  body>header #beamBack{left:47px}
 }
 /* The Figma canvas outside the artwork is not part of the product. */

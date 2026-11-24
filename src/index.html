@@ -46,8 +46,12 @@
 <div class="toolbar">
 <div class="availability-setting header-availability">
 <button id="availabilityToggle" type="button" role="switch" aria-checked="false" aria-describedby="availabilityNote">
-<span>피킹 위치 안내</span>
-<b id="availabilityState">OFF</b>
+<span>Loc</span>
+<svg class="loc-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<g class="loc-eye-open"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.4"/></g>
+<g class="loc-eye-closed"><path d="M3.5 10c2.2 2.8 5 4.2 8.5 4.2s6.3-1.4 8.5-4.2M6.9 13l-1.5 2.1M12 14.2v2.6M17.1 13l1.5 2.1"/></g>
+</svg>
+<b id="availabilityState" hidden>OFF</b>
 </button>
 <p id="availabilityNote">켜짐: 설정한 피킹 위치 표시<br>위치 안내만 제공 · 실제 재고 이동 없음</p>
 </div>
