@@ -2733,7 +2733,7 @@ function beamAppendReceiptItems(){
  more.textContent=beamL('다음 '+Math.min(remaining,200).toLocaleString()+'종 보기','Show next '+Math.min(remaining,200).toLocaleString()+' items');
 }
 function beamOpenFolderReceipt(){
- const group=beam.phase==='party'&&beam.mode==='b2b'&&beam.groups.byKey.get(beam.party);
+ const group=beam.phase!=='asn'&&beam.groups?.byId.get(beam.browseAnchor);
  if(!group||dataImportBusy)return;
  const id=group.ids[beam.folderPeek.get(group.key)||0],sheet=beamFolderItems(rawRows(id));
  beamLongReceipt={items:sheet.items,next:0};
@@ -2745,7 +2745,7 @@ function beamOpenFolderReceipt(){
  $('beamFolderReceiptScroll').scrollTop=0;
 }
 function beamPeekFolder(el,step){
- const group=beam.phase==='party'&&beam.mode==='b2b'&&beam.groups.byId.get(el?.dataset.id);
+ const group=beam.phase!=='asn'&&beam.groups?.byId.get(el?.dataset.id);
  if(!group||dataImportBusy)return false;
  const from=beam.folderPeek.get(group.key)||0,to=Math.max(0,Math.min(group.ids.length-1,from+step));
  if(to===from)return false;
@@ -2764,14 +2764,13 @@ function beamAdvance(){
   if(!beam.query.trim()&&!beam.picked)return;
   const group=beam.groups.byId.get(beam.candidate);if(!group)return;
   beam.party=group.key;beam.picked=beam.candidate;beam.phase='party';
-  const previewAt=group.ids.indexOf(beam.picked);if(beam.mode==='b2b'&&previewAt>0&&!beam.folderPeek.has(group.key))beam.folderPeek.set(group.key,previewAt);
+  const previewAt=group.ids.indexOf(beam.picked);if(previewAt>0&&!beam.folderPeek.has(group.key))beam.folderPeek.set(group.key,previewAt);
  }else if(beam.phase==='party'){
   const group=beam.groups.byKey.get(beam.party);if(!group)return;
-  if(group.ids.length===1){beamEnter();return;}
-  if(beam.mode==='b2b'&&beam.folderPeek?.has(group.key))beam.picked=group.ids[beam.folderPeek.get(group.key)];
+  if(beam.folderPeek?.has(group.key))beam.picked=group.ids[beam.folderPeek.get(group.key)];
   beam.phase='asn';
  }else{beamEnter();return;}
- beamRender(true);beamFocusCard();
+ beamRender(beam.phase==='asn'?'open-folder':true);beamFocusCard();
 }
 function beamBackStep(edit=false){
  if(!edit&&beam.phase==='asn'){beam.phase='party';beamRender(true);beamFocusCard();return;}
@@ -2797,7 +2796,7 @@ function beamPlaceOnRibbon(el,slot,slide=0){
 function beamTurnPaper(phase,axis,direction){
  const el=[...beam.nodes.values()].find(node=>node.dataset.ribbonSlot==='0');
  const paper=el?.firstElementChild;
- if(!paper?.animate||el.dataset.folder==='true')return;
+ if(!paper?.animate)return;
  beam.paperTurns??=new WeakMap();
  const existing=beam.paperTurns.get(paper);
  if(existing?.playState==='running')return;
@@ -2831,10 +2830,10 @@ function beamRender(animate=false){
  let selectedGroup=groups.byKey.get(beam.party);
  if(beam.phase!=='search'&&!selectedGroup){beamResetSelection();selectedGroup=null;}
  const phase=beam.phase,fold=phase!=='search',partyMode=phase==='party',asnMode=phase==='asn';
- const folders=partyMode&&beam.mode==='b2b';
- const browse=partyMode?groups.reps:asnMode?selectedGroup.ids:filtered;
- const chosen=groups.byId.get(beam.picked)===selectedGroup&&selectedGroup?beam.picked:selectedGroup?.rep;
- const browseAnchor=partyMode?selectedGroup.rep:asnMode?chosen:(groups.byId.has(beam.picked)?beam.picked:filtered[0]);
+ const folders=!asnMode;
+ const browse=folders?groups.reps:selectedGroup.ids;
+ const chosen=selectedGroup&&groups.byId.get(beam.picked)===selectedGroup?beam.picked:selectedGroup?.rep;
+ const browseAnchor=partyMode?selectedGroup.rep:asnMode?chosen:(groups.byId.get(beam.picked)?.rep??browse[0]);
  const at=Math.max(0,browse.indexOf(browseAnchor));
  beam.filteredIds=filtered;beam.browseIds=browse;beam.browseAnchor=browseAnchor;beam.candidate=partyMode?chosen||selectedGroup.rep:browse[at]||'';
  const root=$('beamSearch'),find=$('beamFindFold'),edit=$('beamEditSearch'),start=$('beamStart'),stage=$('beamStage'),rail=$('beamRailLabel');
@@ -2850,28 +2849,27 @@ function beamRender(animate=false){
  $('beamStartArea').hidden=!filtered.length;$('beamBrowse').hidden=browse.length<=1;
  $('beamFolderReceiptOpen').hidden=!folders;$('beamFolderReceiptOpen').disabled=dataImportBusy;
  start.disabled=dataImportBusy||!beam.candidate||(!fold&&!lookup.q&&!beam.picked);
- const chooseOrder=partyMode&&selectedGroup.ids.length>1;
- const action=!fold?beamL(noun+' 선택','Choose '+noun):chooseOrder?beamL('주문 선택','Choose return order'):beamL('검수 시작','Start inspection');
+ const chooseOrder=partyMode;
+ const action=!fold?beamL(noun+' 선택','Choose '+noun):chooseOrder?beamL('파일 열기','Open folder'):beamL('검수 시작','Start inspection');
  start.querySelector('span').textContent=action;
  start.setAttribute('aria-label',fold&&!chooseOrder?beamL('선택한 주문 검수 시작','Inspect selected return order'):action);
  $('beamPrev').setAttribute('aria-label',partyMode?beamL('이전 '+noun,'Previous '+noun):beamL('이전 주문','Previous return order'));
  $('beamNext').setAttribute('aria-label',partyMode?beamL('다음 '+noun,'Next '+noun):beamL('다음 주문','Next return order'));
  $('beamPage').textContent=browse.length?(at+1)+' / '+browse.length:'';
  $('beamPrev').disabled=at<=0;$('beamNext').disabled=at>=browse.length-1;
- const ring=fold?browse:lookup.bi.timeline[beam.mode],positions=lookup.bi.positions[beam.mode],count=ring.length;
+ const ring=browse,count=ring.length;
  root.dataset.hasReceipts=String(!!count);root.dataset.rail=String(count>1);
  stage.dataset.axis=beam.ribbonAxis||'x';stage.dataset.browsable=String(browse.length>1&&!dataImportBusy);
- stage.setAttribute('aria-label',partyMode?beamL(noun+' 후보',noun+' results'):beamL('반품 주문 후보','Return order results'));
+ stage.setAttribute('aria-label',folders?beamL(noun+' 후보',noun+' results'):beamL('반품 주문 후보','Return order results'));
  rail.hidden=fold||count<2;
  rail.textContent=lookup.bi.dated[beam.mode]?beamL('전달일 빠른 순 · 날짜 없는 주문은 뒤에','Oldest sent date first · undated orders last'):beamL('원본 순서','Source order');
  const active=partyMode?selectedGroup.rep:beam.candidate;
- const anchor=fold?at:positions.get(active)??positions.get(beam.anchor)??0;
- if(active)beam.anchor=active;
+ const anchor=at;
  const shown=new Map();
  const add=(offset)=>{
   if(!count)return;
   const i=anchor+offset;
-  const id=count<=9||fold?ring[i]:ring[(i+count*2)%count];
+  const id=ring[i];
   if(id&&!shown.has(id))shown.set(id,offset);
  };
  if(active)add(0);
@@ -2884,26 +2882,33 @@ function beamRender(animate=false){
  beam.railMode=beam.mode;beam.railPhase=phase;beam.railAnchor=anchor;
  for(const [id,slot] of shown){
   const el=beamNode(id),newNode=!el.isConnected,dist=Math.abs(slot);
-  const alternate=!fold&&!!lookup.q&&!groups.byId.has(id);
   const group=groups.byId.get(id);
   const face=folders?'folder':String(slot===0);
   if(folders){
    el.dataset.folder='true';
-   if(el.dataset.face!==face)beamFolderFace(el,group,beam.folderPeek.has(group.key));
+   if(el.dataset.face!==face||el.beamFolderGroup!==group)beamFolderFace(el,group,beam.folderPeek.has(group.key));
+   el.beamFolderGroup=group;
   }else{
    delete el.dataset.folder;delete el.dataset.peek;
    if(el.dataset.face!==face)el.innerHTML=beamTicketFace(id,beam.mode,slot!==0);
+   if(slot===0&&animate==='open-folder'&&!reduced){
+    el.insertAdjacentHTML('beforeend','<span class="beam-file-opening" aria-hidden="true"></span>');
+    el.firstElementChild?.animate?.([
+     {transform:'translateY(54px) scale(.94)',clipPath:'inset(0 0 74% 0)',opacity:.5,offset:0},
+     {transform:'translateY(11px) scale(.98)',clipPath:'inset(0 0 18% 0)',opacity:1,offset:.65},
+     {transform:'translateY(0) scale(1)',clipPath:'inset(0 0 0 0)',opacity:1,offset:1}
+    ],{duration:455,easing:'cubic-bezier(.19,.75,.25,1)'});
+   }
   }
   el.dataset.face=face;
-  if(partyMode){el.dataset.partyCount=String(group.ids.length);}else delete el.dataset.partyCount;
   if(newNode)stage.append(el);
-  el.dataset.center=String(slot===0);el.dataset.distance=String(dist);el.dataset.unmatched=String(alternate);
-  el.setAttribute('aria-pressed',String(id===active&&(fold||!!beam.picked)));
-  el.tabIndex=slot===0&&!alternate?0:-1;el.setAttribute('aria-disabled',String(alternate));
-  if(!folders)el.setAttribute('aria-label',partyMode?beamPartyLabel(id,beam.mode)+beamL(' · 주문 ',' · Orders: ')+el.dataset.partyCount:el.dataset.asnLabel+(alternate?' · '+beamL('검색 결과 아님','Not a search result'):''));
+  el.dataset.center=String(slot===0);el.dataset.distance=String(dist);
+  el.setAttribute('aria-pressed',String(id===browseAnchor&&(fold||!!beam.picked)));
+  el.tabIndex=slot===0?0:-1;
+  if(!folders)el.setAttribute('aria-label',el.dataset.asnLabel);
   el.dataset.ribbonSlot=String(slot);
   beamPlaceOnRibbon(el,slot);
-  el.style.opacity=String(dist===0?1:alternate?.65:.94);
+  el.style.opacity=String(dist===0?1:.94);
   if(newNode&&animate&&moved&&!reduced&&typeof el.animate==='function')el.animate(
    [{opacity:0},{opacity:Number(el.style.opacity)}],{duration:200,easing:'ease-out'});
  }
@@ -2998,7 +3003,10 @@ beamRibbon.addEventListener('wheel',e=>{
 beamRibbon.onclick=e=>{
  if(e.detail&&performance.now()<ribbonClickUntil)return;
  const el=e.target.closest('.beam-receipt');
- if(el?.dataset.folder==='true'&&el.dataset.center==='true'){beamAdvance();return;}
+ if(el?.dataset.folder==='true'&&el.dataset.center==='true'){
+  if(beam.phase==='search'&&!beam.query.trim())beam.picked=el.dataset.id;
+  beamAdvance();return;
+ }
  beamPick(el?.dataset.id);
  if(beam.phase!=='search')beamFocusCard();
 };
@@ -3019,7 +3027,11 @@ $('beamSearch').addEventListener('keydown',e=>{
  if(folder&&(e.key==='PageDown'||e.key==='PageUp')){e.preventDefault();beamPeekFolder(folder,e.key==='PageDown'?1:-1);return;}
  const direction={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];
  if(direction){e.preventDefault();beamStep(direction,/Up|Down/.test(e.key)?'y':'x');}
- else if(e.key==='Enter'&&(e.target===$('beamStart')||e.target.closest?.('.beam-receipt'))){e.preventDefault();if(!e.repeat)beamAdvance();}
+ else if(e.key==='Enter'&&(e.target===$('beamStart')||e.target.closest?.('.beam-receipt'))){
+  e.preventDefault();if(e.repeat)return;
+  if(beam.phase==='search'&&!beam.query.trim()&&e.target.closest?.('[data-folder=true]'))beam.picked=beam.browseAnchor;
+  beamAdvance();
+ }
 });
 function beamView(search,animate=false){
  const wasVisible=beam.visible,s=$('beamSearch'),w=$('sheetWorkspace');

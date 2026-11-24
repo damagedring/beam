@@ -7,7 +7,7 @@ const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8');
 test('home exposes exactly the intended four text labels, only Returns is actionable',()=>{
  const home=html.slice(html.indexOf('<main id="beamHome"'),html.indexOf('<section id="beamSearch"'));
  assert.match(home,/<main id="beamHome".*?>/);
- assert.deepEqual([...home.matchAll(/class="beam-home-word" data-ko="([^"]+)"/g)].map(x=>x[1]),['입고','출고','재고관리','반품']);
+ assert.deepEqual([...home.matchAll(/class="beam-home-en" lang="en">([^<]+)<\/span> <span class="beam-home-ko" lang="ko">([^<]+)/g)].map(([,en,ko])=>[en,ko]),[['Inbound','입고'],['Outbound','출고'],['Inventory','재고관리'],['Returns','반품']]);
  assert.equal([...home.matchAll(/<button\b/g)].length,1);
  assert.equal([...home.matchAll(/>준비 중<\/small>/g)].length,3);
  assert.doesNotMatch(home,/<img|<svg|style=/);
