@@ -14,7 +14,7 @@ class El {
  append(e){e.isConnected=true;this.children.push(e);}
  remove(){this.isConnected=false;}
  focus(){active.element=this;}
- closest(){return this.className==='beam-receipt'?this:null;}
+ closest(selector){return this.className==='beam-receipt'&&(selector!=='[data-folder=true]'||this.dataset.folder==='true')?this:null;}
 }
 const el=new Map(),$=k=>{if(!el.has(k))el.set(k,new El());return el.get(k)};
 const modes=new El(),orderRows=new Map([
@@ -75,7 +75,19 @@ assert.equal(beam.candidate,'A2');assert.equal(reel.dataset.axis,'x');
 gesture('pointerdown',100,100);gesture('pointermove',95,55);gesture('pointerup',95,55);
 assert.equal(beam.candidate,'A2');assert.equal(reel.dataset.dragging,undefined);
 key('Enter');assert.deepEqual(entered,['A2','A2']);
-key('Escape');assert.equal(beam.phase,'party');assert.equal(active.element.dataset.id,'A1');$('beamEditSearch').onclick();assert.equal(beam.phase,'search');
+key('Escape');assert.equal(beam.phase,'party');assert.equal(active.element.dataset.id,'A1');
+assert.match(beam.nodes.get('A1').innerHTML,/beam-file-glass.*1 \/ 2.*가상 성수점.*ASN 2건/);
+assert.match(beam.nodes.get('B1').innerHTML,/ASN 1건/);
+const folder=beam.nodes.get('A1'),candidateBeforePeek=beam.candidate;
+const whisk=ev('wheel',folder,{deltaX:0,deltaY:73,deltaMode:0});
+reel.events.wheel(whisk);assert.equal(whisk.defaultPrevented,true);
+assert.match(folder.innerHTML,/Ext-A2.*Paper Two.*2 \/ 2/);
+assert.equal(beam.phase,'party');assert.equal(beam.candidate,candidateBeforePeek);
+const endWheel=ev('wheel',folder,{deltaX:0,deltaY:73,deltaMode:0});reel.events.wheel(endWheel);assert.equal(endWheel.defaultPrevented,undefined);
+key('PageUp');assert.match(folder.innerHTML,/Ext-A1.*Paper One.*1 \/ 2/);
+key('PageDown');assert.match(folder.innerHTML,/Ext-A2.*Paper Two.*2 \/ 2/);
+key('Enter');assert.equal(beam.phase,'asn');assert.equal(beam.candidate,'A2');assert.doesNotMatch(beam.nodes.get('A2').innerHTML,/beam-file-glass/);
+$('beamEditSearch').onclick();assert.equal(beam.phase,'search');
 type('beamQuery','000000000000');inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');assert.match($('beamSearchStatus').textContent,/찾지 못했어요/);
 type('beamQuery','성수');c.dataImportBusy=true;inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');c.dataImportBusy=false;
 type('beamQuery','성수');assert.match(beam.nodes.get('A1').innerHTML,/beam-paper-top.*beam-paper-tear.*beam-paper-body/);
