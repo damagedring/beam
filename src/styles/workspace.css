@@ -1530,7 +1530,7 @@ header .header-availability #availabilityNote{position:absolute;width:1px;height
  #sheetWorkspace #orderWorkspace #activeOrderSheet,#sheetWorkspace #orderWorkspace .order-sheet{flex:0 0 280px;min-width:220px;max-width:calc(100vw - 72px);border:1px solid var(--line);border-radius:5px 5px 0 0;background:var(--surface-canvas)}
  #sheetWorkspace #orderWorkspace #activeOrderSheet.is-order-active{border-color:var(--line)!important;border-top:2px solid var(--signature)!important;border-bottom-color:var(--surface-panel)!important;background:var(--surface-panel)}
  #sheetWorkspace #activeOrderSheet .receipt-entry,#sheetWorkspace #activeOrderSheet input{background:var(--surface-panel)!important}
- #sheetWorkspace>.layout{width:100%;max-width:none;margin:0;border:0;background:var(--surface-panel);border-radius:0 0 8px 8px;min-width:0}
+ #inspectionOrderSurface>.layout{width:100%;max-width:none;margin:0;border:0;background:var(--surface-panel);border-radius:0 0 8px 8px;min-width:0}
  #sheetWorkspace #orderInspectionPanel{width:100%;max-width:none;margin:0;padding:16px 16px 20px;min-width:0}
  #sheetWorkspace #orderRecommendations:empty{display:none}
  #sheetWorkspace .work-overview,#sheetWorkspace .inspection-workbench{min-width:0}
@@ -2295,7 +2295,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
  #beamSearch .beam-empty{background:var(--beam-canvas)}
  html[data-theme] body:has(>#sheetWorkspace:not([hidden])),
  html[data-theme] body:has(>#sheetWorkspace:not([hidden]))>header{background:var(--beam-canvas)!important}
- #sheetWorkspace,#sheetWorkspace>.layout{background:var(--beam-canvas)!important;border:0!important}
+ #sheetWorkspace,#inspectionOrderSurface>.layout{background:var(--beam-canvas)!important;border:0!important}
  #sheetWorkspace{width:100%;max-width:1490px;margin:10px auto 24px}
  #sheetWorkspace #orderInspectionPanel,#sheetWorkspace #orderWorkspace{padding-inline:clamp(16px,2.1vw,32px)}
  #sheetWorkspace #overviewStatus{
@@ -3969,5 +3969,83 @@ body>header{padding-inline:9px!important;gap:4px!important}
   #beamSearch .beam-receipt[data-long-peek=true] .beam-file-caption::before{
    background:var(--beam-canvas);-webkit-backdrop-filter:none;backdrop-filter:none;mask-image:none
   }
+ }
+}
+
+
+/* One order, one surface. Only the sheet silhouette changes; controls remain live. */
+@media screen{
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface{
+  --order-face:#f1f1f1;--order-corner:22px;--order-notch:0px;--order-pocket:0px;
+  --order-inset:clamp(12px,2.2vw,27px);
+  position:relative;isolation:isolate;min-width:0;
+  margin-inline:clamp(8px,1.8vw,24px);color:var(--beam-type);
+ }
+ html[data-theme=dark] #sheetWorkspace #inspectionOrderSurface{--order-face:#262626}
+ #inspectionOrderSurface::before,#inspectionOrderSurface::after{
+  content:"";position:absolute;z-index:-1;background:var(--order-face);pointer-events:none;
+ }
+ #inspectionOrderSurface::before{
+  inset:var(--order-notch) 0 0;border-radius:var(--order-corner);
+ }
+ #inspectionOrderSurface::after{
+  inset:0 var(--order-pocket) auto 0;height:var(--order-notch);border-radius:var(--order-corner) var(--order-corner) 0 0;
+ }
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace{
+  position:relative;z-index:2;padding:8px var(--order-inset) 0;border:0;background:none;
+ }
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace .order-workspace-top{
+  display:grid;grid-template-columns:minmax(0,1fr);gap:5px;overflow:visible;
+ }
+ html[data-theme] body #sheetWorkspace #inspectionOrderSurface #orderWorkspace #activeOrderSheet{
+  width:100%;min-width:0;max-width:none;border:0!important;border-radius:0!important;padding:0!important;
+  background:none!important;box-shadow:none!important;
+ }
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace #activeOrderSheet .receipt-entry{
+  min-height:45px;gap:5px;flex-wrap:wrap;
+ }
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace #activeOrderSheet #receipt{
+  flex:0 1 clamp(120px,20vw,270px);max-width:100%;background:none!important;padding-inline:0 8px;
+  font-weight:760;font-size:14px;
+ }
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace #currentAsnActions{
+  margin-inline-start:auto;max-width:100%;justify-content:flex-end;
+ }
+ #inspectionOrderSurface #orderWorkspace #orderTabs{
+  display:flex;gap:4px;align-items:center;min-width:0;overflow-x:auto;scrollbar-width:thin;
+ }
+ #inspectionOrderSurface #orderWorkspace #orderTabs:empty{display:none}
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface .beam-inspect-identity{
+  margin:0;padding:clamp(12px,2.1vw,24px) var(--order-inset) clamp(10px,1.45vw,18px);
+ }
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface>.layout{
+  display:block;width:100%;min-width:0;margin:0;background:none!important;
+ }
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderInspectionPanel{
+  width:100%;padding:0;margin:0;background:none;
+ }
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface #beamTerminal{
+  background:none;border:0;border-radius:0 0 var(--order-corner) var(--order-corner);
+  box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;
+ }
+ @media(min-width:1040px){
+  html[data-theme] #sheetWorkspace #inspectionOrderSurface:has(#currentAsnActions:not([hidden])){
+   --order-notch:54px;--order-pocket:clamp(275px,28vw,440px);
+  }
+  #inspectionOrderSurface:has(#currentAsnActions:not([hidden]))::before{
+   border-start-start-radius:0
+  }
+ }
+ @media(max-width:720px){
+  html[data-theme] #sheetWorkspace #inspectionOrderSurface{--order-corner:15px;--order-inset:10px;margin-inline:7px}
+  html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace #activeOrderSheet #receipt{flex:1 1 105px}
+  html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace #currentAsnActions{
+   justify-content:flex-end;flex-wrap:wrap;gap:4px;
+  }
+ }
+ @media(forced-colors:active){
+  #inspectionOrderSurface::before{outline:1px solid CanvasText;background:Canvas}
+  #inspectionOrderSurface::after{display:none}
+  html[data-theme] #sheetWorkspace #inspectionOrderSurface:has(#currentAsnActions:not([hidden])){--order-notch:0px}
  }
 }

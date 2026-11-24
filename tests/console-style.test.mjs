@@ -58,3 +58,14 @@ test('folder captions wrap long store names without trimming them',()=>{
  assert.match(caption,/overflow-wrap:anywhere/);
  assert.doesNotMatch(caption,/text-overflow:ellipsis|line-clamp/);
 });
+
+
+test('order identity, order actions and both inspection tables are inside the same sheet surface',async()=>{
+ const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8');
+ const sheet=html.slice(html.indexOf('<section id="inspectionOrderSurface"'),html.indexOf('<div id="orderSummarySource"'));
+ for(const id of ['orderWorkspace','currentAsnActions','beamWorkName','overviewTracking','scanActivitySection','results']){
+  assert.match(sheet,new RegExp('id="'+id+'"'));
+ }
+ assert.match(sheet,/<\/main>\s*<\/div>\s*<\/section>\s*<\/div>/);
+ assert.match(css,/#inspectionOrderSurface::after\{\s*inset:0 var\(--order-pocket\)/);
+});
