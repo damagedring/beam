@@ -2669,6 +2669,21 @@ function beamNewSearch(reset=false){
  beamView(true,true);
 }
 $('beamBack').onclick=()=>beamNewSearch();
+function beamInspectionEscape(e){
+ if(e.key!=='Escape'||beam.visible||dataImportBusy||e.defaultPrevented||e.repeat||
+    e.isComposing||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey||
+    document.querySelector('dialog[open]')||e.target?.tagName==='SELECT')return;
+ e.preventDefault();e.stopPropagation();
+ // Consume the nearest open layer before leaving the work screen.
+ if(!$('fileMenuPanel').hidden){closeFileMenu(true);return;}
+ if(!$('questPeek').hidden){endQuestPeek();return;}
+ if(!$('orderInfoPopover').hidden){closeOrderInfo(true);return;}
+ if(!$('discrepancyPopover').classList.contains('hidden')){closeDiscrepancyPreview(true);return;}
+ if(!$('receiptList').classList.contains('hidden')){closeReceiptList();return;}
+ if(!$('storeList').classList.contains('hidden')){closeStoreList();return;}
+ beamNewSearch();
+}
+document.addEventListener('keydown',beamInspectionEscape,true);
 $('beamConnect').onclick=()=>$('dataLauncher').click();
 function beamEnter(){
  const id=beam.candidate,mode=beam.mode,rows=rawRows(id);

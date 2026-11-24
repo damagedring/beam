@@ -31,7 +31,7 @@ El.prototype.firstElementChild={animate(frames,options){turns.push({frames,optio
 const c=vm.createContext({$,document:{querySelector:()=>modes,querySelectorAll:()=>[],createElement:()=>new El()},window:{matchMedia:()=>({matches:reduced})},uiIndex:()=>ix,isB2C:()=>false,asnStoreKey:id=>({A1:'a',A2:'a',B1:'b'})[id]||'',rawRows:id=>orderRows.get(id)||[],receiptDisplay:id=>'Ext-'+id,receiptBarcodeValue:id=>id,encodeReceiptCode128:()=>({runs:[2,1,2],modules:25}),esc:x=>String(x??'').replace(/[&<>"']/g,'X'),customerLookupKey:v=>v.trim().toLowerCase(),trackingMatches:(q,filter)=>[...orderRows.keys()].filter(id=>filter(id)&&q.replaceAll('-','')===orderRows.get(id)[0].returnTracking?.replaceAll('-','')),looksLikeTracking:q=>/^[0-9-]{10,}$/.test(q),Engine:{masterInfo:()=>({})},state:{data:{raw:[...orderRows.values()].flat()}},language:'ko',dataImportBusy:false,entered,performance,printL:(a)=>a});
 vm.runInContext(searchKeys+'\n'+slice('const beam={mode:', 'function beamView(')+`\nfunction beamEnter(){entered.push(beam.candidate);} \$('beamStart').onclick=beamAdvance; globalThis.R={beam,beamRender};`,c);
 const beam=c.R.beam;
-function ev(key,target,more={}){return {key,target,preventDefault(){this.defaultPrevented=true},...more};}
+function ev(key,target,more={}){return {key,target,preventDefault(){this.defaultPrevented=true},stopPropagation(){},...more};}
 const key=(name,more={})=>$('beamSearch').events.keydown(ev(name,active.element,more));
 const type=(which,v)=>{$(which).value=v;$(which).focus();$(which).oninput();};
 const inputKey=(which,name,more={})=>$(which).onkeydown(ev(name,$(which),more));
@@ -80,6 +80,20 @@ type('beamQuery','000000000000');inputKey('beamQuery','Enter');assert.equal(beam
 type('beamQuery','성수');c.dataImportBusy=true;inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');c.dataImportBusy=false;
 type('beamQuery','성수');assert.match(beam.nodes.get('A1').innerHTML,/beam-paper-top.*beam-paper-tear.*beam-paper-body/);
 assert.match(beam.nodes.get('A1').innerHTML,/Code 128 · A1/);
+// Escape mirrors the back button and lets modal / popover controls go first.
+const closed=[],returned=[];
+c.document.querySelector=()=>null;c.beamView=(search,animate)=>returned.push({search,animate});
+for(const id of ['fileMenuPanel','questPeek','orderInfoPopover'])$(id).hidden=true;
+const layerStates={discrepancyPopover:false,receiptList:true,storeList:true};
+for(const id of Object.keys(layerStates))$(id).classList={contains:()=>layerStates[id]};
+c.closeDiscrepancyPreview=()=>{layerStates.discrepancyPopover=true;closed.push('discrepancy');};
+vm.runInContext(slice('function beamNewSearch(', "document.addEventListener('keydown',beamInspectionEscape")+ "\nglobalThis.escInspection=beamInspectionEscape;",c);
+beam.visible=false;
+c.escInspection(ev('Escape',$('barcode')));assert.deepEqual(closed,['discrepancy']);assert.equal(returned.length,0);
+c.document.querySelector=()=>({open:true});c.escInspection(ev('Escape',$('barcode')));assert.equal(returned.length,0);
+c.document.querySelector=()=>null;c.escInspection(ev('Escape',$('barcode'),{isComposing:true}));assert.equal(returned.length,0);
+c.escInspection(ev('Escape',$('barcode')));assert.deepEqual(returned,[{search:true,animate:true}]);assert.equal(beam.query,'성수');
+beam.visible=true;c.escInspection(ev('Escape',$('beamQuery')));assert.equal(returned.length,1);
 vm.runInContext(slice('let beamRawProgressAt=', 'async function runCombinedWorkbook(')+`\nglobalThis.status=beamRawStatus;`,c);
 c.status('read','Loading');assert.equal($('beamRawStatus').hidden,false);assert.equal($('beamRawProgress').hidden,false);
 c.status('review','Review',false);assert.equal($('beamRawStatus').hidden,false);assert.equal($('beamRawProgress').hidden,true);
