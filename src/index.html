@@ -169,6 +169,10 @@
 <span>Start</span>
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-diagonal"/></svg>
 </button>
+  <button type="button" id="beamFolderReceiptOpen" hidden aria-haspopup="dialog" aria-controls="beamFolderReceiptDialog">
+<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-expand"/></svg>
+<span data-ko="영수증 펼쳐보기" data-en="Unfold receipt">영수증 펼쳐보기</span>
+</button>
   <div id="beamBrowse" hidden>
 <button id="beamPrev" type="button" aria-label="이전 ASN"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-arrow-left"/></svg></button>
 <span id="beamPage">
@@ -873,6 +877,18 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</pre>
 </details>
 <button id="demo" class="full">예제 데이터 체험</button>
 </div>
+</dialog>
+<dialog id="beamFolderReceiptDialog" aria-labelledby="beamFolderReceiptTitle">
+<div class="beam-long-receipt-head">
+ <div><p id="beamFolderReceiptStore"></p><h2 id="beamFolderReceiptTitle"></h2></div>
+ <button type="button" id="beamFolderReceiptClose" aria-label="닫기" data-ko-label="닫기" data-en-label="Close"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-close"/></svg></button>
+</div>
+<div id="beamFolderReceiptScroll" tabindex="0">
+ <table><thead><tr><th scope="col" data-ko="상품" data-en="Item">상품</th><th scope="col" data-ko="수량" data-en="Qty">수량</th></tr></thead>
+ <tbody id="beamFolderReceiptRows"></tbody></table>
+ <button type="button" id="beamFolderReceiptMore" hidden></button>
+</div>
+<p id="beamFolderReceiptTotal"></p>
 </dialog>
 <dialog id="asnShareDialog" aria-labelledby="asnShareTitle">
 <div class="dialog-heading">

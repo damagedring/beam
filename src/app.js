@@ -2429,22 +2429,62 @@ function beamGroups(filtered){
  const groups=[...byKey.values()];
  return beam.groupCache={filtered,mode:beam.mode,bi:beam.index,groups,byKey,byId,reps:groups.map(g=>g.rep)};
 }
+const beamFolderItemCache=new WeakMap();
+function beamFolderItems(raw){
+ const cached=beamFolderItemCache.get(raw);if(cached)return cached;
+ const keys=new Map(),items=[];let total=0;
+ for(const row of raw){
+  const key=row.barcode?'B:'+row.barcode:row.sku?'S:'+row.sku:'';
+  const qty=Number(row.qty)||0;total+=qty;
+  const previous=key&&keys.get(key);
+  if(previous){previous.qty+=qty;continue;}
+  const item={name:row.name||row.sku||row.barcode||'—',code:row.sku||row.barcode||'',qty};
+  if(key)keys.set(key,item);items.push(item);
+ }
+ const summary={items,total};beamFolderItemCache.set(raw,summary);return summary;
+}
+const beamFolderCount=n=>n.toLocaleString()+beamL('종',' items');
+const beamFolderTotal=n=>n.toLocaleString()+' EA';
 function beamFolderFace(el,group,preview=false){
- const at=beam.folderPeek.get(group.key)||0,id=group.ids[at],head=rawRows(id)[0]||{},label=beamPartyLabel(id,beam.mode);
- const entry=uiIndex().orderSearch.get(id),date=beamIndex().dateById.get(id);
- const name=head.name||head.sku||head.barcode||'';
- const summary=[date,(entry?.expected??0).toLocaleString()+' EA'].filter(Boolean).join(' · ');
- const position=(at+1)+' / '+group.ids.length;
+ const at=beam.folderPeek.get(group.key)||0,id=group.ids[at],label=beamPartyLabel(id,beam.mode);
+ const {items,total}=beamFolderItems(rawRows(id)),ext=receiptDisplay(id)||id;
+ const position=(at+1)+' / '+group.ids.length,limit=4;
+ const itemRows=items.slice(0,limit).map(item=>'<span class="beam-file-item"><span title="'+esc(item.name)+'">'+esc(item.name)+'</span><b>'+esc(item.qty.toLocaleString())+'</b></span>').join('');
+ const remainder=items.length>limit?'<span class="beam-file-more">'+beamL('외 ','+ ')+beamFolderCount(items.length-limit)+'</span>':'';
  el.dataset.peek=String(preview);
  el.innerHTML='<span class="beam-file" aria-hidden="true">'
  +'<span class="beam-file-back"></span>'
  +(group.ids.length>1?'<span class="beam-file-sheet beam-file-sheet-left"></span>':'')
  +(group.ids.length>2?'<span class="beam-file-sheet beam-file-sheet-right"></span>':'')
- +'<span class="beam-file-paper"><span class="beam-file-paper-top"><span>RETURN ASN</span><b>'+esc(receiptDisplay(id)||id)+'</b></span><strong>'+esc(name)+'</strong><small>'+esc(summary)+'</small></span>'
+ +'<span class="beam-file-paper"><span class="beam-file-paper-top"><span>RETURN ASN</span><b>'+esc(ext)+'</b></span>'
+ +'<span class="beam-file-item beam-file-columns"><span>'+beamL('상품','Item')+'</span><span>'+beamL('수량','Qty')+'</span></span>'+itemRows+remainder
+ +'<span class="beam-file-total"><span>'+beamL('합계','Total')+' · '+beamFolderCount(items.length)+'</span><b>'+esc(beamFolderTotal(total))+'</b></span></span>'
  +'<span class="beam-file-glass"><span class="beam-file-position">'+position+'</span><span class="beam-file-arrow">↗</span></span></span>'
  +'<span class="beam-file-caption"><strong title="'+esc(label)+'">'+esc(label)+'</strong><span>ASN '+group.ids.length.toLocaleString()+beamL('건','')+'</span></span>';
- el.setAttribute('aria-label',label+' · ASN '+group.ids.length+(preview?' · '+position+' · '+(receiptDisplay(id)||id)+' · '+name+' · '+summary:''));
+ el.setAttribute('aria-label',label+' · ASN '+group.ids.length+(preview?' · '+position+' · '+ext+' · '+beamFolderCount(items.length)+' · '+beamL('합계 ','Total ')+beamFolderTotal(total):''));
  el.title=label+' · ASN '+group.ids.length+(group.ids.length>1?' · '+beamL('휠 또는 Page ↑/↓로 영수증 미리보기','Wheel or Page ↑/↓ to preview receipts'):'');
+}
+let beamLongReceipt=null;
+function beamAppendReceiptItems(){
+ if(!beamLongReceipt)return;
+ const sheet=beamLongReceipt,part=sheet.items.slice(sheet.next,sheet.next+200);
+ $('beamFolderReceiptRows').insertAdjacentHTML('beforeend',part.map(item=>'<tr><td>'+esc(item.name)+(item.code&&item.code!==item.name?'<small>'+esc(item.code)+'</small>':'')+'</td><td>'+esc(item.qty.toLocaleString())+'</td></tr>').join(''));
+ sheet.next+=part.length;
+ const remaining=sheet.items.length-sheet.next,more=$('beamFolderReceiptMore');
+ more.hidden=remaining<=0;
+ more.textContent=beamL('다음 '+Math.min(remaining,200).toLocaleString()+'종 보기','Show next '+Math.min(remaining,200).toLocaleString()+' items');
+}
+function beamOpenFolderReceipt(){
+ const group=beam.phase==='party'&&beam.mode==='b2b'&&beam.groups.byKey.get(beam.party);
+ if(!group||dataImportBusy)return;
+ const id=group.ids[beam.folderPeek.get(group.key)||0],sheet=beamFolderItems(rawRows(id));
+ beamLongReceipt={items:sheet.items,next:0};
+ $('beamFolderReceiptTitle').textContent=receiptDisplay(id)||id;
+ $('beamFolderReceiptStore').textContent=beamPartyLabel(id,beam.mode);
+ $('beamFolderReceiptTotal').textContent=beamL('합계','Total')+' · '+beamFolderCount(sheet.items.length)+' · '+beamFolderTotal(sheet.total);
+ $('beamFolderReceiptRows').replaceChildren();beamAppendReceiptItems();
+ openUtilityDialog('beamFolderReceiptDialog','beamFolderReceiptOpen','beamFolderReceiptClose');
+ $('beamFolderReceiptScroll').scrollTop=0;
 }
 function beamPeekFolder(el,step){
  const group=beam.phase==='party'&&beam.mode==='b2b'&&beam.groups.byId.get(el?.dataset.id);
@@ -2550,6 +2590,7 @@ function beamRender(animate=false){
  $('beamEmptyTitle').textContent=!state.data.raw.length?beamL('반품 ASN 검색','Find a return ASN'):beamL('일치하는 ASN이 없어요','No matching ASN');
  $('beamEmptyText').textContent=!state.data.raw.length?beamL('기준 자료를 연결하면 이곳에 영수증이 나타나요.','Connect reference data to show receipts here.'):narrowing&&beam.sku?beamL('이 SKU나 반송장번호와 일치하는 오더가 없어요.','No order matches this SKU or return tracking number.'):beamL('다른 '+(beam.mode==='b2c'?'고객명':'매장명')+'이나 반송장번호로 찾아보세요.','Try another name or return tracking number.');
  $('beamStartArea').hidden=!filtered.length;$('beamBrowse').hidden=browse.length<=1;
+ $('beamFolderReceiptOpen').hidden=!folders;$('beamFolderReceiptOpen').disabled=dataImportBusy;
  start.disabled=dataImportBusy||!beam.candidate||(!fold&&!lookup.q&&!beam.picked);
  const action=!fold?beamL(noun+' 선택','Choose '+noun):partyMode&&selectedGroup.ids.length>1?beamL('ASN 선택','Choose ASN'):'Start';
  start.querySelector('span').textContent=action;
@@ -2701,6 +2742,13 @@ beamRibbon.onclick=e=>{
  if(el?.dataset.folder==='true'&&el.dataset.center==='true'){beamAdvance();return;}
  beamPick(el?.dataset.id);
  if(beam.phase!=='search')beamFocusCard();
+};
+$('beamFolderReceiptOpen').onclick=beamOpenFolderReceipt;
+$('beamFolderReceiptMore').onclick=beamAppendReceiptItems;
+$('beamFolderReceiptClose').onclick=()=>$('beamFolderReceiptDialog').close();
+$('beamFolderReceiptDialog').onclose=()=>{
+ beamLongReceipt=null;$('beamFolderReceiptRows').replaceChildren();
+ $('beamFolderReceiptOpen').focus({preventScroll:true});
 };
 $('beamPrev').onclick=()=>beamStep(-1);
 $('beamNext').onclick=()=>beamStep(1);

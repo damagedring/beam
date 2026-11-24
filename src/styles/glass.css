@@ -334,3 +334,16 @@
   transition:transform 520ms cubic-bezier(.28,.08,.22,1),opacity 320ms cubic-bezier(.25,.1,.25,1)!important;
  }
 }
+
+@layer beam-folder {
+ @media screen and (forced-colors:none){
+  html[data-theme] body #beamFolderReceiptDialog[open]{
+   background:#faf8f3!important;color:#262320!important;
+   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+   box-shadow:none!important;
+  }
+  html[data-theme] body #beamFolderReceiptDialog[open] button{
+   color:#262320!important;background:#26232012!important;
+  }
+ }
+}

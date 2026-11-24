@@ -12,6 +12,7 @@ class El {
  setPointerCapture(id){this.captured=id;}
  replaceChildren(){for(const c of this.children)c.isConnected=false;this.children=[];}
  append(e){e.isConnected=true;this.children.push(e);}
+ insertAdjacentHTML(place,markup){this.html=(this.html||'')+markup;}
  remove(){this.isConnected=false;}
  focus(){active.element=this;}
  closest(selector){return this.className==='beam-receipt'&&(selector!=='[data-folder=true]'||this.dataset.folder==='true')?this:null;}
@@ -29,7 +30,7 @@ const ix={modeIds:{b2b,b2c},modeSets:{b2b:new Set(b2b),b2c:new Set(b2c)},orderSe
 const entered=[],deferred={},turns=[]; let reduced=true;
 El.prototype.firstElementChild={animate(frames,options){turns.push({frames,options});return {cancel(){}};}};
 const c=vm.createContext({$,document:{querySelector:()=>modes,querySelectorAll:()=>[],createElement:()=>new El()},window:{matchMedia:()=>({matches:reduced})},uiIndex:()=>ix,isB2C:()=>false,asnStoreKey:id=>({A1:'a',A2:'a',B1:'b'})[id]||'',rawRows:id=>orderRows.get(id)||[],receiptDisplay:id=>'Ext-'+id,receiptBarcodeValue:id=>id,encodeReceiptCode128:()=>({runs:[2,1,2],modules:25}),esc:x=>String(x??'').replace(/[&<>"']/g,'X'),customerLookupKey:v=>v.trim().toLowerCase(),trackingMatches:(q,filter)=>[...orderRows.keys()].filter(id=>filter(id)&&q.replaceAll('-','')===orderRows.get(id)[0].returnTracking?.replaceAll('-','')),looksLikeTracking:q=>/^[0-9-]{10,}$/.test(q),Engine:{masterInfo:()=>({})},state:{data:{raw:[...orderRows.values()].flat()}},language:'ko',dataImportBusy:false,entered,performance,printL:(a)=>a});
-vm.runInContext(searchKeys+'\n'+slice('const beam={mode:', 'function beamView(')+`\nfunction beamEnter(){entered.push(beam.candidate);} \$('beamStart').onclick=beamAdvance; globalThis.R={beam,beamRender};`,c);
+vm.runInContext(searchKeys+'\n'+slice('const beam={mode:', 'function beamView(')+`\nfunction beamEnter(){entered.push(beam.candidate);} \$('beamStart').onclick=beamAdvance; globalThis.R={beam,beamRender,beamFolderItems,beamOpenFolderReceipt};`,c);
 const beam=c.R.beam;
 function ev(key,target,more={}){return {key,target,preventDefault(){this.defaultPrevented=true},stopPropagation(){},...more};}
 const key=(name,more={})=>$('beamSearch').events.keydown(ev(name,active.element,more));
@@ -80,7 +81,25 @@ key('Enter');assert.deepEqual(entered,['A2','A2']);
 key('Escape');assert.equal(beam.phase,'party');assert.equal(active.element.dataset.id,'A1');
 assert.match(beam.nodes.get('A1').innerHTML,/beam-file-glass.*1 \/ 2.*가상 성수점.*ASN 2건/);
 assert.match(beam.nodes.get('B1').innerHTML,/ASN 1건/);
-const folder=beam.nodes.get('A1'),candidateBeforePeek=beam.candidate;
+const fixture=Array.from({length:401},(_,i)=>({sku:'SKU-'+i,barcode:'BAR-'+i,name:'Product '+i,qty:i+1}));
+fixture.push({sku:'SKU-0',barcode:'BAR-0',name:'Product 0',qty:7});
+const sheet=c.R.beamFolderItems(fixture);
+assert.equal(sheet.items.length,401);assert.equal(sheet.items[0].qty,8);assert.equal(sheet.total,80608);
+assert.strictEqual(c.R.beamFolderItems(fixture),sheet);
+const originalRows=orderRows.get('A1');
+orderRows.set('A1',fixture);
+let exposed;
+c.openUtilityDialog=(id)=>{exposed=id;};
+c.R.beamOpenFolderReceipt();assert.equal(exposed,'beamFolderReceiptDialog');
+assert.equal(($('beamFolderReceiptRows').html.match(/<tr>/g)||[]).length,200);
+assert.match($('beamFolderReceiptTotal').textContent,/401종.*80,608 EA/);
+assert.equal($('beamFolderReceiptMore').hidden,false);
+$('beamFolderReceiptMore').onclick();$('beamFolderReceiptMore').onclick();
+assert.equal(($('beamFolderReceiptRows').html.match(/<tr>/g)||[]).length,401);
+assert.equal($('beamFolderReceiptMore').hidden,true);
+$('beamFolderReceiptDialog').onclose();orderRows.set('A1',originalRows);
+
+const folder=beam.nodes.get('A1'),candidateBeforePeek=beam.candidate;folder.focus();
 const whisk=ev('wheel',folder,{deltaX:0,deltaY:73,deltaMode:0});
 reel.events.wheel(whisk);assert.equal(whisk.defaultPrevented,true);
 assert.match(folder.innerHTML,/Ext-A2.*Paper Two.*2 \/ 2/);

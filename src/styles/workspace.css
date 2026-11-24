@@ -3685,3 +3685,51 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
 @media (forced-colors:active){
  #dataDialog #openWorkbook::before{background:ButtonText;forced-color-adjust:none}
 }
+
+/* Paper preview: the translucent sleeve stays in place; reading happens on paper. */
+@media screen{
+ #beamSearch .beam-stage .beam-receipt[data-folder=true]{width:clamp(196px,23vw,292px)}
+ #beamSearch .beam-file{height:clamp(204px,23vw,258px)}
+ #beamSearch .beam-file-paper{
+  inset:4% 13% auto;min-height:72%;padding:12px 12px 11px;
+  background:var(--file-paper);transform:translateY(14%);
+ }
+ #beamSearch .beam-file-glass{inset-block-start:69%}
+ #beamSearch .beam-file-item,#beamSearch .beam-file-total{
+  display:grid;align-items:baseline;grid-template-columns:minmax(0,1fr) auto;gap:7px;
+  font-size:clamp(10px,1vw,13px);line-height:1.25;margin-top:5px;
+ }
+ #beamSearch .beam-file-item>span:first-child{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+ #beamSearch .beam-file-item>b,#beamSearch .beam-file-total>b{font-family:var(--font-terminal);font-variant-numeric:tabular-nums}
+ #beamSearch .beam-file-columns,#beamSearch .beam-file-more{font-size:10px;color:var(--file-muted)}
+ #beamSearch .beam-file-columns{margin-top:7px}
+ #beamSearch .beam-file-more{display:block;margin-top:6px}
+ #beamSearch .beam-file-total{border-top:1px dashed #77746c72;margin-top:8px;padding-top:6px;font-weight:700}
+ #beamSearch .beam-receipt[data-folder=true]:is(:hover,:focus-visible,[data-peek=true]) .beam-file-paper{transform:translateY(-17%)}
+ #beamFolderReceiptOpen:not([hidden]){display:inline-flex;align-items:center;justify-content:center;gap:7px;width:max-content;padding-inline:14px}
+ #beamFolderReceiptOpen svg{width:15px;height:15px}
+ #beamFolderReceiptDialog[open]{
+  width:min(420px,calc(100% - 24px));max-height:min(84dvh,780px);padding:20px min(5vw,26px) 15px;
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;
+  color:#262320!important;background:#faf8f3!important;border:0;
+  clip-path:polygon(0 0,100% 0,100% 99%,98% 100%,96% 99%,94% 100%,92% 99%,90% 100%,0 100%);
+ }
+ #beamFolderReceiptDialog .beam-long-receipt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:9px;border-bottom:1px dashed #76716a91}
+ #beamFolderReceiptStore{margin:0;color:#5e5a53;font-size:12px;overflow-wrap:anywhere}
+ #beamFolderReceiptTitle{margin:3px 0 0;color:#262320;font:750 21px/1.2 var(--font-terminal);overflow-wrap:anywhere}
+ #beamFolderReceiptDialog #beamFolderReceiptClose{display:grid;place-items:center;width:34px;height:34px;flex:none;padding:0!important;color:#262320!important}
+ #beamFolderReceiptScroll{overflow:auto;overscroll-behavior:contain;min-height:0;max-height:calc(84dvh - 125px)}
+ #beamFolderReceiptScroll table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px;color:#262320}
+ #beamFolderReceiptScroll :is(th,td){padding:7px 4px;border-bottom:1px solid #938d812e;text-align:start;background:none!important}
+ #beamFolderReceiptScroll :is(th,td):last-child{width:66px;text-align:end;font-family:var(--font-terminal);font-variant-numeric:tabular-nums}
+ #beamFolderReceiptScroll th{position:sticky;inset-block-start:0;background:#faf8f3!important;color:#5e5a53}
+ #beamFolderReceiptScroll td:first-child{overflow-wrap:anywhere}
+ #beamFolderReceiptScroll td small{display:block;color:#5e5a53;font-family:var(--font-terminal)}
+ #beamFolderReceiptTotal{margin:0;border-top:1px dashed #76716a91;padding-top:10px;font:750 14px/1.4 var(--font-terminal)}
+ #beamFolderReceiptMore:not([hidden]){display:block;margin:12px auto 4px;color:#262320!important}
+ @media(max-width:760px){
+  #beamSearch .beam-stage .beam-receipt[data-folder=true]{width:min(238px,63vw)}
+  #beamSearch .beam-file{height:215px}
+  #beamSearch .beam-file-paper{inset-inline:10%;padding-inline:8px}
+ }
+}
