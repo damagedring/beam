@@ -326,3 +326,11 @@
   @media(forced-colors:active){#dataDialog .profile-shelf-add{border:1px solid ButtonText!important}}
  }
 }
+
+/* The control baseline disables transitions. Re-enable only the receipt reel,
+   not ordinary buttons or touch tracking, and honor the OS motion preference. */
+@media screen and (prefers-reduced-motion:no-preference){
+ #beamSearch .beam-stage:not([data-dragging]) .beam-receipt:not([data-folder=true]){
+  transition:transform 520ms cubic-bezier(.28,.08,.22,1),opacity 320ms cubic-bezier(.25,.1,.25,1)!important;
+ }
+}
