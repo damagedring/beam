@@ -3234,13 +3234,13 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
  #beamTerminal #results #rows td:first-child .badge{font-size:11px;border-radius:0;padding:2px 4px}
  #beamTerminal .output-tools #reset:not(:disabled){color:var(--term-ink);background:var(--term-side);border:1px solid var(--term-edge)}
 }
-/* The old search shell frames a spatial receipt ribbon, not a one-sided fan. */
+/* A two-axis paper reel. Only the receipt surface captures vertical touch. */
 @media screen{
- #beamSearch .beam-stage{--ribbon-step:clamp(130px,14.1vw,201px);perspective:860px;perspective-origin:50% 42%;touch-action:pan-y}
+ #beamSearch .beam-stage{--ribbon-step:clamp(130px,14.1vw,201px);--ribbon-rise:22px;perspective:860px;perspective-origin:50% 42%;touch-action:pan-y}
  #beamSearch .beam-stage .beam-receipt:is([data-center=true],[data-center=false]){
   left:50%;top:47%;
-  transform:translate(-50%,-50%) translate3d(calc(var(--ribbon-x,0) * var(--ribbon-step)),var(--ribbon-y,0px),var(--ribbon-z,0px))
-   rotateY(var(--ribbon-yaw,0deg)) rotateZ(var(--ribbon-roll,0deg)) scale(var(--ribbon-zoom,1));
+  transform:translate(-50%,-50%) translate3d(calc(var(--ribbon-x,0) * var(--ribbon-step)),calc(var(--ribbon-lift,0) * var(--ribbon-rise) + var(--ribbon-y,0px)),var(--ribbon-z,0px))
+   rotateX(var(--ribbon-pitch,0deg)) rotateY(var(--ribbon-yaw,0deg)) rotateZ(var(--ribbon-roll,0deg)) scale(var(--ribbon-zoom,1));
   z-index:var(--ribbon-layer,9);
   transition:transform 390ms cubic-bezier(.2,.75,.25,1),opacity 165ms ease;
   backface-visibility:hidden;
@@ -3251,7 +3251,10 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
  #beamSearch .beam-stage .beam-receipt[data-center=false] .beam-side .beam-paper-ref{font-size:10px}
  #beamSearch .beam-stage .beam-receipt[data-center=false] .beam-side .beam-paper-party{font-size:12px}
  #beamSearch .beam-stage .beam-receipt[data-center=false] .beam-side .beam-ticket-item{font-size:10px}
- #beamSearch .beam-stage:has(.beam-receipt:not([data-center=true]):not([data-unmatched=true])){cursor:grab}
+ #beamSearch .beam-stage[data-axis=y]{--ribbon-rise:clamp(105px,18svh,156px);perspective-origin:50% 47%;overflow:clip}
+ #beamSearch .beam-stage[data-axis=y] .beam-receipt[data-center=false] .beam-paper-ticket{filter:drop-shadow(0 3px 5px #0002)}
+ #beamSearch .beam-stage[data-browsable=true]{cursor:grab;touch-action:auto}
+ #beamSearch .beam-stage[data-browsable=true] .beam-receipt{touch-action:none;user-select:none}
  #beamSearch .beam-stage[data-dragging] .beam-receipt{cursor:grabbing!important;transition:none!important;user-select:none;pointer-events:none}
  #beamSearch .beam-stage[data-dragging]{cursor:grabbing;user-select:none}
  #beamSearch .beam-stage .beam-receipt[data-center=false] .beam-paper-ticket{transition:filter 180ms}

@@ -9,6 +9,7 @@ class El {
  setAttribute(k,v){this[k]=v;}
  removeAttribute(k){delete this[k];}
  addEventListener(k,f){this.events[k]=f;}
+ setPointerCapture(id){this.captured=id;}
  replaceChildren(){for(const c of this.children)c.isConnected=false;this.children=[];}
  append(e){e.isConnected=true;this.children.push(e);}
  remove(){this.isConnected=false;}
@@ -45,7 +46,21 @@ type('beamSku','');
 inputKey('beamQuery','Enter');assert.equal(beam.phase,'party');assert.equal(active.element.dataset.id,'A1');assert.equal($('beamPage').textContent,'1 / 2');
 key('ArrowRight');assert.equal(active.element.dataset.id,'B1');assert.equal($('beamPage').textContent,'2 / 2');assert.match($('beamSearchStatus').textContent,/성수북점/);
 key('ArrowLeft');key('Enter');assert.equal(beam.phase,'asn');assert.equal($('beamPage').textContent,'1 / 2');assert.equal(active.element.dataset.id,'A1');
-key('ArrowDown');assert.equal(active.element.dataset.id,'A2');key('Enter');assert.deepEqual(entered,['A2','A2']);
+key('ArrowDown');assert.equal(active.element.dataset.id,'A2');
+const reel=$('beamStage'),gesture=(kind,x,y)=>reel.events[kind]({isPrimary:true,button:0,pointerId:10,clientX:x,clientY:y});
+assert.equal(reel.dataset.axis,'y');
+assert.ok(Number.parseFloat(beam.nodes.get('A1').style['--ribbon-pitch'])>0);
+assert.equal(Number.parseFloat(beam.nodes.get('A2').style['--ribbon-pitch']),0);
+gesture('pointerdown',100,100);gesture('pointermove',104,147);assert.equal(reel.captured,10);
+assert.equal(reel.dataset.dragging,'true');assert.equal(beam.candidate,'A2');
+gesture('pointerup',104,147);assert.equal(beam.candidate,'A1');assert.equal(reel.dataset.dragging,undefined);
+gesture('pointerdown',100,100);gesture('pointermove',55,104);gesture('pointercancel',55,104);
+assert.equal(beam.candidate,'A1');assert.equal(reel.dataset.axis,'x');
+gesture('pointerdown',100,100);gesture('pointermove',55,104);gesture('pointerup',55,104);
+assert.equal(beam.candidate,'A2');assert.equal(reel.dataset.axis,'x');
+gesture('pointerdown',100,100);gesture('pointermove',95,55);gesture('pointerup',95,55);
+assert.equal(beam.candidate,'A2');assert.equal(reel.dataset.dragging,undefined);
+key('Enter');assert.deepEqual(entered,['A2','A2']);
 key('Escape');assert.equal(beam.phase,'party');assert.equal(active.element.dataset.id,'A1');$('beamEditSearch').onclick();assert.equal(beam.phase,'search');
 type('beamQuery','000000000000');inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');assert.match($('beamSearchStatus').textContent,/찾지 못했어요/);
 type('beamQuery','성수');c.dataImportBusy=true;inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');c.dataImportBusy=false;

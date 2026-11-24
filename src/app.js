@@ -2421,20 +2421,21 @@ function beamBackStep(edit=false){
  if(!edit&&beam.phase==='asn'){beam.phase='party';beamRender(true);beamFocusCard();return;}
  beamResetSelection();beamRender(true);$('beamQuery').focus({preventScroll:true});
 }
-function beamStep(direction){
+function beamStep(direction,axis='x'){
  const ids=beam.browseIds,at=ids?.indexOf(beam.browseAnchor),id=ids?.[at+direction];
  if(!id||dataImportBusy)return;
- beamPick(id);if(beam.phase!=='search')beamFocusCard();
+ beam.ribbonAxis=axis;beamPick(id);if(beam.phase!=='search')beamFocusCard();
 }
 function beamPlaceOnRibbon(el,slot,slide=0){
- const offset=slot-slide,angle=offset*.31,dist=Math.abs(offset);
- const safe=Math.max(-1.48,Math.min(1.48,angle));
- el.style.setProperty('--ribbon-x',String(Math.sin(safe)/Math.sin(.31)));
- el.style.setProperty('--ribbon-y',Math.round((1-Math.cos(safe))*77)+'px');
- el.style.setProperty('--ribbon-z',Math.round((Math.cos(safe)-1)*255)+'px');
- el.style.setProperty('--ribbon-yaw',(-safe*180/Math.PI)+'deg');
- el.style.setProperty('--ribbon-roll',(offset*1.5)+'deg');
- el.style.setProperty('--ribbon-zoom',String(1-Math.min(.2,dist*.043)));
+ const offset=slot-slide,dist=Math.abs(offset),vertical=beam.ribbonAxis==='y';
+ const angle=Math.max(-1.42,Math.min(1.42,offset*.39)),arc=Math.sin(angle)/Math.sin(.39),depth=1-Math.cos(angle);
+ el.style.setProperty('--ribbon-x',String(vertical?arc*.13:arc));
+ el.style.setProperty('--ribbon-lift',String(vertical?arc:depth*.18));
+ el.style.setProperty('--ribbon-z',Math.round(-depth*342)+'px');
+ el.style.setProperty('--ribbon-pitch',((vertical?-1:.21)*angle*180/Math.PI)+'deg');
+ el.style.setProperty('--ribbon-yaw',((vertical?-.16:-1)*angle*180/Math.PI)+'deg');
+ el.style.setProperty('--ribbon-roll',(offset*(vertical?2.4:1.3))+'deg');
+ el.style.setProperty('--ribbon-zoom',String(1-Math.min(.22,dist*(vertical?.088:.047))));
  el.style.setProperty('--ribbon-layer',String(9-Math.round(dist)));
 }
 function beamRender(animate=false){
@@ -2478,6 +2479,7 @@ function beamRender(animate=false){
  $('beamPrev').disabled=at<=0;$('beamNext').disabled=at>=browse.length-1;
  const ring=fold?browse:lookup.bi.timeline[beam.mode],positions=lookup.bi.positions[beam.mode],count=ring.length;
  root.dataset.hasReceipts=String(!!count);root.dataset.rail=String(count>1);
+ stage.dataset.axis=beam.ribbonAxis||'x';stage.dataset.browsable=String(browse.length>1&&!dataImportBusy);
  stage.setAttribute('aria-label',partyMode?beamL(noun+' 후보',noun+' results'):beamL('반품 ASN 후보','Return ASN results'));
  rail.hidden=fold||count<2;
  rail.textContent=lookup.bi.dated[beam.mode]?beamL('전달일 빠른 순 · 날짜 없는 ASN은 뒤에','Oldest sent date first · undated ASNs last'):beamL('원본 순서','Source order');
@@ -2496,9 +2498,6 @@ function beamRender(animate=false){
  for(const [id,el] of beam.nodes)if(!shown.has(id)){el.remove();beam.nodes.delete(id);}
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  const moved=beam.railMode===beam.mode&&beam.railPhase===phase&&Number.isInteger(beam.railAnchor)&&beam.railAnchor!==anchor;
- let delta=moved?anchor-beam.railAnchor:0;
- if(count&&Math.abs(delta)>count/2)delta-=Math.sign(delta)*count;
- const direction=Math.sign(delta)||1;
  beam.railMode=beam.mode;beam.railPhase=phase;beam.railAnchor=anchor;
  for(const [id,slot] of shown){
   const el=beamNode(id),newNode=!el.isConnected,dist=Math.abs(slot);
@@ -2520,7 +2519,7 @@ function beamRender(animate=false){
 }
 function beamInput(isSku=false){
  if(isSku){const next=beamCode($('beamSku').value);if(next===beam.sku)return;beam.sku=next;}else{const next=$('beamQuery').value;if(next===beam.query)return;beam.query=next;beam.sku='';$('beamSku').value='';}
- beamResetSelection();beamRender(true);
+ beam.ribbonAxis='x';beamResetSelection();beamRender(true);
 }
 for(const [field,isSku] of [[$('beamQuery'),false],[$('beamSku'),true]]){
  const key=isSku?'skuComposing':'composing';
@@ -2555,29 +2554,32 @@ function beamDrawRibbonDrag(n){
 beamRibbon.addEventListener('pointerdown',e=>{
  if(!e.isPrimary||e.button!==0||dataImportBusy||!beam.candidate||beam.browseIds.length<2)return;
  ribbonClickUntil=0;
- ribbonPointer={id:e.pointerId,x:e.clientX,y:e.clientY,locked:false,dx:0};
+ ribbonPointer={id:e.pointerId,x:e.clientX,y:e.clientY,axis:null,offset:0,reduced:window.matchMedia('(prefers-reduced-motion: reduce)').matches};
 });
 beamRibbon.addEventListener('pointermove',e=>{
  const g=ribbonPointer;if(!g||e.pointerId!==g.id)return;
  const dx=e.clientX-g.x,dy=e.clientY-g.y;
- if(!g.locked){
-  if(Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)){ribbonPointer=null;return;}
-  if(Math.abs(dx)<8||Math.abs(dx)<Math.abs(dy))return;
-  g.locked=true;beamRibbon.dataset.dragging='true';beamRibbon.setPointerCapture(e.pointerId);
+ if(!g.axis){
+  if(Math.max(Math.abs(dx),Math.abs(dy))<9)return;
+  g.axis=Math.abs(dy)>Math.abs(dx)?'y':'x';
+  beam.ribbonAxis=g.axis;beamRibbon.dataset.axis=g.axis;
+  beamRibbon.dataset.dragging='true';beamRibbon.setPointerCapture(e.pointerId);
  }
- g.dx=dx;
+ g.offset=g.axis==='y'?dy:dx;
  const at=beam.browseIds.indexOf(beam.browseAnchor);
- const bound=(dx>0&&at<=0)||(dx<0&&at>=beam.browseIds.length-1);
- // A short elastic preview at the ends; only release can select an order.
- beamDrawRibbonDrag(-Math.max(-125,Math.min(125,dx))/(bound?420:145));
+ const bound=(g.offset>0&&at<=0)||(g.offset<0&&at>=beam.browseIds.length-1);
+ // Elastic at either end. A drag previews the reel; selection only changes on release.
+ if(!g.reduced){
+  beamDrawRibbonDrag(-Math.max(-122,Math.min(122,g.offset))/(bound?420:140));
+ }
 });
 function beamEndRibbon(e,commit){
  const g=ribbonPointer;if(!g||e.pointerId!==g.id)return;
  ribbonPointer=null;
- if(!g.locked)return;
+ if(!g.axis)return;
  delete beamRibbon.dataset.dragging;
  ribbonClickUntil=performance.now()+400;
- if(commit&&Math.abs(g.dx)>=32)beamStep(g.dx<0?1:-1);
+ if(commit&&Math.abs(g.offset)>=32)beamStep(g.offset<0?1:-1,g.axis);
  beamDrawRibbonDrag(0);
 }
 beamRibbon.addEventListener('pointerup',e=>beamEndRibbon(e,true));
@@ -2592,11 +2594,11 @@ $('beamPrev').onclick=()=>beamStep(-1);
 $('beamNext').onclick=()=>beamStep(1);
 $('beamEditSearch').onclick=()=>beamBackStep(true);
 $('beamSearch').addEventListener('keydown',e=>{
- if(beam.phase==='search'||e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
+ if((beam.phase==='search'&&!e.target.closest?.('.beam-receipt'))||e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
  if(e.key==='Escape'){e.preventDefault();beamBackStep();return;}
  const direction={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];
- if(direction){e.preventDefault();beamStep(direction);}
- else if(e.key==='Enter'&&(e.target===$('beamStart')||e.target.closest?.('.beam-receipt'))){e.preventDefault();if(!e.repeat)beamAdvance();}
+ if(direction){e.preventDefault();beamStep(direction,/Up|Down/.test(e.key)?'y':'x');}
+ else if(beam.phase!=='search'&&e.key==='Enter'&&(e.target===$('beamStart')||e.target.closest?.('.beam-receipt'))){e.preventDefault();if(!e.repeat)beamAdvance();}
 });
 function beamView(search,animate=false){
  const wasVisible=beam.visible,s=$('beamSearch'),w=$('sheetWorkspace');
