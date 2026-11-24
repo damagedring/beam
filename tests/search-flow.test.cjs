@@ -79,8 +79,8 @@ gesture('pointerdown',100,100);gesture('pointermove',95,55);gesture('pointerup',
 assert.equal(beam.candidate,'A2');assert.equal(reel.dataset.dragging,undefined);
 key('Enter');assert.deepEqual(entered,['A2','A2']);
 key('Escape');assert.equal(beam.phase,'party');assert.equal(active.element.dataset.id,'A1');
-assert.match(beam.nodes.get('A1').innerHTML,/beam-file-glass.*1 \/ 2.*가상 성수점.*ASN 2건/);
-assert.match(beam.nodes.get('B1').innerHTML,/ASN 1건/);
+assert.match(beam.nodes.get('A1').innerHTML,/beam-file-glass.*1 \/ 2.*가상 성수점.*주문 2건/);
+assert.match(beam.nodes.get('B1').innerHTML,/주문 1건/);
 const fixture=Array.from({length:401},(_,i)=>({sku:'SKU-'+i,barcode:'BAR-'+i,name:'Product '+i,qty:i+1}));
 fixture.push({sku:'SKU-0',barcode:'BAR-0',name:'Product 0',qty:7});
 const sheet=c.R.beamFolderItems(fixture);

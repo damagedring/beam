@@ -2663,7 +2663,7 @@ function beamTicketFace(id,mode,compact=false){
  }
  const pda=compact?'':(value?'<span class="beam-ticket-pda"><span class="beam-ticket-pda-caption"><b title="'+esc(value)+'">'+esc(value)+'</b><span>CODE 128</span></span>'+barcode+'</span>':'<small>'+beamL('바코드로 표시할 수 없는 키','Key unavailable for barcode')+'</small>');
  return '<span class="beam-ticket beam-paper-ticket '+(compact?'beam-side':'beam-center-paper')+'">'
- +'<span class="beam-paper-top"><span class="beam-paper-ref"><span>RETURN ASN</span><b title="'+esc(ext)+'">'+esc(ext)+'</b></span><span class="beam-paper-party"><b title="'+esc(party)+'">'+esc(party)+'</b><b>'+amount+' EA</b></span></span>'
+ +'<span class="beam-paper-top"><span class="beam-paper-ref"><span>RETURN ORDER</span><b title="'+esc(ext)+'">'+esc(ext)+'</b></span><span class="beam-paper-party"><b title="'+esc(party)+'">'+esc(party)+'</b><b>'+amount+' EA</b></span></span>'
  +'<span class="beam-paper-tear" aria-hidden="true"></span>'
  +'<span class="beam-paper-body">'+pda+date
  +'<span class="beam-line beam-headline"><span>'+beamL('상품','Items')+'</span><span>'+beamL('수량','Qty')+'</span></span>'+rows+more+tracking+'</span></span>';
@@ -2714,13 +2714,13 @@ function beamFolderFace(el,group,preview=false){
  +'<span class="beam-file-back"></span>'
  +(group.ids.length>1?'<span class="beam-file-sheet beam-file-sheet-left"></span>':'')
  +(group.ids.length>2?'<span class="beam-file-sheet beam-file-sheet-right"></span>':'')
- +'<span class="beam-file-paper"><span class="beam-file-paper-top"><span>RETURN ASN</span><b>'+esc(ext)+'</b></span>'
+ +'<span class="beam-file-paper"><span class="beam-file-paper-top"><span>RETURN ORDER</span><b>'+esc(ext)+'</b></span>'
  +'<span class="beam-file-item beam-file-columns"><span>'+beamL('상품','Item')+'</span><span>'+beamL('수량','Qty')+'</span></span>'+itemRows+remainder
  +'<span class="beam-file-total"><span>'+beamL('합계','Total')+' · '+beamFolderCount(items.length)+'</span><b>'+esc(beamFolderTotal(total))+'</b></span></span>'
  +'<span class="beam-file-glass"><span class="beam-file-position">'+position+'</span><span class="beam-file-arrow">↗</span></span></span>'
- +'<span class="beam-file-caption"><strong title="'+esc(label)+'">'+esc(label)+'</strong><span>ASN '+group.ids.length.toLocaleString()+beamL('건','')+'</span></span>';
- el.setAttribute('aria-label',label+' · ASN '+group.ids.length+(preview?' · '+position+' · '+ext+' · '+beamFolderCount(items.length)+' · '+beamL('합계 ','Total ')+beamFolderTotal(total):''));
- el.title=label+' · ASN '+group.ids.length+(group.ids.length>1?' · '+beamL('휠 또는 Page ↑/↓로 영수증 미리보기','Wheel or Page ↑/↓ to preview receipts'):'');
+ +'<span class="beam-file-caption"><strong title="'+esc(label)+'">'+esc(label)+'</strong><span>'+beamL('주문 ','Orders: ')+group.ids.length.toLocaleString()+beamL('건','')+'</span></span>';
+ el.setAttribute('aria-label',label+beamL(' · 주문 ',' · Orders: ')+group.ids.length+(preview?' · '+position+' · '+ext+' · '+beamFolderCount(items.length)+' · '+beamL('합계 ','Total ')+beamFolderTotal(total):''));
+ el.title=label+beamL(' · 주문 ',' · Orders: ')+group.ids.length+(group.ids.length>1?' · '+beamL('휠 또는 Page ↑/↓로 영수증 미리보기','Wheel or Page ↑/↓ to preview receipts'):'');
 }
 let beamLongReceipt=null;
 function beamAppendReceiptItems(){
@@ -2842,28 +2842,28 @@ function beamRender(animate=false){
  edit.querySelector('span').textContent=beamL('다시 검색','Edit search');
  const noun=beam.mode==='b2c'?beamL('고객','customer'):beamL('매장','store');
  const partyLabel=selectedGroup?beamPartyLabel(selectedGroup.rep,beam.mode):'';
- const matched=lookup.q?beamL('검색 결과 ','Matching ASNs · ')+filtered.length.toLocaleString()+(language==='en'?'':'건'):beamL('전체 반품 ASN · ','All return ASNs · ')+filtered.length.toLocaleString();
- $('beamSearchStatus').textContent=partyMode?partyLabel+' · ASN '+selectedGroup.ids.length.toLocaleString()+beamL('건',''):asnMode?partyLabel+' · ASN '+selectedGroup.ids.length.toLocaleString()+beamL('건','')+' · '+(at+1)+' / '+selectedGroup.ids.length:filtered.length?matched:'';
+ const matched=lookup.q?beamL('검색 결과 ','Matching return orders · ')+filtered.length.toLocaleString()+(language==='en'?'':'건'):beamL('전체 반품 주문 · ','All return orders · ')+filtered.length.toLocaleString();
+ $('beamSearchStatus').textContent=partyMode?partyLabel+beamL(' · 주문 ',' · Orders: ')+selectedGroup.ids.length.toLocaleString()+beamL('건',''):asnMode?partyLabel+beamL(' · 주문 ',' · Orders: ')+selectedGroup.ids.length.toLocaleString()+beamL('건','')+' · '+(at+1)+' / '+selectedGroup.ids.length:filtered.length?matched:'';
  $('beamEmpty').hidden=!!filtered.length||(!state.data.raw.length&&dataImportBusy);$('beamConnect').hidden=!!state.data.raw.length||dataImportBusy;
- $('beamEmptyTitle').textContent=!state.data.raw.length?beamL('연결된 기준 자료가 없어요','No reference data loaded'):lookup.q||beam.sku?beamL('일치하는 ASN이 없어요','No matching ASN'):beamL('이 모드에 반품 ASN이 없어요','No return ASNs in this mode');
+ $('beamEmptyTitle').textContent=!state.data.raw.length?beamL('연결된 기준 자료가 없어요','No reference data loaded'):lookup.q||beam.sku?beamL('일치하는 반품 주문이 없어요','No matching return order'):beamL('이 모드에 반품 주문이 없어요','No return orders in this mode');
  $('beamEmptyText').textContent=!state.data.raw.length?beamL('반품 예정 자료를 불러오면 매장·고객 또는 반송장번호로 검색할 수 있어요.','Load expected returns to search by store, customer, or return tracking number.'):!lookup.q&&!beam.sku?beamL('다른 검색 모드로 전환하거나 기준 자료를 확인해 주세요.','Switch search modes or check the loaded reference data.'):narrowing&&beam.sku?beamL('이 SKU나 반송장번호와 일치하는 오더가 없어요.','No order matches this SKU or return tracking number.'):beamL('다른 '+(beam.mode==='b2c'?'고객명':'매장명')+'이나 반송장번호로 찾아보세요.','Try another name or return tracking number.');
  $('beamStartArea').hidden=!filtered.length;$('beamBrowse').hidden=browse.length<=1;
  $('beamFolderReceiptOpen').hidden=!folders;$('beamFolderReceiptOpen').disabled=dataImportBusy;
  start.disabled=dataImportBusy||!beam.candidate||(!fold&&!lookup.q&&!beam.picked);
  const chooseOrder=partyMode&&selectedGroup.ids.length>1;
- const action=!fold?beamL(noun+' 선택','Choose '+noun):chooseOrder?beamL('ASN 선택','Choose ASN'):beamL('검수 시작','Start inspection');
+ const action=!fold?beamL(noun+' 선택','Choose '+noun):chooseOrder?beamL('주문 선택','Choose return order'):beamL('검수 시작','Start inspection');
  start.querySelector('span').textContent=action;
- start.setAttribute('aria-label',fold&&!chooseOrder?beamL('선택 ASN 검수 시작','Start inspection for selected ASN'):action);
- $('beamPrev').setAttribute('aria-label',partyMode?beamL('이전 '+noun,'Previous '+noun):beamL('이전 ASN','Previous ASN'));
- $('beamNext').setAttribute('aria-label',partyMode?beamL('다음 '+noun,'Next '+noun):beamL('다음 ASN','Next ASN'));
+ start.setAttribute('aria-label',fold&&!chooseOrder?beamL('선택한 주문 검수 시작','Inspect selected return order'):action);
+ $('beamPrev').setAttribute('aria-label',partyMode?beamL('이전 '+noun,'Previous '+noun):beamL('이전 주문','Previous return order'));
+ $('beamNext').setAttribute('aria-label',partyMode?beamL('다음 '+noun,'Next '+noun):beamL('다음 주문','Next return order'));
  $('beamPage').textContent=browse.length?(at+1)+' / '+browse.length:'';
  $('beamPrev').disabled=at<=0;$('beamNext').disabled=at>=browse.length-1;
  const ring=fold?browse:lookup.bi.timeline[beam.mode],positions=lookup.bi.positions[beam.mode],count=ring.length;
  root.dataset.hasReceipts=String(!!count);root.dataset.rail=String(count>1);
  stage.dataset.axis=beam.ribbonAxis||'x';stage.dataset.browsable=String(browse.length>1&&!dataImportBusy);
- stage.setAttribute('aria-label',partyMode?beamL(noun+' 후보',noun+' results'):beamL('반품 ASN 후보','Return ASN results'));
+ stage.setAttribute('aria-label',partyMode?beamL(noun+' 후보',noun+' results'):beamL('반품 주문 후보','Return order results'));
  rail.hidden=fold||count<2;
- rail.textContent=lookup.bi.dated[beam.mode]?beamL('전달일 빠른 순 · 날짜 없는 ASN은 뒤에','Oldest sent date first · undated ASNs last'):beamL('원본 순서','Source order');
+ rail.textContent=lookup.bi.dated[beam.mode]?beamL('전달일 빠른 순 · 날짜 없는 주문은 뒤에','Oldest sent date first · undated orders last'):beamL('원본 순서','Source order');
  const active=partyMode?selectedGroup.rep:beam.candidate;
  const anchor=fold?at:positions.get(active)??positions.get(beam.anchor)??0;
  if(active)beam.anchor=active;
@@ -2900,7 +2900,7 @@ function beamRender(animate=false){
   el.dataset.center=String(slot===0);el.dataset.distance=String(dist);el.dataset.unmatched=String(alternate);
   el.setAttribute('aria-pressed',String(id===active&&(fold||!!beam.picked)));
   el.tabIndex=slot===0&&!alternate?0:-1;el.setAttribute('aria-disabled',String(alternate));
-  if(!folders)el.setAttribute('aria-label',partyMode?beamPartyLabel(id,beam.mode)+' · ASN '+el.dataset.partyCount:el.dataset.asnLabel+(alternate?' · '+beamL('검색 결과 아님','Not a search result'):''));
+  if(!folders)el.setAttribute('aria-label',partyMode?beamPartyLabel(id,beam.mode)+beamL(' · 주문 ',' · Orders: ')+el.dataset.partyCount:el.dataset.asnLabel+(alternate?' · '+beamL('검색 결과 아님','Not a search result'):''));
   el.dataset.ribbonSlot=String(slot);
   beamPlaceOnRibbon(el,slot);
   el.style.opacity=String(dist===0?1:alternate?.65:.94);
