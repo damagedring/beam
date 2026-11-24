@@ -1,0 +1,29 @@
+@page beam-pda-wide {size:A4 landscape;margin:13mm 12mm}
+@media print {
+ #printReport[data-paper="landscape"] {page:beam-pda-wide}
+ #printReport .pr-inspection {color:#000}
+ #printReport .pr-label {border:.75pt solid #000;break-inside:avoid;break-after:auto}
+ #printReport .pr-label-top {display:flex;align-items:stretch;border-bottom:1pt solid #000;min-width:0}
+ #printReport .pr-label-mark {display:flex;align-items:center;justify-content:center;flex:0 0 26mm;border-right:1pt solid #000;font-size:56pt;font-weight:900;line-height:.95;padding:3mm 0}
+ #printReport .pr-label-head {flex:1;min-width:0;padding:3mm 4mm 4mm}
+ #printReport .pr-label .pr-brand {padding:0;border:0;color:#111;gap:3mm;font-size:8pt;letter-spacing:.10em}
+ #printReport .pr-label .pr-brand span {letter-spacing:0}
+ #printReport .pr-label h1 {margin-top:2.5mm;font-size:26pt;font-weight:850;line-height:1.1}
+ #printReport .pr-label .pr-caption-line {margin-top:1.5mm;font-size:9pt}
+ #printReport .pr-label-info {display:grid;grid-template-columns:minmax(0,1fr) minmax(33mm,auto);padding:3mm 4mm;gap:3mm;align-items:end}
+ #printReport .pr-label-info div {min-width:0;overflow-wrap:anywhere}
+ #printReport .pr-label-info div:last-child {text-align:right}
+ #printReport .pr-label-info span {display:block;color:#373737;font-size:8pt}
+ #printReport .pr-label-info strong {display:block;font-size:13pt;line-height:1.25}
+ #printReport .pr-label .pr-pda {display:block;text-align:center;padding:3mm 3mm 2.5mm;margin:0;border:0;border-block:2pt solid #000;background:#fff;color:#000;break-inside:avoid;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+ #printReport .pr-label .pr-pda b {font-size:11pt;line-height:1.2}
+ #printReport .pr-label .pr-pda svg {display:block;max-width:none;height:26mm;margin:2.5mm auto 1.5mm;shape-rendering:crispEdges}
+ #printReport .pr-label .pr-pda-value {display:block;margin:0;font-size:14pt;line-height:1.1;letter-spacing:.06em;white-space:pre-wrap;overflow-wrap:anywhere}
+ #printReport .pr-label .pr-pda small {font-size:7.25pt;color:#222}
+ #printReport .pr-label .pr-issued {margin:0;padding:1.6mm 4mm;font-size:7.5pt;text-align:right}
+ #printReport .pr-label-fields {margin:4mm 0 0;border-block:.7pt solid #000;break-inside:avoid}
+ #printReport .pr-label-fields>div {padding:2mm 1.5mm;vertical-align:top}
+ #printReport .pr-inspection .pr-section {margin-top:4mm}
+ #printReport .pr-inspection .pr-section h2 {font-size:12pt}
+ #printReport .pr-inspection .pr-end {margin-top:2.5mm}
+}

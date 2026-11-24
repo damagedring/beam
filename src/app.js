@@ -1633,6 +1633,20 @@ function printLocalTime(value){
  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+' UTC'+offset;
 }
 function printSheet(title,caption,fields,sections,notes,stub=null){
+ if(stub){
+  const issued=printLocalTime(new Date().toISOString());
+  const external=stub.external||'—';
+  const cells=fields.map(([key,value])=>'<div><dt>'+esc(key)+'</dt><dd>'+esc(value===''||value==null?'—':value)+'</dd></div>').join('');
+  return '<article class="pr-inspection"><header class="pr-label">'+
+   '<div class="pr-label-top"><div class="pr-label-mark" aria-hidden="true">B</div><div class="pr-label-head">'+
+   '<p class="pr-brand"><b>BEAM</b><span>'+esc(printL('외부 주문 번호','External order ID'))+' '+esc(external)+'</span></p>'+
+   '<h1>'+esc(title)+'</h1><p class="pr-caption-line">'+esc(caption)+'</p></div></div>'+
+   '<div class="pr-label-info"><div><span>'+esc(printL('검수 대상','Inspected for'))+'</span><strong>'+esc(stub.party||'—')+'</strong></div>'+
+   '<div><span>'+esc(printL('입고 예정','Expected units'))+'</span><strong>'+esc(stub.quantity||'—')+'</strong></div></div>'+
+   (stub.barcode||'')+'<p class="pr-issued">'+esc(printL('인쇄 시각','Printed at'))+' <b>'+esc(issued)+'</b></p></header>'+
+   '<dl class="pr-fields pr-label-fields">'+cells+'</dl>'+sections.join('')+
+   '<div class="pr-end"><p>'+esc(notes)+'</p></div></article>';
+ }
  const label=printL('인쇄 시각','Printed at');
  return '<header class="pr-heading"><p class="pr-brand"><b>BEAM</b><span>'+esc(stub?.external||'RETURN OPERATIONS')+'</span></p><h1>'+esc(title)+'</h1><p class="pr-caption-line">'+esc(caption)+'</p>'
   +(stub?.party?'<p class="pr-stub-party"><b>'+esc(stub.party)+'</b><b>'+esc(stub.quantity)+'</b></p>':'')+(stub?.barcode||'')+'<p class="pr-issued">'+esc(label)+' <b>'+esc(printLocalTime(new Date().toISOString()))+'</b></p></header>'
@@ -1653,7 +1667,7 @@ function inspectionReport(){
  const label=isB2C()?l('고객명','Customer'):l('매장명','Store');
  const party=isB2C()?MappingCore.checkedCustomerNames(state.customerNames,state.data.raw)[receipt]?.join(' / ')||field('seller'):field('seller');
  const data=rows.map(r=>[(r.status==='예정 외'?(language==='en'?'Not on this ASN':'현재 ASN에 없음'):tr(r.status))+(r.heldDisplay?' · '+l('보류 포함','Incl. held'):''),[r.barcode,r.sku].filter(Boolean).join(' / '),uiData(r.name),pickingLocationExport(r),r.expected,r.actual,signedDifference(r.actual-r.expected)]);
- return printSheet(l('반품 검수 대조표','RETURN INSPECTION RECORD'),l('RETURN ASN · 현재 오더 대조 결과','RETURN ASN · SELECTED ORDER COMPARISON'),
+ return printSheet(l('반품 검수 결과','RETURN INSPECTION REPORT'),l('반품 ASN · 주문별 대조표','RETURN ASN · ORDER COMPARISON'),
  [[l('입고 오더 ID','Receiving order ID'),receipt],[l('외부 오더 ID','External order ID'),field('external')],[label,party],[l('회사','Company'),field('company')],[l('검수 유형','Mode'),isB2C()?'B2C':'B2B'],[l('ASN에 배정된 실물','Assigned physical units'),assigned.reduce((n,e)=>n+Engine.units(e),0)+' EA']],
  [printGrid(l('01  현재 오더 대조 결과','01  CURRENT ORDER COMPARISON'),[l('상태','Status'),l('상품 바코드 / SKU','Barcode / SKU'),l('상품명','Product'),l('피킹 위치','Picking location'),l('예정','Expected'),l('실물','Counted'),l('차이','Delta')],[16,21,23,19,7,7,7],data,{numeric:[4,5,6],total:[l('합계','TOTAL'),'','','',sum('expected'),sum('actual'),signedDifference(sum('actual')-sum('expected'))]})],
  l('현재 ASN의 전체 행을 인쇄합니다. 다른 ASN에 배정된 입력은 제외합니다.','All comparison rows of the selected ASN are printed. Entries assigned to other ASNs are excluded.')+(held?' '+l('보류 포함 행의 실물은 대조표에 표시하되, ASN 배정 수량에는 포함하지 않습니다.','Held units are shown for review but are not assigned to the ASN.'):'') ,{external:field('external'),party,quantity:sum('expected').toLocaleString()+' EA',barcode:printReceiptPda(receipt)});
@@ -1673,7 +1687,9 @@ let printDocumentKind='',printOriginalTitle='';
 function openPrintDocument(kind){
  if(kind==='comparison'&&!state.receipt)return;
  const target=kind==='history'?scanHistoryReport():inspectionReport();
- $('printReport').innerHTML=target;printDocumentKind=kind;printOriginalTitle=document.title;
+ const printReport=$('printReport');
+ printReport.dataset.paper=target.includes('data-pda-paper="landscape"')?'landscape':'portrait';
+ printReport.innerHTML=target;printDocumentKind=kind;printOriginalTitle=document.title;
  document.title=(kind==='history'?'beam - Scan history':'beam - ASN '+String(state.receipt).replace(/[^\p{L}\p{N}_.-]/gu,'-'))+' - '+date().slice(0,10);
  notice(printL('인쇄 창에서 PDF로 저장을 선택하세요.','Choose Save as PDF in the print dialog.'));
  const finish=()=>{if(printDocumentKind===kind)window.print();};
@@ -2316,11 +2332,21 @@ function receiptBarcodeValue(id=state.receipt){return typeof id==='string'&&/^[\
 
 function printReceiptPda(id){
  const value=receiptBarcodeValue(id),l=printL;
- if(!value)return '<section class="pr-pda"><b>'+esc(l('PDA 입고용 주문번호','Receiving order barcode'))+'</b><small>'+esc(l('바코드로 인쇄할 수 없는 주문번호입니다.','This order ID cannot be encoded.'))+'</small></section>';
- const result=encodeReceiptCode128(value),w=result.modules;
- let x=10,bars='';for(const [i,n] of result.runs.entries()){if(!(i%2))bars+='<rect x="'+x+'" y="0" width="'+n+'" height="46"/>';x+=n;}
- const wide=w*.34>91,mm=Math.min(177,Math.max(65,w*.34));
- return '<section class="pr-pda'+(wide?' pr-pda-wide':'')+'"><div><b>'+esc(l('PDA 입고용 주문번호','Receiving order barcode'))+'</b><small>'+esc(value)+'</small><small>CODE 128</small></div><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+w+' 46" width="'+mm+'mm" height="17mm" preserveAspectRatio="none" style="height:17mm" role="img" aria-label="'+esc('Code 128 · '+value)+'"><rect width="100%" height="100%" fill="#fff"/><g fill="#000">'+bars+'</g></svg></section>';
+ const caption=esc(l('내부 PDA 진입용 바코드','INTERNAL PDA ENTRY BARCODE'));
+ if(!value)return '<section class="pr-pda pr-pda-missing"><b>'+caption+'</b><small>'+esc(l('이 주문번호는 바코드로 인쇄할 수 없어요. 주문번호를 직접 확인하세요.','This order ID cannot be encoded. Verify the order ID manually.'))+'</small></section>';
+ const {runs,modules}=encodeReceiptCode128(value);
+ // Preserve at least ten quiet modules on each side. Use landscape rather
+ // than scaling long alphanumeric IDs down below the chosen module width.
+ const landscape=modules*.30>168;
+ const width=Math.max(112,modules*(landscape?.26:.30)).toFixed(2);
+ let x=10,bars='';
+ for(const [i,n] of runs.entries()){
+  if(i%2===0)bars+='<rect x="'+x+'" y="0" width="'+n+'" height="26"/>';
+  x+=n;
+ }
+ return '<section class="pr-pda" data-pda-paper="'+(landscape?'landscape':'portrait')+'"><b>'+caption+'</b>'+
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+modules+' 26" width="'+width+'mm" height="26mm" preserveAspectRatio="none" role="img" aria-label="'+esc('Code 128 · '+value)+'"><rect width="100%" height="100%" fill="#fff"/><g fill="#000">'+bars+'</g></svg>'+
+  '<strong class="pr-pda-value">'+esc(value)+'</strong><small>CODE 128 · '+esc(l('입고 주문 번호','Receiving order ID'))+'</small></section>';
 }
 function showReceiptBarcode(){
  const id=state.receipt;if(!receiptBarcodeValue(id))return;

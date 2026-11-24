@@ -134,7 +134,7 @@ c.status('done','Loaded');assert.equal($('beamRawStatus').hidden,true);assert.eq
 c.status('error','Error',false);assert.equal($('beamRawStatus').hidden,false);
 vm.runInContext(slice('function printLocalTime(', 'function inspectionReport(')+slice('function printReceiptPda(', 'function showReceiptBarcode(')+`
 globalThis.print = printSheet('반품 검수 대조표','RETURN ASN',[['매장명','가상 성수점']],[printGrid('대조 결과',['상품','실물'],[80,20],[['상품 A',2]])],'검수 기록',{external:'Ext-A1',barcode:printReceiptPda('A1')});`,c);
-assert.match(c.print,/pr-brand.*Ext-A1.*Code 128 · A1.*pr-tear.*pr-sheet-meta.*대조 결과/);
+assert.match(c.print,/pr-label-mark.*pr-brand.*Ext-A1.*내부 PDA.*Code 128 · A1.*pr-label-fields.*대조 결과/);
 assert.match(c.print,/<g fill="#000"><rect x="10".*<rect x="13"/);
 assert.match(fs.readFileSync(__dirname+'/../dist/app.css','utf8'),/#printReport th,#printReport td\{padding:3\.5pt 4pt;border:0!important;background:none!important\}/);
 console.log('Beam state/DOM harness: focus, Tab, IME, repeated Enter, store arrows, scoped ASN arrows, Esc, SKU/tracking, loading guards, hidden success bar, recoverable errors and shared ticket/print markup pass.');
