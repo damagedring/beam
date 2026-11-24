@@ -22,10 +22,12 @@ For GitHub Pages, select **GitHub Actions** as the Pages source. The Pages workf
 - `src/index.html`: semantic app shell and restrictive content security policy.
 - `src/app.js`: application state, profile settings, rendering, and event wiring.
 - `src/import/workbook.js`: bounded XLSX/XLSM import, sheet streaming and mapped value decoding. Domain conversions are injected by the app.
-- `src/domain/`: directly tested tracking, name normalization, and Code 128 encoding.
+- `src/domain/`: directly tested reconciliation, scanner input detection, tracking, search normalization, and Code 128 encoding.
 - `src/styles/`: glass details and main workbench CSS. The release preserves cascade order.
 - `src/vendor/` and `src/assets/`: bundled XML parser and font. Notices are retained with the distribution.
 
 ## Data boundary
 
 The hosting service serves static application assets. XLSX files, searches, and scans are processed in the browser, not by the hosting service. Profiles and saved work may remain in the browser or in files an operator explicitly saves. A shared workstation or an exported file has its own access-control risks. Use synthetic data on public demos. The site is not a WMS and never writes to inventory.
+
+Inspection records are autosaved in this browser. After a reload, import the same reference workbook and mappings and choose **Recover work**. A different reference or customer-lookup set cannot restore that draft. Browser storage can be cleared by browser settings, private browsing, or storage limits; download a separate work file if you need a durable backup. No reference workbook or lookup file is included in the browser recovery draft.

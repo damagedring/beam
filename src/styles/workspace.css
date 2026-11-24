@@ -3756,3 +3756,15 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
   #beamTerminal #lastScanned .last-scanned-product-line{column-gap:6px}
  }
 }
+/* Only actionable recovery notices sit outside the workbench. */
+@media screen {
+ #beamRecoveryPanel[hidden],#beamRecoveryPanel button[hidden]{display:none!important}
+ #beamRecoveryPanel{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px 9px;
+  width:min(calc(100% - 24px),760px);min-width:0;margin:7px auto 4px;
+  padding:6px 9px;border-radius:8px;background:var(--beam-field,var(--surface-input));color:var(--beam-type,var(--ink));
+ }
+ #beamRecoveryStatus{font-size:12px;line-height:1.4;min-width:0;flex:1 1 16rem;margin:0;overflow-wrap:anywhere}
+ #beamRecoveryPanel button{font-size:12px;min-height:34px}
+}
+@media print{#beamRecoveryPanel,#beamRecoverySaved{display:none!important}}

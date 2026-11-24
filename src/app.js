@@ -968,7 +968,8 @@ function activeWorkAudit(){
  return audit.slice(start);
 }
 
-function changed(){dirty=true;setUI('saved','저장 필요',false,false);}
+var browserRecovery;
+function changed(){dirty=true;setUI('saved','저장 필요',false,false);browserRecovery?.schedule();}
 
 function reconcileView(data,receipt,scans){if(!renderReadCache)return Engine.reconcile(data,receipt,scans);let byScan=renderReadCache.get(data);if(!byScan){byScan=new WeakMap();renderReadCache.set(data,byScan);}let byReceipt=byScan.get(scans);if(!byReceipt){byReceipt=new Map();byScan.set(scans,byReceipt);}if(!byReceipt.has(receipt))byReceipt.set(receipt,Engine.reconcile(data,receipt,scans));return byReceipt.get(receipt);}
 function rawRows(receipt){return Engine.getIndex(state.data).rawByReceipt.get(receipt)||[];}
@@ -1389,11 +1390,14 @@ const WorkDelta=(()=>{
   for(let i=0;i<keys.length;i+=chunkRows){const entries=keys.slice(i,i+chunkRows).map(id=>[id,names[id]]);chunks.push(await digest(['customer-chunk-v1',i,entries]));assertCurrent(c);}
   const root=await digest([customerScheme,chunkRows,keys.length,chunks]);assertCurrent(c);return root;
  }
+ let verifiedCache=null;
  async function verifiedReferences(c){
   const root=await awaitReferenceFingerprint();assertCurrent(c);
   if(c.record.status!=='ready'||c.record.root!==root)throw fail('기준자료 확인이 완료되지 않았습니다.','Reference verification is not ready.');
+  if(verifiedCache?.record===c.record&&verifiedCache.names===c.names)return verifiedCache.value;
   const namesRoot=await customerRoot(c);assertCurrent(c);
-  return {scheme:ReferenceFingerprint.domain,root,customerScheme,customerRoot:namesRoot};
+  const value={scheme:ReferenceFingerprint.domain,root,customerScheme,customerRoot:namesRoot};
+  verifiedCache={record:c.record,names:c.names,value};return value;
  }
  function safeV2(signature){
   if(typeof signature!=='string'||!signature.startsWith('v2:sha256-chunks:'))return false;
@@ -1411,8 +1415,8 @@ const WorkDelta=(()=>{
   const root=await digest([legacyScheme,signature.length,65536,chunks]);assertCurrent(c);return {scheme:legacyScheme,root,utf16Length:signature.length};
  }
  function cleanConfirmation(record){return {receipt:record.receipt,batch:record.batch,signature:record.signature,at:record.at,...(record.outcome?{outcome:record.outcome}:{})};}
- async function prepareSave(){
-  checkedWorkShape(state,true);Engine.validateSession(state,{preserveIndex:true});
+ async function prepareSave({compact=false}={}){
+  checkedWorkShape(state,true);if(!compact)Engine.validateSession(state,{preserveIndex:true});
   const c=capture(),reference=await verifiedReferences(c),cache=new Map(),safeCache=new Map();
   const isSafe=signature=>{if(!safeCache.has(signature))safeCache.set(signature,safeV2(signature));return safeCache.get(signature);};
   // Scans may continue while hashing. Snapshot only after the last await and
@@ -1420,7 +1424,7 @@ const WorkDelta=(()=>{
   for(;;){assertCurrent(c);checkedWorkKeys(state,true);const all=[state,...(state.workSheets||[])],current=all.flatMap(w=>checkedConfirmations(w.confirmations));let missing=null;
    for(const record of current)if(!isSafe(record.signature)&&!cache.has(record.signature)){missing=record.signature;break;}
    if(missing!==null){cache.set(missing,await legacyCommitment(missing,c));continue;}
-   assertCurrent(c);checkedWorkShape(state,true);Engine.validateSession(state,{preserveIndex:true});const work=Object.fromEntries(Object.entries(state).filter(([key])=>workKeys.has(key)));work.savedAt=new Date().toISOString();
+   assertCurrent(c);checkedWorkShape(state,true);if(!compact)Engine.validateSession(state,{preserveIndex:true});const work=Object.fromEntries(Object.entries(state).filter(([key])=>workKeys.has(key)));work.savedAt=new Date().toISOString();
    function cleanSheet(dst,src){
     const commitments=checkedCommitments(src.confirmationCommitments),confirmed=[];
     for(const record of checkedConfirmations(src.confirmations)){if(isSafe(record.signature))confirmed.push(cleanConfirmation(record));else{const commitment=cache.get(record.signature);if(!commitment)throw fail('확정 기록이 바뀌었습니다. 다시 저장하세요.','Confirmation records changed. Save again.');commitments.push({receipt:record.receipt,batch:record.batch,at:record.at,...commitment});}}
@@ -1429,7 +1433,7 @@ const WorkDelta=(()=>{
     return dst;
    }
    cleanSheet(work,state);if(work.workSheets)work.workSheets=work.workSheets.map(w=>cleanSheet({...w},w));
-   const delta={format:'logistics-work-delta',version:1,reference,work};checkedWorkJSONSize(delta);assertCurrent(c);const text=JSON.stringify(delta,null,2);assertCurrent(c);return Object.freeze({text,assertCurrent:()=>assertCurrent(c)});
+   const delta={format:'logistics-work-delta',version:1,reference,work};checkedWorkJSONSize(delta);assertCurrent(c);const text=JSON.stringify(delta,null,compact?0:2);assertCurrent(c);return Object.freeze({text,assertCurrent:()=>assertCurrent(c)});
   }
  }
  function validateEnvelope(delta){
@@ -1456,7 +1460,133 @@ const WorkDelta=(()=>{
   const prepared=restorePlans.get(token);if(!prepared)throw fail('복원 준비 정보가 올바르지 않거나 이미 사용되었습니다.','Restore preparation is invalid or already used.');
   restorePlans.delete(token);assertCurrent(prepared.capture);const candidate={...prepared.candidate,data:state.data,customerNames:state.customerNames,sources:state.sources||{}};checkedWorkShape(candidate,true);Engine.validateSession(candidate,{preserveIndex:true});return candidate;
  }
- return {prepareSave,prepareRestore,finalizeRestore,customerScheme,legacyScheme,validateWorkSheets};
+ return {prepareSave,prepareRestore,finalizeRestore,recoveryReference:()=>verifiedReferences(capture()),customerScheme,legacyScheme,validateWorkSheets};
+})();
+
+/* Crash recovery: work-only drafts, scoped to the verified reference content.
+   Never request persistent-storage permission and never send data off-device. */
+const BrowserRecovery=(()=>{
+ const databaseName='beam-work-recovery',storeName='drafts';
+ function indexedStore(getIndexedDB=()=>globalThis.indexedDB){
+  let opening;
+  function open(){
+   if(opening)return opening;
+   opening=new Promise((resolve,reject)=>{
+    const idb=getIndexedDB();if(!idb)throw Error('IndexedDB unavailable');
+    const request=idb.open(databaseName,1);
+    request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(storeName))request.result.createObjectStore(storeName,{keyPath:'key'});};
+    request.onerror=()=>reject(request.error||Error('IndexedDB open failed'));
+    request.onblocked=()=>reject(Error('IndexedDB is blocked by another tab'));
+    request.onsuccess=()=>{
+     const db=request.result;db.onversionchange=()=>{db.close();opening=null;};resolve(db);
+    };
+   }).catch(error=>{opening=null;throw error;});
+   return opening;
+  }
+  async function operate(mode,run){
+   const db=await open();
+   return new Promise((resolve,reject)=>{
+    let tx;
+    if(mode==='readwrite'){try{tx=db.transaction(storeName,mode,{durability:'strict'});}catch{tx=db.transaction(storeName,mode);}}
+    else tx=db.transaction(storeName,mode);
+    let result;
+    tx.oncomplete=()=>resolve(result);
+    tx.onerror=tx.onabort=()=>reject(tx.error||Error('IndexedDB transaction failed'));
+    try{run(tx.objectStore(storeName),value=>{result=value;});}catch(error){try{tx.abort();}catch{}reject(error);}
+   });
+  }
+  return {
+   read:key=>operate('readonly',(s,finish)=>{const req=s.get(key);req.onsuccess=()=>finish(req.result??null);}),
+   hasDraft:()=>operate('readonly',(s,finish)=>{const req=s.openKeyCursor();req.onsuccess=()=>finish(!!req.result);}),
+   write:(entry,expected)=>operate('readwrite',(s,finish)=>{
+    const req=s.get(entry.key);req.onsuccess=()=>{if((req.result?.revision??null)!==expected){finish(false);return;}s.put(entry);finish(true);};
+   }),
+  };
+ }
+ function create(api){
+  let current=null,timer=null,inflight=null,rerun=false,version=0,savedVersion=-1,display={kind:'hidden'},stopped=false,acting=false;
+  const same=(a,b)=>a?.reference===b?.reference&&a?.names===b?.names;
+  const still=(context)=>same(context,api.context());
+  const tell=(kind,draft=null)=>{display={kind,draft};api.paint(display);};
+  const validity=d=>d&&typeof d.revision==='string'&&typeof d.savedAt==='string'&&Number.isFinite(Date.parse(d.savedAt))&&typeof d.text==='string'&&d.text.length<=50e6;
+  async function load(context){
+   if(current&&same(current.context,context))return current;
+   const reference=await api.reference();
+   if(!still(context))return null;
+   const key='v1:'+reference.root+':'+reference.customerRoot;
+   const draft=await api.store.read(key);
+   if(!still(context))return null;
+   current={context,key,revision:draft?.revision??null,draft:draft||null};
+   savedVersion=-1;
+   if(draft)tell(validity(draft)?'offer':'invalid',validity(draft)?draft:null);
+   else if(await api.store.hasDraft()&&still(context))tell('other');
+   else if(still(context))tell('hidden');
+   return current;
+  }
+  async function save(active,allowReplace=false){
+   if(active.draft&&!allowReplace)return;
+   if(!api.hasWork()||savedVersion===version)return;
+   const started=version;
+   const prepared=await api.prepare();
+   if(!still(active.context)||current!==active)return;
+   prepared.assertCurrent();
+   const entry={key:active.key,revision:api.id(),savedAt:api.now(),text:prepared.text};
+   const committed=await api.store.write(entry,active.revision);
+   if(!still(active.context)||current!==active)return;
+   if(!committed){
+    current=null;await load(active.context);
+    if(!current?.draft)tell('conflict');
+    return;
+   }
+   active.revision=entry.revision;active.draft=null;savedVersion=started;tell('saved');
+  }
+  async function run(){
+   const context=api.context();
+   try{
+    if(!context){current=null;tell(await api.store.hasDraft()&&!api.context()?'needs-raw':'hidden');return;}
+    const active=await load(context);if(!active||!still(context))return;
+    if(active.draft)api.paint(display);
+    await save(active);
+   }catch(error){if(still(context))tell('unavailable');}
+  }
+  function flush(){
+   clearTimeout(timer);timer=null;if(stopped)return Promise.resolve();
+   if(acting){rerun=true;return Promise.resolve();}
+   if(inflight){rerun=true;return inflight;}
+   inflight=run().finally(()=>{inflight=null;if(rerun){rerun=false;void flush();}});return inflight;
+  }
+  // One short window per burst, not a trailing debounce: continuous scans
+  // still reach durable checkpoints without writing on every keypress.
+  function schedule(delay=450){version++;if(timer===null)timer=setTimeout(()=>void flush(),delay);}
+  async function recover(){
+   const active=current,draft=active?.draft,started=version;
+   if(inflight||acting||!validity(draft)||!still(active.context))return false;
+   acting=true;
+   try{
+    const plan=await api.prepareRestore(JSON.parse(draft.text));
+    if(current!==active||version!==started||!still(active.context))return false;
+    // A second tab may update a draft, but the user is only offered the exact
+    // checkpoint that was reviewed; an old revision must not supersede it.
+    const live=await api.store.read(active.key);
+    if(current!==active||version!==started||!still(active.context))return false;
+    if(live?.revision!==draft.revision){current=null;await load(active.context);return false;}
+    if(!api.confirmRestore())return false;
+    api.finishRestore(plan);
+    active.draft=null;savedVersion=version;tell('restored');return true;
+   }catch(error){if(still(active.context))tell('restore-error',draft);return false;}
+   finally{acting=false;if(rerun){rerun=false;void flush();}}
+  }
+  async function replace(){
+   const active=current;
+   if(inflight||acting||!active?.draft||!still(active.context)||!api.hasWork()||!api.confirmReplace())return false;
+   acting=true;
+   try{await save(active,true);return !active.draft;}
+   catch(error){if(still(active.context))tell('restore-error',validity(active.draft)?active.draft:null);return false;}
+   finally{acting=false;if(rerun){rerun=false;void flush();}}
+  }
+  return {schedule,flush,recover,replace,refresh:()=>api.paint(display),stop(){stopped=true;clearTimeout(timer);}};
+ }
+ return {indexedStore,create};
 })();
 
 $('save').onclick=async()=>{
@@ -1558,7 +1688,7 @@ let theme='light';try{const pref=localStorage.getItem('returns-app-theme');theme
 function applyTheme(value){theme=value;document.documentElement?.setAttribute('data-theme',theme);$('theme').ariaPressed=String(theme==='dark');$('theme').setAttribute?.('aria-label',tr(theme==='dark'?'라이트 모드로 전환':'다크 모드로 전환'));$('theme').setAttribute?.('title',tr(theme==='dark'?'라이트 모드로 전환':'다크 모드로 전환'));try{localStorage.setItem('returns-app-theme',theme);}catch{}}
 $('theme').onclick=()=>applyTheme(theme==='dark'?'light':'dark');applyTheme(theme);
 
-function switchLanguage(nextLanguage){const asnDraft=$('receipt').value;closeStoreList();language=nextLanguage==='en'?'en':'ko';try{localStorage.setItem('returns-app-language',language);}catch{}localizeStatic();refreshUI();draw();if(asnDraft!==receiptDisplay(state.receipt)){$('receipt').value=asnDraft;renderReceiptList();}applyTheme(theme);updateLanguageToggle();MappingUI.refresh();}$('language').onclick=()=>switchLanguage(language==='ko'?'en':'ko');$('language').onchange=()=>switchLanguage($('language').value);function updateLanguageToggle(){$('beamLanguageLabel').textContent=language==='ko'?'언어 · 한국어 / English':'Language · English / 한국어';const label=language==='ko'?'현재 한국어 · 영어로 변경':'Currently English · Switch to Korean';$('language').setAttribute('aria-label',label);$('language').setAttribute('title',label);$('language').value=language;}localizeStatic();draw();updateLanguageToggle();
+function switchLanguage(nextLanguage){const asnDraft=$('receipt').value;closeStoreList();language=nextLanguage==='en'?'en':'ko';try{localStorage.setItem('returns-app-language',language);}catch{}localizeStatic();refreshUI();draw();if(asnDraft!==receiptDisplay(state.receipt)){$('receipt').value=asnDraft;renderReceiptList();}applyTheme(theme);updateLanguageToggle();MappingUI.refresh();browserRecovery?.refresh();}$('language').onclick=()=>switchLanguage(language==='ko'?'en':'ko');$('language').onchange=()=>switchLanguage($('language').value);function updateLanguageToggle(){$('beamLanguageLabel').textContent=language==='ko'?'언어 · 한국어 / English':'Language · English / 한국어';const label=language==='ko'?'현재 한국어 · 영어로 변경':'Currently English · Switch to Korean';$('language').setAttribute('aria-label',label);$('language').setAttribute('title',label);$('language').value=language;}localizeStatic();draw();updateLanguageToggle();
 
 window.addEventListener('beforeprint',()=>{if(!printDocumentKind)$('printReport').innerHTML=inspectionReport();});
 window.addEventListener('afterprint',()=>{printDocumentKind='';document.title=printOriginalTitle||'beam';printOriginalTitle='';});
@@ -3047,5 +3177,52 @@ draw=function(scanOnly=false){beamDrawOriginal(scanOnly);beamSaveState();if(beam
 const beamOldDemo=$('demo').onclick;
 $('demo').onclick=()=>{let old=state;beamOldDemo();if(state!==old){beam.mode='b2b';beamNewSearch(true);}};
 const beamOldRestore=$('backup').onchange;
-$('backup').onchange=async e=>{const before=state;await beamOldRestore(e);if(state!==before){beam.mode=isB2C()?'b2c':'b2b';if(state.receipt){beamView(false);$('barcode').focus({preventScroll:true});}else beamNewSearch(true);}};
+$('backup').onchange=async e=>{const before=state;await beamOldRestore(e);if(state!==before){browserRecovery?.schedule();beam.mode=isB2C()?'b2c':'b2b';if(state.receipt){beamView(false);$('barcode').focus({preventScroll:true});}else beamNewSearch(true);}};
 document.body.dataset.beamView='search';beamRender();beamSaveState();
+
+function hasBrowserRecoveryWork(){
+ return [state,...(state.workSheets||[])].some(w=>w.receipt||['scans','pending','archivedScans','archivedPending','confirmations','confirmationCommitments'].some(key=>w[key]?.length)||w.audit?.some(entry=>entry.events?.length));
+}
+function paintBrowserRecovery({kind,draft}){
+ const panel=$('beamRecoveryPanel'),message=$('beamRecoveryStatus'),restore=$('beamRecoverDraft'),keep=$('beamKeepDraft'),saved=$('beamRecoverySaved');
+ const time=draft?new Date(draft.savedAt).toLocaleString(language==='en'?'en':'ko'):'';
+ const notes={
+  'needs-raw':beamL('이 브라우저에 복구본이 있어요. 저장할 때 연결했던 기준 자료를 먼저 불러오세요.','This browser has recovery records. Load the same reference data first.'),
+  offer:beamL('복구 가능한 작업 · ','Recoverable work · ')+time,
+  other:beamL('현재 기준 자료와 일치하는 복구본이 없어요. 다른 기준 자료의 복구본은 그대로 남아 있어요.','No recovery matches the current reference data. Other recovery records are unchanged.'),
+  restored:beamL('이 브라우저의 작업을 복구했어요.','Recovered work from this browser.'),
+  invalid:beamL('복구본 형식을 확인할 수 없어요. 이전 복구본은 변경하지 않았어요.','The recovery format could not be verified. The previous recovery is unchanged.'),
+  conflict:beamL('다른 창에서 복구본이 바뀌었어요. 이 창에서는 덮어쓰지 않았어요.','Another tab changed this recovery. This tab did not overwrite it.'),
+  unavailable:beamL('브라우저 자동 저장을 사용할 수 없어요. 별도로 작업파일을 저장해 주세요.','Browser autosave is unavailable. Save a separate work file.'),
+  'restore-error':beamL('이 복구본을 적용할 수 없어요. 현재 작업은 그대로예요.','This recovery could not be applied. Your current work is unchanged.'),
+ };
+ const text=notes[kind]||'';panel.hidden=!text||kind==='restored';
+ if(message.textContent!==text)message.textContent=text;
+ restore.hidden=!draft;keep.hidden=!draft||!hasBrowserRecoveryWork();
+ restore.textContent=beamL('작업 복구','Recover work');
+ keep.textContent=beamL('현재 작업으로 대체','Replace with current work');
+ const announce=kind==='saved'?beamL('이 브라우저에 검수 기록 자동 저장됨','Inspection records autosaved in this browser.'):kind==='restored'?text:'';
+ if(saved.textContent!==announce)saved.textContent=announce;
+}
+browserRecovery=BrowserRecovery.create({
+ store:BrowserRecovery.indexedStore(),
+ context:()=>state.data.raw.length?{reference:ReferenceFingerprint.request(),names:state.customerNames}:null,
+ reference:WorkDelta.recoveryReference,
+ hasWork:hasBrowserRecoveryWork,
+ prepare:()=>WorkDelta.prepareSave({compact:true}),
+ prepareRestore:WorkDelta.prepareRestore,
+ confirmRestore:()=>!hasBrowserRecoveryWork()||uiConfirm(beamL('복구본으로 현재 검수 기록을 바꿀까요? 기준 자료는 유지됩니다.','Replace the current inspection records with this recovery? Reference data is kept.')),
+ confirmReplace:()=>uiConfirm(beamL('이 기준 자료의 이전 복구본을 현재 검수 기록으로 바꿀까요?','Replace the previous recovery for this reference data with the current inspection records?')),
+ finishRestore:plan=>{
+  const next=WorkDelta.finalizeRestore(plan);
+  PhoneOrderUI.clear();state=normalizedActiveWork({...next,pending:next.pending||[],store:next.store||'',sources:next.sources||{},audit:next.audit||[]});
+  lastBarcode='';dirty=false;draw();setUI('saved','작업 복구 완료',false,false);
+  beam.mode=isB2C()?'b2c':'b2b';if(state.receipt){beamView(false);$('barcode').focus({preventScroll:true});}else beamNewSearch(true);
+ },
+ id:makeId,now:()=>new Date().toISOString(),paint:paintBrowserRecovery,
+});
+$('beamRecoverDraft').onclick=()=>browserRecovery.recover();
+$('beamKeepDraft').onclick=()=>browserRecovery.replace();
+document.addEventListener('visibilitychange',()=>{if(document.hidden)void browserRecovery.flush();});
+window.addEventListener('pagehide',()=>{void browserRecovery.flush();});
+void browserRecovery.flush();
