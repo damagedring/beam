@@ -2090,7 +2090,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
   }
   #undo{--beam-icon-size:44px}
   #fileMenuButton,#workSidebarToggle{--beam-icon-size:36px}
-  #workSidebarToggle{box-sizing:border-box;border-radius:50%!important}
+  #workSidebarToggle{box-sizing:border-box;border-radius:8px!important}
   #workSidebarToggle svg{border-radius:3px}
   @media(max-width:650px){
    #theme{--beam-icon-size:27px}
@@ -3402,4 +3402,60 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
  html[data-theme] body[data-beam-view=search]::before,
  html[data-theme] body[data-beam-view=search] #beamSearch::before,
  html[data-theme] body[data-beam-view=search] #beamSearch .beam-stage::after{display:none!important}
+}
+
+/* Work rail: matte panel, flat rows, and an edge marker instead of circular controls. */
+@media screen {
+ html[data-theme] body>header .beam-identity>button#workSidebarToggle{border-radius:8px!important}
+ html[data-theme] body>header .beam-identity>button#workSidebarToggle svg>path{fill:none!important}
+ body[data-beam-rail-open=true]{--beam-rail-width:252px}
+ html[data-theme] body>#beamSidebar{
+  --work-paper:#f4f3f0;--work-glass:#f4f3f0d7;--work-ink:#252421;--work-muted:#5d5a56;
+  --work-wash:#2423200a;--work-hover:#24232012;--work-edge:#3d3b36;--work-divider:#24232019;
+  display:flex;flex-direction:column;gap:12px;min-width:0;overflow:hidden;
+  background:var(--work-paper)!important;color:var(--work-ink);
+  border:none!important;border-radius:20px;box-shadow:0 15px 36px #17151213!important;
+  padding:13px 12px 12px;
+ }
+ html[data-theme=dark] body>#beamSidebar{
+  --work-paper:#222120;--work-glass:#222120df;--work-ink:#f5f3ef;--work-muted:#bcb8b2;
+  --work-wash:#fff1;--work-hover:#ffffff21;--work-edge:#f4efe8;--work-divider:#ffffff1f;
+ }
+ @supports ((backdrop-filter:blur(24px)) or (-webkit-backdrop-filter:blur(24px))){
+  html[data-theme] body>#beamSidebar{background:var(--work-glass)!important;-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+ }
+ @media(prefers-reduced-transparency:reduce){html[data-theme] body>#beamSidebar{background:var(--work-paper)!important;-webkit-backdrop-filter:none;backdrop-filter:none}}
+ #beamSidebar .beam-drawer-head{flex:none;margin:0;padding:0 2px 6px 8px;border:0}
+ #beamSidebar .beam-drawer-head h2{font-size:17px;letter-spacing:-.025em;color:var(--work-ink)}
+ #beamSidebar #beamJobs{align-content:start;overflow:auto;min-height:0;flex:1;gap:12px;padding:2px 1px 8px}
+ #beamSidebar #beamJobs>p{color:var(--work-muted);padding:12px 8px;line-height:1.5}
+ #beamSidebar #beamJobs .beam-job{border:none;gap:3px;padding:0}
+ html[data-theme] body #beamSidebar :is(#beamSidebarClose,#beamNewWork,#beamJobs .beam-job button){
+  background:transparent!important;color:var(--work-ink)!important;border:0!important;
+  border-radius:8px!important;box-shadow:none!important;backdrop-filter:none;
+ }
+ html[data-theme] body #beamSidebar :is(#beamSidebarClose,#beamNewWork,#beamJobs .beam-job button):hover{
+  background:var(--work-hover)!important
+ }
+ #beamSidebar #beamJobs .beam-job button{
+  position:relative;display:flex;align-items:center;gap:9px;width:100%;
+  min-height:38px;min-width:0;text-align:start;padding:7px 9px;
+ }
+ #beamSidebar .beam-job-btn::before{
+  content:"";flex:0 0 12px;width:12px;height:13px;border:1.4px solid currentColor;
+  border-radius:2px;opacity:.7;box-shadow:inset 0 3px var(--work-wash);
+ }
+ #beamSidebar .beam-job-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:650}
+ #beamSidebar .beam-job-mode{font:600 9px/1 var(--font-terminal);letter-spacing:.04em;flex:none;color:var(--work-muted)}
+ #beamSidebar #beamJobs .beam-job-asn{margin:0;padding-inline-start:29px;font-size:11px;min-height:34px}
+ html[data-theme] body #beamSidebar #beamJobs .beam-job button[aria-current=true]{background:var(--work-wash)!important}
+ #beamSidebar #beamJobs .beam-job button[aria-current=true]::after{
+  content:"";position:absolute;inset-inline-start:0;inset-block:8px;width:3px;border-radius:2px;background:var(--work-edge)
+ }
+ #beamSidebar :is(#beamSidebarClose,#beamNewWork,#beamJobs button):focus-visible{outline:2px solid currentColor!important;outline-offset:-3px}
+ #beamSidebar .beam-drawer-foot{flex:none;border-top:1px solid var(--work-divider);padding-top:7px}
+ #beamSidebar #beamNewWork{display:flex;align-items:center;justify-content:space-between;margin:0;min-height:38px;padding:6px 10px!important;font-weight:620}
+ #beamSidebar #beamNewWork>span+span{font-size:19px;font-weight:400;line-height:1}
+ @media(max-width:760px){html[data-theme] body>#beamSidebar{gap:5px;min-height:0;max-height:min(42svh,310px);padding:8px 10px}}
+ @media(forced-colors:active){#beamSidebar #beamJobs .beam-job button[aria-current=true]::after{background:Highlight;forced-color-adjust:none}}
 }

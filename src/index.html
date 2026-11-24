@@ -15,7 +15,7 @@
 <div class="beam-identity">
 <button type="button" id="workSidebarToggle" class="beam-mark" aria-label="작업 사이드바" title="작업 사이드바" aria-controls="beamSidebar" aria-expanded="false">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false">
-<path d="M4 5h16v14H4z M9 5v14"/>
+<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M9 5v14"/>
 </svg>
 </button>
 <span class="beam-save-wrap">
@@ -98,11 +98,10 @@
 <aside hidden inert id="beamSidebar" aria-labelledby="beamJobsTitle">
 <div class="beam-drawer-head">
 <h2 id="beamJobsTitle" data-ko="작업" data-en="Work">작업</h2>
-<button type="button" id="beamSidebarClose" aria-label="사이드바 접기" title="사이드바 접기">‹</button>
+<button type="button" id="beamSidebarClose" aria-label="사이드바 접기" title="사이드바 접기"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg></button>
 </div>
-<button type="button" id="beamNewWork" data-ko="+ 새 작업" data-en="+ New work">+ 새 작업</button>
-<nav id="beamJobs" aria-label="작업 및 ASN 시트">
-</nav>
+<nav id="beamJobs" aria-label="작업 및 ASN 시트"></nav>
+<div class="beam-drawer-foot"><button type="button" id="beamNewWork"><span data-ko="새 작업" data-en="New work">새 작업</span><span aria-hidden="true">+</span></button></div>
 </aside>
 <section id="beamSearch" aria-labelledby="beamSearchTitle">
  <h1 id="beamSearchTitle" class="beam-sr">반품 ASN 검색</h1>

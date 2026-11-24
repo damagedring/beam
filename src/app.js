@@ -462,7 +462,10 @@ const MappingUI=(()=>{
   const confirmKinds=(savedKinds.length?savedKinds:selectedKinds).filter(k=>!resolvedKinds.has(k));
   return {reused,confirmKinds};
  }
- let db=blank(),storageNote='',busy=false,dialog=null,statusNodes=[],localizers=[],storageAvailable=null;
+ let db=blank(),storageNote='',busy=false,dialog=null,statusNodes=[],localizers=[],storageAvailable=null,profileImport=null,lastWorkbook=null;
+ function rememberWorkbook(file,reusable){lastWorkbook=reusable?{file,offer:false}:null;refresh();}
+ function offerWorkbookRetry(){if(lastWorkbook)lastWorkbook.offer=true;}
+ async function waitForProfileImport(){return profileImport?await profileImport:!busy;}
  function fileMappingCount(profile=db.profiles[db.active]){return Object.keys(profile.file).length;}
  function profileDiagnostic(code,ko,en){return '['+code+'] '+t(ko,en);}
  // Current-window only; no workbook, pasted rows or observed values are serialized in the profile.
@@ -512,17 +515,18 @@ const MappingUI=(()=>{
   catch{throw Error(profileDiagnostic('PROFILE-FORMAT','이 파일에 유효한 데이터 연결 프로필이 없어요. 작업 백업과 별도인 프로필 JSON을 선택해 주세요.','No valid data connection profile. Select the profile JSON, not a work backup.'));}
  }
  function cancelled(){const e=Error(t('매핑을 취소했습니다. 기존 데이터와 프로필을 유지합니다.','Mapping cancelled. Existing data and profiles retained.'));e.name='AbortError';return e;}
- function modal(title,build,confirmLabel){return new Promise((resolve,reject)=>{
+ function modal(title,build,confirmLabel,canChangeProfile=false){return new Promise((resolve,reject)=>{
   if(dialog){reject(Error('A mapping dialog is already open'));return;}
   const focus=document.activeElement,d=node('dialog',undefined,{className:'mapping-dialog'});dialog=d;d.setAttribute('aria-labelledby','mappingDialogTitle');
   const h=node('h2',title,{id:'mappingDialogTitle'}),note=node('p',t('현재 프로필 ','Current profile ')+db.profiles[db.active].name),body=node('div'),err=node('p','',{className:'mapping-error'}),actions=node('div',undefined,{className:'mapping-actions'}),cancel=node('button',t('취소','Cancel'),{type:'button'}),ok=node('button',confirmLabel||t('연결 확인','Confirm mapping'),{type:'button',className:'primary'});err.setAttribute('role','alert');
   d.append(h,note,body,err,actions);actions.append(cancel,ok);let settled=false;
+  if(canChangeProfile){const useAnother=node('button',t('다른 프로필 사용','Use a different profile'),{type:'button'});useAnother.onclick=()=>{const e=cancelled();e.changeProfile=true;done(null,e);};actions.prepend(useAnother);}
   function done(value,error){if(settled)return;settled=true;d.close();d.remove();dialog=null;if(focus?.isConnected)focus.focus({preventScroll:true});error?reject(error):resolve(value);}
   let getValue;try{getValue=build(body);}catch(e){dialog=null;d.remove();reject(e);return;}ok.onclick=()=>{try{done(getValue());}catch(e){err.textContent=e.message;}};cancel.onclick=()=>done(null,cancelled());d.addEventListener('cancel',e=>{e.preventDefault();done(null,cancelled());});d.addEventListener('close',()=>{if(!settled)done(null,cancelled());});document.body.append(d);d.showModal();(body.querySelector('select,input,button')||cancel).focus();
  });}
  function option(select,value,label){select.append(node('option',label,{value:String(value)}));}
  function colLetter(i){let s='';for(i++;i;i=Math.floor((i-1)/26))s=String.fromCharCode(65+(i-1)%26)+s;return s;}
- async function begin(kind,sourceType,{onReview=null}={}){
+ async function begin(kind,sourceType,{onReview=null,canChangeProfile=false}={}){
   if(busy)throw Error(t('다른 가져오기가 진행 중입니다.','Another import is in progress.'));
   if(kind!==null&&!kinds.includes(kind))throw Error('Invalid mapping kind');if(!['file','paste'].includes(sourceType))throw Error('Invalid mapping source');
   busy=true;refresh();const mode=db.active,staged=copy(db),profiles=staged.profiles[mode][sourceType],captured=new Map();let finished=false;
@@ -557,7 +561,7 @@ const MappingUI=(()=>{
       if(new Set(out.map(x=>x.sheetIndex)).size!==out.length)throw Error(t('같은 시트를 두 역할에 연결할 수 없습니다.','A sheet cannot have two roles.'));
       return selectedKinds.flatMap(k=>out.filter(x=>x.kind===k));
      };
-    }));
+    },undefined,canChangeProfile));
    },
    async selectColumns({kind:k,sheetName='',rows,rowNumbers}){
     const preview=rows.slice(0,100),saved=profiles[k];
@@ -601,7 +605,7 @@ const MappingUI=(()=>{
       const removed=known?Object.keys(known.headerNames).filter(id=>!Object.hasOwn(valid,id)):[];
       if(removed.length&&!uiConfirm(t('연결하지 않은 기존 열 '+removed.length+'개를 이 프로필에서 해제할까요?','Remove '+removed.length+' previously mapped fields from this profile?')))throw Error(t('빠진 열을 연결하거나, 연결 해제를 확인해 주세요.','Reconnect the missing columns or confirm their removal.'));
       const result={headerRow,columns:valid,...(k==='raw'?{returnChannelReviewed:true}:{}),...(channelInputs&&Object.hasOwn(valid,'returnChannel')?{returnChannelValues:known?.returnChannelValues?.exact===true&&MappingCore.knownColumns(known,preview[headerRow]).columns.returnChannel===valid.returnChannel&&['b2b','b2c'].every(k=>channelInputs[k].value===returnChannelFormText(known.returnChannelValues[k],k.toUpperCase()))?known.returnChannelValues:returnChannelFormValues(channelInputs.b2b.value,channelInputs.b2c.value)}:{})};MappingCore.makeProfile(k,sheetName,preview,result);return result;};
-    }));
+    },undefined,canChangeProfile));
     profiles[k]=MappingCore.makeProfile(k,sheetName,preview,mapping);return remember(k,sheetName,preview,mapping);
    }
   };
@@ -615,7 +619,7 @@ const MappingUI=(()=>{
  async function editName(create){
   if(busy)return;busy=true;refresh();try{if(create&&Object.keys(db.profiles).length>=50)throw Error(t('프로필은 최대 50개입니다.','Maximum 50 profiles.'));
    const name=await modal(create?t('새 프로필','New profile'):t('프로필 이름 변경','Rename profile'),body=>{const label=node('label',t('프로필 이름','Profile name')),input=node('input',undefined,{type:'text',maxLength:100,value:create?'':db.profiles[db.active].name});label.append(input);body.append(label);return ()=>{const value=input.value.trim();if(!value)throw Error(t('이름을 입력하세요.','Enter a name.'));if(Object.entries(db.profiles).some(([id,p])=>p.name===value&&(create||id!==db.active)))throw Error(t('같은 이름의 프로필이 있습니다.','A profile with that name exists.'));return value;};});
-   const next=copy(db);if(create){let id;do{id='p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);}while(Object.hasOwn(next.profiles,id));next.profiles[id]={name,file:{},paste:{}};next.active=id;}else next.profiles[next.active].name=name;persist(next);
+   const next=copy(db);if(create){let id;do{id='p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);}while(Object.hasOwn(next.profiles,id));next.profiles[id]={name,file:{},paste:{}};next.active=id;offerWorkbookRetry();}else next.profiles[next.active].name=name;persist(next);
   }catch(e){if(e.name!=='AbortError')storageNote=e.message;}finally{busy=false;refresh();}
  }
  async function inspectProfileSource(file,kind,profile,columnName=null){
@@ -753,7 +757,7 @@ const MappingUI=(()=>{
  }
  function chooseProfile(id){
   if(busy||!Object.hasOwn(db.profiles,id)||id===db.active)return false;
-  const next=copy(db);next.active=id;
+  const next=copy(db);next.active=id;offerWorkbookRetry();
   persist(next,t('선택한 프로필은 다음 파일에 적용돼요.','The selected profile applies to the next file.'));
   return true;
  }
@@ -771,7 +775,10 @@ const MappingUI=(()=>{
   const rail=node('div',undefined,{className:'profile-documents'});
   const activeInfo=node('p','',{className:'profile-active-info'});activeInfo.setAttribute('role','status');
   const status=node('p','',{className:'small profile-storage-note'});status.setAttribute('role','status');
-  statusNodes.push(status);row.append(prev,rail,next);shelf.append(top,row,activeInfo,status);
+  statusNodes.push(status);row.append(prev,rail,next);
+  const retry=node('button','',{type:'button',className:'profile-workbook-button profile-retry-workbook'});
+  retry.onclick=()=>{if(lastWorkbook?.offer&&!busy)void runCombinedWorkbook(lastWorkbook.file,{retry:true});};
+  shelf.append(top,row,activeInfo,retry,status);
   let direction=0,gesture=null,suppressUntil=0;
   const entries=()=>Object.entries(db.profiles);
   const activeIndex=list=>list.findIndex(([id])=>id===db.active);
@@ -830,6 +837,7 @@ const MappingUI=(()=>{
   },'out');
   file.onchange=async()=>{
    const f=file.files[0];file.value='';if(!f||busy)return;
+   let settleImport;profileImport=new Promise(resolve=>{settleImport=resolve;});
    busy=true;storageNote=t('프로필 JSON 확인 중…','Reading profile JSON…');refresh();
    let applied=false;
    try{
@@ -837,15 +845,17 @@ const MappingUI=(()=>{
     if(!uiConfirm(t('현재 프로필 목록을 가져온 목록으로 바꿀까요? 검수 데이터는 바뀌지 않아요.','Replace the current profile list with the imported list? Inspection data stays unchanged.'))){
      storageNote=t('가져오기를 취소했어요. 기존 프로필을 유지합니다.','Import cancelled. Existing profiles retained.');return;
     }
-    forgetSources();applied=true;
+    forgetSources();offerWorkbookRetry();applied=true;
     const count=fileMappingCount(incoming.profiles[incoming.active]);
     persist(incoming,count?t('프로필 적용 완료 · 저장된 Excel 시트 '+count+'개','Profile applied · '+count+' saved Excel worksheets'):t('프로필을 적용했어요. 첫 파일에서 연결할 시트를 골라 주세요.','Profile applied. Choose the worksheets on the first import.'));
    }catch(e){storageNote=e.message;}
-   finally{busy=false;refresh();if(applied)document.getElementById('openWorkbook')?.focus({preventScroll:true});}
+   finally{busy=false;profileImport=null;settleImport(applied);refresh();if(applied)(lastWorkbook?.offer?retry:document.getElementById('openWorkbook'))?.focus({preventScroll:true});}
   };
   io.append(file);group.append(named,mappings,actions,io);details.append(group);
   localizers.push(()=>{
    const list=entries(),index=activeIndex(list),profile=list[index][1],files=fileMappingCount(profile);
+   retry.hidden=!lastWorkbook?.offer;retry.disabled=busy;
+   retry.textContent=lastWorkbook?.offer?t('이 프로필로 다시 연결: ','Reconnect with this profile: ')+lastWorkbook.file.name:'';
    title.textContent=t('사용 중인 프로필','Active profile');
    page.textContent=list.length>1?(index+1)+' / '+list.length:'';
    row.dataset.count=String(Math.min(list.length,3));
@@ -880,7 +890,7 @@ const MappingUI=(()=>{
   });
   refresh();
  }
- return {begin,init,refresh,editConnection,forgetSources,locationRules,isBusy:()=>busy};
+ return {begin,init,refresh,editConnection,forgetSources,locationRules,rememberWorkbook,offerWorkbookRetry,waitForProfileImport,isBusy:()=>busy};
 })();
 
 
@@ -2174,11 +2184,17 @@ function beamRawProgress(info){
  beamRawProgressAt=now;
  $('beamRawCount').textContent=Number(info.rowsProcessed||0).toLocaleString()+(language==='en'?' rows read in current part':'행 읽음 · 현재 시트 기준');
 }
-async function runCombinedWorkbook(file){
+let combinedWorkbookRequest=0;
+async function runCombinedWorkbook(file,{retry=false}={}){
  if(!file||dataImportBusy)return;
  const l=(ko,en)=>language==='en'?en:ko;
- if(MappingUI.isBusy()){notice(l('프로필 확인이 끝난 뒤 RAW를 다시 선택해 주세요.','Wait for profile import to finish, then select the RAW again.'),'warning');return;}
- let tx,phase='read';
+ const request=++combinedWorkbookRequest;
+ if(!await MappingUI.waitForProfileImport()){if(request===combinedWorkbookRequest)notice(l('프로필이 적용되지 않았어요. 프로필 확인 후 RAW를 다시 선택해 주세요.','The profile was not applied. Confirm it, then select the workbook again.'),'warning');return;}
+ if(request!==combinedWorkbookRequest||dataImportBusy)return;
+ const reusable=$('rawImportMode').value!=='append';
+ if(retry&&!reusable){notice(l('오더 추가 모드에서는 파일을 다시 선택해 주세요.','In append mode, select the workbook again.'),'warning');return;}
+ MappingUI.rememberWorkbook(file,reusable);
+ let tx,phase='read',changeProfile=false;
  if(typeof beamResetSelection==='function'&&$('beamFindFold'))beamResetSelection();
  mappingBusyUI(true);
  try{
@@ -2187,7 +2203,7 @@ async function runCombinedWorkbook(file){
   beamView(true,false);
   // Give the main screen a paint opportunity before decompression or indexing.
   await new Promise(resolve=>setTimeout(resolve,0));
-  tx=await MappingUI.begin(null,'file',{onReview:(kind,waiting)=>{
+  tx=await MappingUI.begin(null,'file',{canChangeProfile:reusable,onReview:(kind,waiting)=>{
    if(waiting)beamRawStatus('review',kind==='sheet'?l('시트 연결 확인 대기 중','Waiting for worksheet mapping'):l('열 연결 확인 대기 중','Waiting for column mapping'),false);
    else beamRawStatus('read',l('통합 RAW 읽는 중…','Reading combined workbook…'));
   }});
@@ -2201,11 +2217,14 @@ async function runCombinedWorkbook(file){
   beamRawStatus('done',n?l('RAW 연결 완료 · 반품 예정 '+n.toLocaleString()+'행','RAW connected · '+n.toLocaleString()+' return rows'):l('선택한 연결 저장 완료 · 기존 반품 예정 자료 유지','Selected mappings saved · existing return data retained'));
  }catch(error){
   tx?.abort();
+  changeProfile=error.changeProfile===true;
+  if(changeProfile){MappingUI.offerWorkbookRetry();beamRawStatus('done');return;}
   const cancelled=error.name==='AbortError';
   const code=cancelled?'MAP-CANCEL':phase==='apply'?'RAW-APPLY':'RAW-READ';
   beamRawStatus(cancelled?'cancelled':'error','['+code+'] '+error.message,false);
  }finally{
   mappingBusyUI(false);beamRender();
+  if(changeProfile){$('dataProfileDetails').open=true;openUtilityDialog('dataDialog','dataLauncher','openWorkbook');return;}
   if(beam.visible&&(!document.activeElement||document.activeElement===document.body||document.activeElement===$('dataLauncher')))$('beamQuery').focus({preventScroll:true});
  }
 }
@@ -2424,7 +2443,7 @@ function beamBackStep(edit=false){
 function beamStep(direction,axis='x'){
  const ids=beam.browseIds,at=ids?.indexOf(beam.browseAnchor),id=ids?.[at+direction];
  if(!id||dataImportBusy)return;
- beam.ribbonAxis=axis;beamPick(id);if(beam.phase!=='search')beamFocusCard();
+ beam.ribbonAxis=axis;beamPick(id,'step');beamFocusCard();
 }
 function beamPlaceOnRibbon(el,slot,slide=0){
  const offset=slot-slide,dist=Math.abs(offset),vertical=beam.ribbonAxis==='y';
@@ -2437,6 +2456,26 @@ function beamPlaceOnRibbon(el,slot,slide=0){
  el.style.setProperty('--ribbon-roll',(offset*(vertical?2.4:1.3))+'deg');
  el.style.setProperty('--ribbon-zoom',String(1-Math.min(.22,dist*(vertical?.088:.047))));
  el.style.setProperty('--ribbon-layer',String(9-Math.round(dist)));
+}
+function beamTurnPaper(phase,axis,direction){
+ const ordered=[...beam.nodes.values()].sort((a,b)=>Math.abs(a.dataset.ribbonSlot)-Math.abs(b.dataset.ribbonSlot));
+ for(const el of ordered){
+  const slot=Number(el.dataset.ribbonSlot);
+  if(Math.abs(slot)>2)continue;
+  const paper=el.firstElementChild;
+  if(!paper?.animate)continue;
+  beam.paperTurns??=new WeakMap();
+  beam.paperTurns.get(paper)?.cancel();
+  const side=Math.sign(slot)||direction;
+  const lean=slot===0?(phase==='query'?52:41):22;
+  const x=axis==='y'?side*lean:side*(phase==='query'?24:7);
+  const y=axis==='y'?side*7:side*lean;
+  const shift=axis==='y'?`0, ${side*34}px`:`${side*38}px, ${side*12}px`;
+  beam.paperTurns.set(paper,paper.animate([
+   {transform:`perspective(650px) translate(${shift}) rotateX(${x}deg) rotateY(${y}deg) scale(.93)`,opacity:.56},
+   {transform:'perspective(650px) translate(0,0) rotateX(0deg) rotateY(0deg) scale(1)',opacity:1}
+  ],{duration:slot===0?390:360,delay:Math.abs(slot)*28,easing:'cubic-bezier(.17,.74,.24,1)',fill:'backwards'}));
+ }
 }
 function beamRender(animate=false){
  if(!beam.visible)return;
@@ -2497,6 +2536,8 @@ function beamRender(animate=false){
  for(let i=1;i<=4;i++){add(-i);add(i);}
  for(const [id,el] of beam.nodes)if(!shown.has(id)){el.remove();beam.nodes.delete(id);}
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const changedResult=beam.revealedReceipt!==active||beam.hadQuery!==!!lookup.q;
+ const travel=anchor-(beam.railAnchor??anchor);
  const moved=beam.railMode===beam.mode&&beam.railPhase===phase&&Number.isInteger(beam.railAnchor)&&beam.railAnchor!==anchor;
  beam.railMode=beam.mode;beam.railPhase=phase;beam.railAnchor=anchor;
  for(const [id,slot] of shown){
@@ -2516,10 +2557,12 @@ function beamRender(animate=false){
   if(newNode&&animate&&moved&&!reduced&&typeof el.animate==='function')el.animate(
    [{opacity:0},{opacity:Number(el.style.opacity)}],{duration:200,easing:'ease-out'});
  }
+ if(active&&!reduced&&changedResult&&(animate==='query'||animate==='step'))beamTurnPaper(animate,beam.ribbonAxis||'x',Math.sign(travel)||1);
+ beam.revealedReceipt=active;beam.hadQuery=!!lookup.q;
 }
 function beamInput(isSku=false){
  if(isSku){const next=beamCode($('beamSku').value);if(next===beam.sku)return;beam.sku=next;}else{const next=$('beamQuery').value;if(next===beam.query)return;beam.query=next;beam.sku='';$('beamSku').value='';}
- beam.ribbonAxis='x';beamResetSelection();beamRender(true);
+ beam.ribbonAxis='x';beamResetSelection();beamRender('query');
 }
 for(const [field,isSku] of [[$('beamQuery'),false],[$('beamSku'),true]]){
  const key=isSku?'skuComposing':'composing';
@@ -2529,6 +2572,9 @@ for(const [field,isSku] of [[$('beamQuery'),false],[$('beamSku'),true]]){
  field.onkeydown=e=>{
   if(e.isComposing||beam[key]||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey)return;
   if(e.key==='Tab'&&!e.shiftKey&&!isSku&&!$('beamNarrow').hidden){e.preventDefault();$('beamSku').focus();return;}
+  if((e.key==='ArrowDown'||e.key==='ArrowUp')&&beam.candidate&&beam.query.trim()&&!dataImportBusy){
+   e.preventDefault();beamFocusCard();return;
+  }
   if(e.key!=='Enter')return;
   e.preventDefault();if(e.repeat)return;
   beamInput(isSku);
@@ -2541,10 +2587,10 @@ document.querySelector('.beam-modes').onclick=e=>{
  if(!m||m===beam.mode)return;
  beam.mode=m;beam.sku='';$('beamSku').value='';beamResetSelection();beamRender(true);$('beamQuery').focus({preventScroll:true});
 };
-function beamPick(id){
+function beamPick(id,animate=true){
  if(!id||!beam.groups?.byId.has(id)||dataImportBusy)return;
  if(beam.phase==='asn'&&!beam.browseIds.includes(id))return;
- beam.picked=id;if(beam.phase==='party')beam.party=beam.groups.byId.get(id).key;beamRender(true);
+ beam.picked=id;if(beam.phase==='party')beam.party=beam.groups.byId.get(id).key;beamRender(animate);
 }
 const beamRibbon=$('beamStage');
 let ribbonPointer=null,ribbonClickUntil=0;
@@ -2598,7 +2644,7 @@ $('beamSearch').addEventListener('keydown',e=>{
  if(e.key==='Escape'){e.preventDefault();beamBackStep();return;}
  const direction={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];
  if(direction){e.preventDefault();beamStep(direction,/Up|Down/.test(e.key)?'y':'x');}
- else if(beam.phase!=='search'&&e.key==='Enter'&&(e.target===$('beamStart')||e.target.closest?.('.beam-receipt'))){e.preventDefault();if(!e.repeat)beamAdvance();}
+ else if(e.key==='Enter'&&(e.target===$('beamStart')||e.target.closest?.('.beam-receipt'))){e.preventDefault();if(!e.repeat)beamAdvance();}
 });
 function beamView(search,animate=false){
  const wasVisible=beam.visible,s=$('beamSearch'),w=$('sheetWorkspace');
@@ -2651,7 +2697,10 @@ function beamDrawJobs(){
  const jobs=$('beamJobs');
  jobs.replaceChildren(...beamKnownJobs().filter(w=>w.receipt||w.store||w.scans?.length||w.pending?.length||w.audit?.length).map(w=>{
   const group=document.createElement('div');group.className='beam-job';
-  const item=document.createElement('button');item.type='button';item.textContent=workLabel(w)+' · '+(w.searchMode==='b2c'?'B2C':'B2B');item.dataset.work=w.currentBatch;
+  const item=document.createElement('button');item.type='button';item.className='beam-job-btn';item.dataset.work=w.currentBatch;
+  const title=document.createElement('span');title.className='beam-job-name';title.textContent=workLabel(w);item.title=title.textContent;
+  const mode=document.createElement('span');mode.className='beam-job-mode';mode.textContent=w.searchMode==='b2c'?'B2C':'B2B';
+  item.append(title,mode);
   if(w===state&&!beam.visible)item.setAttribute('aria-current','true');
   group.append(item);
   for(const id of beamKnownAsns(w)){

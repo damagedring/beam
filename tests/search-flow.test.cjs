@@ -26,8 +26,9 @@ const modes=new El(),orderRows=new Map([
 const entries=new Map([...orderRows].map(([id,[r]])=>[id,{expected:r.qty,nameKeys:id==='C1'?['가상 고객']:[],names:id==='C1'?['가상 고객']:[]}]));
 const b2b=['A1','B1','A2'],b2c=['C1'];
 const ix={modeIds:{b2b,b2c},modeSets:{b2b:new Set(b2b),b2c:new Set(b2c)},orderSearch:entries,core:{rawByReceipt:orderRows},stores:new Map([['a',{name:'가상 성수점',row:orderRows.get('A1')[0],receipts:['A1','A2']}],['b',{name:'가상 성수북점',row:orderRows.get('B1')[0],receipts:['B1']}]])};
-const entered=[],deferred={};
-const c=vm.createContext({$,document:{querySelector:()=>modes,querySelectorAll:()=>[],createElement:()=>new El()},window:{matchMedia:()=>({matches:true})},uiIndex:()=>ix,isB2C:()=>false,asnStoreKey:id=>({A1:'a',A2:'a',B1:'b'})[id]||'',rawRows:id=>orderRows.get(id)||[],receiptDisplay:id=>'Ext-'+id,receiptBarcodeValue:id=>id,encodeReceiptCode128:()=>({runs:[2,1,2],modules:25}),esc:x=>String(x??'').replace(/[&<>"']/g,'X'),customerLookupKey:v=>v.trim().toLowerCase(),trackingMatches:(q,filter)=>[...orderRows.keys()].filter(id=>filter(id)&&q.replaceAll('-','')===orderRows.get(id)[0].returnTracking?.replaceAll('-','')),looksLikeTracking:q=>/^[0-9-]{10,}$/.test(q),Engine:{masterInfo:()=>({})},state:{data:{raw:[...orderRows.values()].flat()}},language:'ko',dataImportBusy:false,entered,performance,printL:(a)=>a});
+const entered=[],deferred={},turns=[]; let reduced=true;
+El.prototype.firstElementChild={animate(frames,options){turns.push({frames,options});return {cancel(){}};}};
+const c=vm.createContext({$,document:{querySelector:()=>modes,querySelectorAll:()=>[],createElement:()=>new El()},window:{matchMedia:()=>({matches:reduced})},uiIndex:()=>ix,isB2C:()=>false,asnStoreKey:id=>({A1:'a',A2:'a',B1:'b'})[id]||'',rawRows:id=>orderRows.get(id)||[],receiptDisplay:id=>'Ext-'+id,receiptBarcodeValue:id=>id,encodeReceiptCode128:()=>({runs:[2,1,2],modules:25}),esc:x=>String(x??'').replace(/[&<>"']/g,'X'),customerLookupKey:v=>v.trim().toLowerCase(),trackingMatches:(q,filter)=>[...orderRows.keys()].filter(id=>filter(id)&&q.replaceAll('-','')===orderRows.get(id)[0].returnTracking?.replaceAll('-','')),looksLikeTracking:q=>/^[0-9-]{10,}$/.test(q),Engine:{masterInfo:()=>({})},state:{data:{raw:[...orderRows.values()].flat()}},language:'ko',dataImportBusy:false,entered,performance,printL:(a)=>a});
 vm.runInContext(searchKeys+'\n'+slice('const beam={mode:', 'function beamView(')+`\nfunction beamEnter(){entered.push(beam.candidate);} \$('beamStart').onclick=beamAdvance; globalThis.R={beam,beamRender};`,c);
 const beam=c.R.beam;
 function ev(key,target,more={}){return {key,target,preventDefault(){this.defaultPrevented=true},...more};}
@@ -35,6 +36,19 @@ const key=(name,more={})=>$('beamSearch').events.keydown(ev(name,active.element,
 const type=(which,v)=>{$(which).value=v;$(which).focus();$(which).oninput();};
 const inputKey=(which,name,more={})=>$(which).onkeydown(ev(name,$(which),more));
 c.R.beamRender();assert.equal($('beamStart').disabled,true);inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');
+reduced=false;
+type('beamQuery','성수');assert.ok(turns.some(t=>/rotateY\(52deg\)/.test(t.frames[0].transform)));
+const moving=turns.length;
+type('beamQuery','성수점');assert.equal(turns.length,moving); // the same anchor must not jitter
+type('beamQuery','성수');
+inputKey('beamQuery','ArrowDown');assert.equal(active.element.dataset.id,'A1');
+key('ArrowDown');assert.equal(beam.candidate,'B1');
+assert.ok(turns.slice(moving).some(t=>/rotateX\(41deg\)/.test(t.frames[0].transform)));
+key('ArrowLeft');assert.equal(beam.candidate,'A1');
+assert.ok(turns.slice(moving).some(t=>/rotateY\(-41deg\)/.test(t.frames[0].transform)));
+reduced=true;const motionBefore=turns.length;
+type('beamQuery','');assert.equal(turns.length,motionBefore);
+
 type('beamQuery','성수');assert.equal(beam.candidate,'A1');assert.equal($('beamNarrow').hidden,false);
 inputKey('beamQuery','Tab');assert.strictEqual(active.element,$('beamSku'));
 type('beamSku','123499990002');assert.equal(beam.candidate,'A2');
