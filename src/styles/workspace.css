@@ -3663,3 +3663,25 @@ html[data-theme="dark"] #beamSearch .beam-receipt:not([data-center="true"]) .bea
  }
  @media(forced-colors:active){#beamSearch :is(.beam-file-glass,.beam-file-paper){color:CanvasText;background:Canvas;border:1px solid}}
 }
+
+/* Beam's original utility artwork: role stays with the control, not the glyph. */
+:root{
+ --beam-upload-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16.25V3.75m-3.5 3.5 3.5-3.5 3.5 3.5M4.75 15.5v3.25a1.5 1.5 0 0 0 1.5 1.5h11.5a1.5 1.5 0 0 0 1.5-1.5V15.5'/%3E%3C/svg%3E");
+}
+.beam-icon-library{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
+.beam-ui-icon{width:18px;height:18px;flex:none;vertical-align:middle;display:inline-block;pointer-events:none}
+#theme .beam-ui-icon{width:18px;height:18px}
+#theme[aria-pressed=true] .beam-theme-night,#theme:not([aria-pressed=true]) .beam-theme-day{display:none}
+#receiptToggle[aria-expanded=true] .beam-ui-icon{transform:rotate(180deg)}
+.profile-shelf-arrow .beam-ui-icon,#beamSidebar .beam-job-asn .beam-ui-icon,.asn-tab-mark .beam-ui-icon{width:15px;height:15px}
+#beamSidebar .beam-job-asn .beam-ui-icon{margin-inline-start:auto}
+#newWorkTab .beam-ui-icon,#beamSidebar #beamNewWork .beam-ui-icon{width:16px;height:16px}
+#beamTerminal #scanform::before{content:none}
+#beamTerminal #scanform .beam-scan-prompt{
+ position:absolute;z-index:2;inset-inline-start:7px;top:50%;width:16px;height:16px;
+ transform:translateY(-50%);color:var(--term-focus);
+}
+@media print{.beam-scan-prompt,.beam-icon-library{display:none!important}}
+@media (forced-colors:active){
+ #dataDialog #openWorkbook::before{background:ButtonText;forced-color-adjust:none}
+}

@@ -74,6 +74,23 @@ test('single-profile shelf does not show decorative navigation or a position cou
  assert.equal(byClass(details,'profile-empty-mapping').textContent,'아직 저장된 연결이 없어요.');
 });
 
+test('shelf add button opens the existing create dialog and activates the new profile',async()=>{
+ const {shelf,details,read,c,document}=boot({a:profile('Alpha')},'a');
+ const add=byClass(shelf,'profile-shelf-add');
+ assert.equal(add.attributes.get('aria-label'),'프로필 추가');
+ assert.equal(add.children[0].attributes.get('aria-hidden'),'true');
+ assert.ok(!byClass(details,'profile-json-actions').find(el=>el.textContent==='새 프로필'));
+ const tx=await c.api.begin('sku','file');
+ assert.equal(add.disabled,true);tx.abort();assert.equal(add.disabled,false);
+ const pending=add.click();
+ const modal=document.body.children.at(-1);
+ assert.equal(modal.find(el=>el.id==='mappingDialogTitle').textContent,'새 프로필');
+ modal.find(el=>el.tag==='input').value='Sandbox';
+ modal.find(el=>el.textContent==='연결 확인').click();await pending;
+ assert.equal(current(shelf).title,'Sandbox');
+ assert.equal(Object.keys(read().profiles).length,2);
+});
+
 
 const raw=(name,sheetName,headerNames)=>({name,file:{raw:{version:1,kind:'raw',sheetName,signature:Object.values(headerNames),headerNames,returnChannelReviewed:true}},paste:{}});
 const work=raw('Example A','Intake A',{receipt:'Ref A',qty:'Count A',sku:'Item A'});

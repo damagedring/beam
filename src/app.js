@@ -416,6 +416,8 @@ const PhoneOrderUI=(()=>{
 
 let language='ko';try{language=localStorage.getItem('returns-app-language')==='en'?'en':'ko';}catch{}
 /* Local mapping preferences are intentionally separate from work state/JSON. */
+// The component owns meaning and accessibility; the sprite owns artwork.
+function beamIcon(role){return '<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-'+role+'"/></svg>';}
 const MappingUI=(()=>{
  const KEY='logistics-local-mapping-v1',kinds=['raw','sku','loc','phoneOrders'];
  // Mapping profiles are local operator inputs, not bundled warehouse presets.
@@ -768,10 +770,12 @@ const MappingUI=(()=>{
   const top=node('div',undefined,{className:'profile-shelf-heading'});
   const title=node('h3','',{id:'profileShelfTitle'});
   const page=node('span','',{className:'profile-shelf-page'});page.setAttribute('aria-hidden','true');
-  top.append(title,page);
+  const addProfile=node('button',undefined,{type:'button',className:'profile-shelf-add'});
+  const shelfTools=node('span',undefined,{className:'profile-shelf-tools'});
+  shelfTools.append(page,addProfile);top.append(title,shelfTools);
   const row=node('div',undefined,{className:'profile-shelf-row'});
-  const prev=node('button','‹',{type:'button',className:'profile-shelf-arrow'});
-  const next=node('button','›',{type:'button',className:'profile-shelf-arrow'});
+  const prev=node('button',undefined,{type:'button',className:'profile-shelf-arrow'});prev.append(icon('back'));
+  const next=node('button',undefined,{type:'button',className:'profile-shelf-arrow'});next.append(icon('forward'));
   const rail=node('div',undefined,{className:'profile-documents'});
   const activeInfo=node('p','',{className:'profile-active-info'});activeInfo.setAttribute('role','status');
   const status=node('p','',{className:'small profile-storage-note'});status.setAttribute('role','status');
@@ -813,11 +817,11 @@ const MappingUI=(()=>{
   const mappings=node('ul',undefined,{className:'profile-mapping-list'});
   const actions=node('div',undefined,{className:'profile-actions'});
   const io=node('div',undefined,{className:'profile-json-actions'});
-  const controlIcons={add:'M12 5v14 M5 12h14',rename:'m5 16 0 3 3 0 10-10-3-3z M13 8l3 3',columns:'M4 5h16v14H4z M10 5v14 M15 5v14 M4 9h16',out:'M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4',in:'M12 16V4m-4 4 4-4 4 4M5 16v4h14v-4'};
   function icon(id){
-   const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),path=document.createElementNS(ns,'path');
-   svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');
-   path.setAttribute('d',controlIcons[id]);svg.append(path);return svg;
+   const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),use=document.createElementNS(ns,'use');
+   const role={rename:'edit',out:'download',in:'upload',back:'chevron-left',forward:'chevron-right'}[id]||id;
+   svg.setAttribute('class','beam-ui-icon');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');
+   use.setAttribute('href','#beam-glyph-'+role);svg.append(use);return svg;
   }
   function action(parent,ko,english,fn,symbol=null,id='',blocked=()=>false){
    const button=node('button',undefined,{type:'button'}),caption=node('span','');if(id)button.id=id;
@@ -828,7 +832,7 @@ const MappingUI=(()=>{
   action(actions,'열 연결 편집','Edit column mapping',editConnection,'columns','',()=>!savedConnections().length);
   action(actions,'이름 변경','Rename',()=>editName(false),'rename');
   action(actions,'위치 표시 규칙','Location display rules',editLocationRules,null,'locationRulesButton');
-  action(io,'새 프로필','New profile',()=>editName(true),'add','',()=>entries().length>=50);
+  addProfile.append(icon('add'));addProfile.onclick=()=>editName(true);
   const file=node('input',undefined,{type:'file',accept:'.json,application/json',hidden:true});
   action(io,'JSON 불러오기','Import JSON',()=>{if(!busy)file.click();},'in');
   action(io,'JSON 내보내기','Export JSON',()=>{
@@ -857,7 +861,11 @@ const MappingUI=(()=>{
    retry.hidden=!lastWorkbook?.offer;retry.disabled=busy;
    retry.textContent=lastWorkbook?.offer?t('이 프로필로 다시 연결: ','Reconnect with this profile: ')+lastWorkbook.file.name:'';
    title.textContent=t('사용 중인 프로필','Active profile');
-   page.textContent=list.length>1?(index+1)+' / '+list.length:'';
+   page.textContent=list.length>1?(index+1)+' / '+list.length:'';page.hidden=list.length===1;
+   const createLabel=t('프로필 추가','Add profile');
+   addProfile.setAttribute('aria-label',createLabel);
+   addProfile.title=list.length>=50?t('프로필은 최대 50개입니다.','Up to 50 profiles are supported.'):createLabel;
+   addProfile.disabled=busy||list.length>=50;
    row.dataset.count=String(Math.min(list.length,3));
    prev.hidden=next.hidden=list.length===1;
    for(const [button,edge,label] of [[prev,index===0,t('이전 프로필','Previous profile')],[next,index===list.length-1,t('다음 프로필','Next profile')]]){
@@ -972,7 +980,7 @@ function drawWorkTabs(){
  state.currentBatch??=makeId();state.workNumber??=1;
  const tabs=[...(state.workSheets||[]),state].sort((a,b)=>a.workNumber-b.workNumber);
  const label=language==='en'?'Return work sheets':'반품 작업 시트';$('workDeck').setAttribute('aria-label',label);
- $('newWorkTab').textContent=language==='en'?'+ New work':'+ 새 작업';$('newWorkTab').disabled=!!dataImportBusy||tabs.length>=50;
+ $('beamNewWorkLabel').textContent=language==='en'?'New work':'새 작업';$('newWorkTab').disabled=!!dataImportBusy||tabs.length>=50;
  const shown=workLabel(state),key=JSON.stringify([language,shown,tabs.map(w=>[w.currentBatch,workLabel(w),w===state])]);if($('workTabs').dataset.renderKey!==key){
   const strip=$('workTabs'),active=document.activeElement?.dataset?.workTab;
   strip.dataset.renderKey=key;strip.replaceChildren(...tabs.map(w=>{const b=document.createElement('button');b.type='button';b.className='work-tab';b.dataset.workTab=w.currentBatch;b.textContent=workLabel(w);b.title=b.textContent;b.setAttribute('aria-pressed',String(w===state));if(w===state)b.setAttribute('aria-current','true');b.setAttribute('aria-controls','orderInspectionPanel');return b;}));if(active)[...strip.children].find(b=>b.dataset.workTab===active)?.focus({preventScroll:true});
@@ -1452,10 +1460,10 @@ $('demo').onclick=()=>{if(dirty&&!uiConfirm('예제 데이터로 현재 작업�
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});draw();
 
 let theme='light';try{const pref=localStorage.getItem('returns-app-theme');theme=pref==='dark'||pref==='light'?pref:(window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light');}catch{}
-function applyTheme(value){theme=value;document.documentElement?.setAttribute('data-theme',theme);$('theme').ariaPressed=String(theme==='dark');$('theme').textContent=theme==='dark'?'☀':'☾';$('theme').setAttribute?.('aria-label',tr(theme==='dark'?'라이트 모드로 전환':'다크 모드로 전환'));$('theme').setAttribute?.('title',tr(theme==='dark'?'라이트 모드로 전환':'다크 모드로 전환'));try{localStorage.setItem('returns-app-theme',theme);}catch{}}
+function applyTheme(value){theme=value;document.documentElement?.setAttribute('data-theme',theme);$('theme').ariaPressed=String(theme==='dark');$('theme').setAttribute?.('aria-label',tr(theme==='dark'?'라이트 모드로 전환':'다크 모드로 전환'));$('theme').setAttribute?.('title',tr(theme==='dark'?'라이트 모드로 전환':'다크 모드로 전환'));try{localStorage.setItem('returns-app-theme',theme);}catch{}}
 $('theme').onclick=()=>applyTheme(theme==='dark'?'light':'dark');applyTheme(theme);
 
-function switchLanguage(nextLanguage){const asnDraft=$('receipt').value;closeStoreList();language=nextLanguage==='en'?'en':'ko';try{localStorage.setItem('returns-app-language',language);}catch{}localizeStatic();refreshUI();draw();if(asnDraft!==receiptDisplay(state.receipt)){$('receipt').value=asnDraft;renderReceiptList();}applyTheme(theme);updateLanguageToggle();MappingUI.refresh();}$('language').onclick=()=>switchLanguage(language==='ko'?'en':'ko');$('language').onchange=()=>switchLanguage($('language').value);function updateLanguageToggle(){$('language').textContent=language==='ko'?'언어 · 한국어 / English':'Language · English / 한국어';const label=language==='ko'?'현재 한국어 · 영어로 변경':'Currently English · Switch to Korean';$('language').setAttribute('aria-label',label);$('language').setAttribute('title',label);$('language').value=language;}localizeStatic();draw();updateLanguageToggle();
+function switchLanguage(nextLanguage){const asnDraft=$('receipt').value;closeStoreList();language=nextLanguage==='en'?'en':'ko';try{localStorage.setItem('returns-app-language',language);}catch{}localizeStatic();refreshUI();draw();if(asnDraft!==receiptDisplay(state.receipt)){$('receipt').value=asnDraft;renderReceiptList();}applyTheme(theme);updateLanguageToggle();MappingUI.refresh();}$('language').onclick=()=>switchLanguage(language==='ko'?'en':'ko');$('language').onchange=()=>switchLanguage($('language').value);function updateLanguageToggle(){$('beamLanguageLabel').textContent=language==='ko'?'언어 · 한국어 / English':'Language · English / 한국어';const label=language==='ko'?'현재 한국어 · 영어로 변경':'Currently English · Switch to Korean';$('language').setAttribute('aria-label',label);$('language').setAttribute('title',label);$('language').value=language;}localizeStatic();draw();updateLanguageToggle();
 
 window.addEventListener('beforeprint',()=>{if(!printDocumentKind)$('printReport').innerHTML=inspectionReport();});
 window.addEventListener('afterprint',()=>{printDocumentKind='';document.title=printOriginalTitle||'beam';printOriginalTitle='';});
@@ -1552,7 +1560,7 @@ function completionLabel(record){
 function completionMark(id){
  const record=inspectionCompletion(id);if(!record)return '';
  const outcome=record.outcome==='difference'?'difference':'matched',label=esc(completionLabel(record));
- return '<span class="asn-tab-mark" data-outcome="'+outcome+'" role="img" aria-label="'+label+'" title="'+label+'">✓</span>';
+ return '<span class="asn-tab-mark" data-outcome="'+outcome+'" role="img" aria-label="'+label+'" title="'+label+'">'+beamIcon('check')+'</span>';
 }
 function completionState(){
  const result=inspectionReportState(true);
@@ -1734,7 +1742,7 @@ function drawOrderWorkspace(){
  const party=isB2C()?partyEntry?.names?.join(' / ')||partyRow?.seller:partyRow?.seller||partyRow?.company||state.store;
  heading.textContent=party||'';heading.hidden=!state.receipt||!party;
  const activeIndex=ids.indexOf(state.receipt),active=$('activeOrderSheet');active.dataset.orderPeek=state.receipt;$('activeOrderInfo').dataset.orderInfo=state.receipt;$('activeOrderInfo').disabled=!state.receipt;$('activeOrderInfo').setAttribute('aria-label',(receiptDisplay(state.receipt)||state.receipt||'')+' · '+(language==='en'?'Order inspection info':'오더 검수 정보'));active.style.order=String(Math.max(0,activeIndex));active.classList.toggle('is-order-active',!!state.receipt);active.setAttribute('aria-label',(language==='en'?'Selected order: ':'선택 오더: ')+(receiptDisplay(state.receipt)||state.receipt||'External order ID'));
- $('orderTabs').innerHTML=ids.map((id,i)=>{if(id===state.receipt)return '';const label=receiptDisplay(id)||id;return '<div class="order-sheet" style="order:'+i+'" role="group" data-order-peek="'+esc(id)+'" aria-label="'+esc(label)+'"><button type="button" class="order-sheet-select" data-order-tab="'+esc(id)+'" aria-controls="orderInspectionPanel" title="'+esc('Order ID '+id)+'"'+(state.receiptLocked?' disabled':'')+'><span class="order-key">'+esc(label)+'</span>'+completionMark(id)+'</button><button type="button" class="order-sheet-action order-info-button" data-order-info="'+esc(id)+'" aria-label="오더 검수 정보" aria-haspopup="dialog" aria-controls="orderInfoPopover"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 11v6M12 7v1"/></svg></button><button type="button" class="order-sheet-action" data-order-open="'+esc(id)+'" aria-label="'+esc(language==='en'?'Select order':'오더 선택')+'"'+(state.receiptLocked?' disabled':'')+'><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><button type="button" class="order-sheet-action" data-order-barcode="'+esc(id)+'" aria-label="Order ID PDA 바코드"'+(state.receiptLocked?' disabled':'')+'><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M3 4h2v16H3zm4 0h1v16H7zm3 0h3v16h-3zm5 0h1v16h-1zm3 0h3v16h-3z"/></svg></button></div>';}).join('');
+ $('orderTabs').innerHTML=ids.map((id,i)=>{if(id===state.receipt)return '';const label=receiptDisplay(id)||id;return '<div class="order-sheet" style="order:'+i+'" role="group" data-order-peek="'+esc(id)+'" aria-label="'+esc(label)+'"><button type="button" class="order-sheet-select" data-order-tab="'+esc(id)+'" aria-controls="orderInspectionPanel" title="'+esc('Order ID '+id)+'"'+(state.receiptLocked?' disabled':'')+'><span class="order-key">'+esc(label)+'</span>'+completionMark(id)+'</button><button type="button" class="order-sheet-action order-info-button" data-order-info="'+esc(id)+'" aria-label="오더 검수 정보" aria-haspopup="dialog" aria-controls="orderInfoPopover">'+beamIcon('info')+'</button><button type="button" class="order-sheet-action" data-order-open="'+esc(id)+'" aria-label="'+esc(language==='en'?'Select order':'오더 선택')+'"'+(state.receiptLocked?' disabled':'')+'>'+beamIcon('chevron-down')+'</button><button type="button" class="order-sheet-action" data-order-barcode="'+esc(id)+'" aria-label="Order ID PDA 바코드"'+(state.receiptLocked?' disabled':'')+'>'+beamIcon('barcode')+'</button></div>';}).join('');
  for(const b of $('orderTabs').querySelectorAll('[data-order-info]'))b.setAttribute('aria-label',(receiptDisplay(b.dataset.orderInfo)||b.dataset.orderInfo)+' · '+(language==='en'?'Order inspection info':'오더 검수 정보'));
  $('orderInspectionPanel').removeAttribute('aria-labelledby');$('orderInspectionPanel').setAttribute('aria-label',(language==='en'?'Selected order inspection: ':'선택 오더 검수: ')+(receiptDisplay(state.receipt)||state.receipt||'—'));
 }
@@ -1998,7 +2006,7 @@ function activityMarkup(events,compact=false){
 function syncActivityVisibility(){
  const collapsed=!!activityMinimized,button=$('activityMinimize');
  $('scanActivityViewport').hidden=collapsed;$('recentActivityBar').hidden=collapsed;
- button.textContent=collapsed?'+':'−';
+ button.innerHTML=beamIcon(collapsed?'add':'minus');
  button.setAttribute('aria-expanded',String(!collapsed));
  const label=language==='en'?(collapsed?'Restore recent entries':'Minimize recent entries'):(collapsed?'최근 입력 복원':'최근 입력 최소화');
  button.setAttribute('aria-label',label);button.setAttribute('title',label);
@@ -2781,7 +2789,8 @@ function beamDrawJobs(){
   for(const id of beamKnownAsns(w)){
    const b=document.createElement('button');b.type='button';b.className='beam-job-asn';b.dataset.work=w.currentBatch;b.dataset.asn=id;
    const complete=w.confirmations?.some(c=>c.receipt===id&&c.batch===w.currentBatch);
-   b.textContent=(complete?'✓  ':'')+(receiptDisplay(id)||id);
+   b.textContent=receiptDisplay(id)||id;
+   if(complete){b.insertAdjacentHTML('beforeend',beamIcon('check'));b.setAttribute('aria-label',b.textContent+' · '+beamL('검수 완료','Inspection complete'));}
    if(w===state&&id===state.receipt&&!beam.visible)b.setAttribute('aria-current','true');
    group.append(b);
   }

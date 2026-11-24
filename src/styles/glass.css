@@ -6,7 +6,10 @@
   #dataDialog #dataPanel{display:block;padding:0;margin:0;border:0}
   #dataDialog .workbook-import{margin:0 0 16px;padding:2px 0 0;border:0!important}
   #dataDialog #openWorkbook{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:48px;font-size:14px;font-weight:750}
-  #dataDialog #openWorkbook::before{content:'↑';font-size:20px;line-height:1}
+  #dataDialog #openWorkbook::before{
+   content:'';width:20px;height:20px;flex:none;background:currentColor;
+   -webkit-mask:var(--beam-upload-mask) center/contain no-repeat;mask:var(--beam-upload-mask) center/contain no-repeat;
+  }
   #dataDialog .data-privacy{margin:8px 2px 0;text-align:center;line-height:1.5}
   #dataDialog .raw-import-mode{display:flex!important;justify-content:flex-end;align-items:center;gap:8px;margin:13px 0 0!important;font-size:11px;flex-wrap:wrap}
   #dataDialog .raw-import-mode select{width:auto!important;max-width:100%;min-height:32px;font-size:12px}
@@ -69,7 +72,9 @@
    --satin-action:rgb(28 28 28 / .10);
    --satin-hover:rgb(28 28 28 / .127);
    --satin-selected:rgb(28 28 28 / .17);
-   --satin-veil:rgb(245 245 245 / .57);
+   --satin-veil:rgb(248 248 247 / .68);
+   --satin-spatial-cast:rgb(21 21 20 / .16);
+   --satin-spatial-light:rgb(255 255 255 / .48);
    --satin-polish:rgb(255 255 255 / .55);
    --satin-bloom:rgb(255 255 255 / .68);
    --satin-lowlight:rgb(12 12 12 / .06);
@@ -82,7 +87,9 @@
    --satin-action:rgb(255 255 255 / .156);
    --satin-hover:rgb(255 255 255 / .19);
    --satin-selected:rgb(255 255 255 / .25);
-   --satin-veil:rgb(59 59 59 / .56);
+   --satin-veil:rgb(48 48 47 / .72);
+   --satin-spatial-cast:rgb(0 0 0 / .55);
+   --satin-spatial-light:rgb(255 255 255 / .085);
    --satin-polish:rgb(255 255 255 / .08);
    --satin-bloom:rgb(255 255 255 / .14);
    --satin-lowlight:rgb(0 0 0 / .10);
@@ -111,13 +118,13 @@
    }
    body :is(dialog[open],#fileMenuPanel,#receiptList,#storeList,#beamSidebar,#discrepancyPopover,#orderInfoPopover,#questPeek,#availabilityNote,.beam-empty){
     background:
-     radial-gradient(ellipse 130% 80% at 4% 0%,var(--satin-bloom),transparent 80%),
-     linear-gradient(145deg,transparent 35%,var(--satin-lowlight)),
+     radial-gradient(ellipse 88% 60% at 24% 0%,var(--satin-spatial-light),transparent 80%),
+     linear-gradient(180deg,transparent 43%,var(--satin-lowlight)),
      var(--satin-veil)!important;
     border-color:transparent!important;
     -webkit-backdrop-filter:blur(28px) saturate(.48)!important;
     backdrop-filter:blur(28px) saturate(.48)!important;
-    box-shadow:0 18px 48px -12px var(--satin-depth)!important;
+    box-shadow:0 22px 52px -17px var(--satin-spatial-cast)!important;
    }
    body dialog::backdrop{
     background:var(--satin-scrim)!important;
@@ -299,5 +306,23 @@
   #beamSearch .beam-file-caption>strong{font-family:inherit!important;font-weight:760!important;font-size:clamp(16px,1.6vw,21px)!important;line-height:1.15!important}
   #beamSearch .beam-file-paper>strong{font-family:inherit!important;font-weight:700!important;font-size:clamp(9px,.9vw,13px)!important;line-height:1.25!important}
   #beamSearch .beam-receipt[data-folder=true]:focus-visible .beam-file-caption>strong{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.2em}
+ }
+}
+
+@layer beam-profile-shelf {
+ @media screen {
+  #dataDialog .profile-shelf-heading{align-items:center}
+  #dataDialog .profile-shelf-tools{display:inline-flex;align-items:center;gap:9px}
+  #dataDialog .profile-shelf-page[hidden]{display:none}
+  #dataDialog .profile-shelf-add{
+   display:grid;place-items:center;width:36px;height:36px;min-width:36px;min-height:36px;padding:0!important;
+   border:0!important;border-radius:11px!important;background:color-mix(in srgb,currentColor 8%,transparent)!important;
+   box-shadow:none!important;color:var(--beam-type)!important;
+  }
+  #dataDialog .profile-shelf-add:hover:not(:disabled){background:color-mix(in srgb,currentColor 14%,transparent)!important}
+  #dataDialog .profile-shelf-add:focus-visible{outline:1px solid currentColor!important;outline-offset:2px}
+  #dataDialog .profile-shelf-add svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  @media (pointer:coarse){#dataDialog .profile-shelf-add{width:44px;height:44px}}
+  @media(forced-colors:active){#dataDialog .profile-shelf-add{border:1px solid ButtonText!important}}
  }
 }
