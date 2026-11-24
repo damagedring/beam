@@ -7,7 +7,7 @@ const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const source = join(root, 'src');
 const destination = join(root, 'dist');
 const files = Object.freeze([
-  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js',
+  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js', 'domain/inspection-report.js',
   'domain/search-keys.js', 'domain/reconcile.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
 ]);

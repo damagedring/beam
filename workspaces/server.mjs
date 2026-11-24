@@ -18,7 +18,7 @@ const staticFiles=new Map([
 ]);
 const beamFiles=new Map([
  ['index.html','text/html; charset=utf-8'],['app.js','text/javascript; charset=utf-8'],['app.css','text/css; charset=utf-8'],
- ['import/workbook.js','text/javascript; charset=utf-8'],['domain/code128.js','text/javascript; charset=utf-8'],
+ ['import/workbook.js','text/javascript; charset=utf-8'],['domain/code128.js','text/javascript; charset=utf-8'],['domain/inspection-report.js','text/javascript; charset=utf-8'],
  ['domain/search-keys.js','text/javascript; charset=utf-8'],['domain/reconcile.js','text/javascript; charset=utf-8'],
  ['domain/scanner-input.js','text/javascript; charset=utf-8'],['ui/translations.js','text/javascript; charset=utf-8'],
  ['vendor/xml-parser.js','text/javascript; charset=utf-8'],['assets/pretendard-variable.woff2','font/woff2'],
