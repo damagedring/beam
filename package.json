@@ -9,7 +9,6 @@
   "scripts": {
     "build": "node tools/build.mjs",
     "serve": "node tools/serve.mjs",
-    "test": "node tools/build.mjs && node --test",
-    "serve:workspaces": "node tools/serve-workspaces.mjs"
+    "test": "node tools/build.mjs && node --test"
   }
 }

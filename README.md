@@ -30,5 +30,4 @@ GitHub Pages publishes only the allowlisted static assets from `dist/` after tes
 - `src/domain/`: reconciliation, scan ordering, recovery, Code 128, and report formatting.
 - `src/import/`: workbook reading and mapped-cell decoding.
 - `src/app.js` and `src/styles/`: workbench state, actions, and presentation.
-- [Internal Beam workspaces](docs/workspaces.md): optional company-network setup with brand-scoped invitations.
 - [Security and safe operation](docs/security.md): update guidance and data boundaries.
