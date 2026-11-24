@@ -9,8 +9,7 @@ const englishStatus=new Map([
  ['matched','Matched'],['short','Short'],['excess','Excess'],['unexpected','Unexpected'],['conflict','Data conflict'],['unidentified','Missing identifier'],
 ]);
 
-function orderBarcode(orderId){
- const label='Order No.';
+function orderBarcode(orderId,label='Order No.'){
  if(typeof orderId!=='string'||!/^[\x20-\x7e]{1,80}$/.test(orderId)||!orderId.trim()){
   return {paper:'portrait',markup:'<section class="pr-pda pr-pda-missing"><b>'+label+'</b><strong class="pr-pda-value">'+escape(show(orderId))+'</strong><small>'+'Barcode unavailable'+'</small></section>'};
  }
@@ -28,12 +27,25 @@ function orderBarcode(orderId){
   '<strong class="pr-pda-value">'+escape(orderId)+'</strong></section>'};
 }
 
-// Supply only the selected internal warehouse order ID and already reconciled
-// rows. The same paper layout accepts either returns or outbound workflows.
-export function renderInspectionReport({mode,orderId,externalId='',party='',rows=[]}){
+// The label is shared by comparison and history so the selected order never
+// gets replaced by an external reference or lost when printing scan history.
+export function renderInspectionHeader({mode,orderId,externalId='',party='',work='',history=false}){
  if(!['return','outbound'].includes(mode))throw TypeError('Unsupported inspection workflow');
- const title=mode==='return'?'Return Inspection Report':'Outbound Inspection Report';
- const barcode=orderBarcode(orderId),location=rows.some(r=>r.location&&r.location!=='—');
+ const title=(mode==='return'?'Return':'Outbound')+(history?' Inspection Scan History':' Inspection Report');
+ const barcode=orderBarcode(orderId,history?'Selected Order No.':'Order No.');
+ const markup='<div class="pr-label"><div class="pr-label-top">'+
+  '<div class="pr-label-mark" aria-hidden="true">B</div><div class="pr-label-head">'+
+  '<p class="pr-brand"><b>BEAM</b>'+(externalId&&externalId!==orderId?
+   '<span>External Order No. '+escape(externalId)+'</span>':'')+'</p>'+
+  '<h1>'+escape(title)+'</h1>'+
+  (party?'<p class="pr-label-party">'+escape(party)+'</p>':'')+
+  (work?'<p class="pr-label-work">'+escape(work)+'</p>':'')+'</div></div>'+
+  barcode.markup+'</div>';
+ return {markup,paper:barcode.paper,title};
+}
+
+export function renderInspectionReport({rows=[],...context}){
+ const header=renderInspectionHeader(context),location=rows.some(r=>r.location&&r.location!=='—');
  const columns=['Status','Barcode / SKU','Product',...(location?['Location']:[]),'Expected','Checked','Difference'];
  const widths=location?[15,20,25,16,8,8,8]:[16,25,35,8,8,8];
  const cells=(tag,values)=>values.map((v,i)=>'<'+tag+(tag==='th'?' scope="col"':'')+
@@ -45,15 +57,10 @@ export function renderInspectionReport({mode,orderId,externalId='',party='',rows
    ...(location?[show(r.location)]:[]),r.expected,r.actual,signed(r.actual-r.expected)])+'</tr>';
  }).join('');
  const totals=['Total','','',...(location?['']:[]),expected,actual,signed(actual-expected)];
- const markup='<article class="pr-inspection"><header class="pr-label"><div class="pr-label-top">'+
-  '<div class="pr-label-mark" aria-hidden="true">B</div><div class="pr-label-head">'+
-  '<p class="pr-brand"><b>BEAM</b>'+(externalId&&externalId!==orderId?
-   '<span>'+'External Order No. '+escape(externalId)+'</span>':'')+'</p>'+
-  '<h1>'+escape(title)+'</h1>'+(party?'<p class="pr-label-party">'+escape(party)+'</p>':'')+'</div></div>'+
-  barcode.markup+'</header><section class="pr-section"><table aria-label="'+'Inspection results'+'">'+
+ const markup='<article class="pr-inspection">'+header.markup+'<section class="pr-section"><table aria-label="Inspection results">'+
   '<colgroup>'+widths.map(w=>'<col style="width:'+w+'%">').join('')+'</colgroup>'+
   '<thead><tr>'+cells('th',columns)+'</tr></thead><tbody>'+
   (body||'<tr><td colspan="'+columns.length+'" class="pr-empty">'+'No inspection items'+'</td></tr>')+
   '</tbody><tfoot><tr>'+cells('td',totals)+'</tr></tfoot></table></section></article>';
- return {markup,paper:barcode.paper,title};
+ return {...header,markup};
 }

@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {encodeReceiptCode128} from '../src/domain/code128.js';
-import {renderInspectionReport} from '../src/domain/inspection-report.js';
+import {renderInspectionHeader,renderInspectionReport} from '../src/domain/inspection-report.js';
 
 const css=await readFile(new URL('../dist/app.css',import.meta.url),'utf8');
 const src=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
@@ -54,7 +54,7 @@ test('long supported IDs use landscape; unsupported values have no misleading ba
  }
 });
 test('the existing Return screen passes its selected internal order to the shared renderer',()=>{
- const api=vm.runInNewContext(cut('function inspectionReport(', 'function scanHistoryReport(')+'inspectionReport',{
+ const api=vm.runInNewContext(cut('function inspectionPrintContext(', 'function scanHistoryReport(')+'inspectionReport',{
   state:{receipt:'00001234'},rawRows:()=>[{seller:'Store',external:'EXT-55'}],printL:a=>a,language:'ko',isB2C:()=>false,
   sortProductRows:x=>x,currentOrderComparison:()=>[item],uiData:x=>x,tr:x=>x,pickingLocationExport:()=>'',
   renderInspectionReport,
@@ -62,4 +62,32 @@ test('the existing Return screen passes its selected internal order to the share
  const {markup}=api();
  assert.match(markup,/Return Inspection Report.*Code 128 · 00001234/);
  assert.doesNotMatch(markup,/Code 128 · EXT-55/);
+});
+
+test('the actual print handlers mount the work, order and Code 128 for both menus and native print',()=>{
+ const root={dataset:{},innerHTML:''},handlers={};
+ const document={title:'Beam'};
+ const runtime={
+  state:{receipt:'00001234',workNumber:12},rawRows:()=>[{seller:'Example',external:'EX-08'}],
+  isB2C:()=>false,sortProductRows:x=>x,currentOrderComparison:()=>[item],pickingLocationExport:()=>'',
+  renderInspectionHeader,renderInspectionReport,sheetEvents:()=>[],activeWorkAudit:()=>[],
+  esc:String,printL:(ko,en)=>en,notice(){},date:()=>new Date().toISOString(),document,
+  $:()=>root,window:{print(){handlers.body=root.innerHTML;},addEventListener(name,fn){handlers[name]=fn;}}
+ };
+ const listeners=src.split('\n').filter(l=>/^window.addEventListener\('(before|after)print'/.test(l)).join('\n');
+ const api=vm.runInNewContext(cut('function printLocalTime(', "$('print').onclick=")+listeners+'\nopenPrintDocument',runtime);
+ for(const [kind,title] of [['comparison','Return Inspection Report'],['history','Return Inspection Scan History']]){
+  api(kind);
+  assert.match(handlers.body,new RegExp('<h1>'+title+'</h1>'));
+  assert.match(handlers.body,/Work 12 · B2B.*Code 128 · 00001234/);
+  assert.doesNotMatch(handlers.body,/<header class="pr-label"|Code 128 · EX-08/);
+  handlers.beforeprint();
+  assert.equal(root.innerHTML,handlers.body);
+  handlers.afterprint();
+  assert.equal(document.title,'Beam');
+ }
+ handlers.beforeprint();
+ assert.match(root.innerHTML,/Return Inspection Report.*Code 128 · 00001234/);
+ assert.doesNotMatch(root.innerHTML,/\[object Object\]/);
+ assert.equal(root.dataset.paper,'portrait');
 });

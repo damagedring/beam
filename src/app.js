@@ -2,7 +2,7 @@ import { createScannerBurst } from "./domain/scanner-input.js";
 import { key, units, eventCode, matches, getIndex, invalidate, masterInfo, reconcile, asnProgress, storeMatches, inspectEntry, entryOutcome, candidateReceipts, readScanIndex, excessEntrySet } from "./domain/reconcile.js";
 import { readWorkbook as readSpreadsheet } from "./import/workbook.js";
 import { encodeReceiptCode128 } from "./domain/code128.js";
-import { renderInspectionReport } from "./domain/inspection-report.js";
+import { renderInspectionHeader, renderInspectionReport } from "./domain/inspection-report.js";
 import { trackingExactKey, trackingKey, trackingNumericCore, looksLikeTracking, beamInitialKey } from "./domain/search-keys.js";
 import { translations } from "./ui/translations.js";
 
@@ -1675,47 +1675,49 @@ function printLocalTime(value){
  const pad=n=>String(n).padStart(2,'0'),m=-d.getTimezoneOffset(),offset=(m<0?'-':'+')+pad(Math.floor(Math.abs(m)/60))+':'+pad(Math.abs(m)%60);
  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+' UTC'+offset;
 }
-function printSheet(title,caption,fields,sections,notes){
- const label=printL('인쇄 시각','Printed at');
- return '<header class="pr-heading"><p class="pr-brand"><b>BEAM</b><span>RETURN OPERATIONS</span></p><h1>'+esc(title)+'</h1><p class="pr-caption-line">'+esc(caption)+'</p>'
-  +'<p class="pr-issued">'+esc(label)+' <b>'+esc(printLocalTime(new Date().toISOString()))+'</b></p></header>'
-  +'<div class="pr-tear" aria-hidden="true"><i></i></div><div class="pr-sheet-meta"><div class="pr-band">'+esc(printL('문서 정보','DOCUMENT DETAILS'))+'</div><dl class="pr-fields">'+fields.map(([k,v])=>'<div><dt>'+esc(k)+'</dt><dd>'+esc(v===''||v==null?'—':v)+'</dd></div>').join('')+'</dl></div>'
-  +sections.join('')+'<div class="pr-end"><div class="pr-band">'+esc(printL('비고','NOTES'))+'</div><p>'+esc(notes)+'</p></div>';
-}
 function printGrid(title,labels,widths,rows,{numeric=[],total=null}={}){
  const cls=i=>numeric.includes(i)?' class="pr-number"':'';
  return '<section class="pr-section"><h2>'+esc(title)+'</h2><table><colgroup>'+widths.map(w=>'<col style="width:'+w+'%">').join('')+'</colgroup><thead><tr>'+labels.map((v,i)=>'<th scope="col"'+cls(i)+'>'+esc(v)+'</th>').join('')+'</tr></thead><tbody>'+
- (rows.length?rows.map(row=>'<tr>'+row.map((v,i)=>'<td'+cls(i)+'>'+esc(v)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+labels.length+'" class="pr-empty">'+esc(printL('표시할 기록 없음','No records'))+'</td></tr>')+
+ (rows.length?rows.map(row=>'<tr>'+row.map((v,i)=>'<td'+cls(i)+'>'+esc(v)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+labels.length+'" class="pr-empty">'+'No records'+'</td></tr>')+
  '</tbody>'+(!total?'':'<tfoot><tr>'+total.map((v,i)=>'<td'+cls(i)+'>'+esc(v)+'</td>').join('')+'</tr></tfoot>')+'</table></section>';
 }
-function inspectionReport(){
+function inspectionPrintContext(){
  const receipt=state.receipt,meta=rawRows(receipt);
  const field=k=>[...new Set(meta.map(r=>r[k]).filter(Boolean))].join(' / ');
  const party=isB2C()?MappingCore.checkedCustomerNames(state.customerNames,state.data.raw)[receipt]?.join(' / ')||field('seller'):field('seller');
+ return {mode:'return',orderId:receipt,externalId:field('external'),party,work:'Work '+(state.workNumber||1)+' · '+(isB2C()?'B2C':'B2B')};
+}
+function inspectionReport(){
  const rows=sortProductRows(currentOrderComparison()).map(r=>({
   status:r.status,held:!!r.heldDisplay,
   barcode:r.barcode,sku:r.sku,name:r.name,location:pickingLocationExport(r),expected:r.expected,actual:r.actual,
  }));
- return renderInspectionReport({mode:'return',orderId:receipt,externalId:field('external'),party,rows});
+ return renderInspectionReport({...inspectionPrintContext(),rows});
 }
 function scanHistoryReport(){
- const l=printL,active=sheetEvents(true,'all'),audit=activeWorkAudit();
+ const header=renderInspectionHeader({...inspectionPrintContext(),history:true});
+ const active=sheetEvents(true,'all'),audit=activeWorkAudit();
  const inferred=active.some(e=>!e.scanOutcome)?legacyScanOutcomes(active):null;
- const inputs=active.map(e=>{const result=e.scanOutcome??inferred?.get(e);const labels={accepted:l('정상','Accepted'),excess:l('수량 초과','Excess'),unknown:l('현재 ASN에 없음','Not on this ASN'),conflict:l('상품 정보 충돌','Product data conflict'),held:l('보류','Held')};return [printLocalTime(e.at),e.receipt||e.holdOrigin||'—',Engine.eventCode(e),Engine.units(e),labels[result]||'—',e.id||'—'];}).sort((a,b)=>a[0].localeCompare(b[0]));
- const log=audit.flatMap(a=>(a.events?.length?a.events:[null]).map(e=>{return [printLocalTime(a.at),a.action||'—',a.receipt||'—',e?Engine.eventCode(e):'—',e?Engine.units(e):'',e?printLocalTime(e.at):'—',[a.note,e?.id,a.id].filter(Boolean).join(' · ')||'—'];}));
- return printSheet(l('반품 검수 스캔 이력','RETURN INSPECTION SCAN HISTORY'),l('현재 작업 · 스캔 및 변경 기록','CURRENT WORK · INPUT AND AUDIT LOG'),
- [[l('기록 범위','Scope'),workLabel(state)],[l('유효·보류 입력','Retained inputs'),active.length],[l('변경 사건','Audit events'),audit.length],[l('시간 기준','Time basis'),Intl.DateTimeFormat().resolvedOptions().timeZone||'local']],
- [printGrid(l('01  현재 남아 있는 스캔','01  RETAINED SCANS'),[l('입력 시각','Input time'),'ASN',l('입력 코드','Code'),l('수량','Qty'),l('상태','Status'),l('입력 ID','Input ID')],[25,15,20,7,11,22],inputs,{numeric:[3]}),printGrid(l('02  취소·배정 등 변경 이력','02  AUDIT LOG'),[l('변경 시각','Event time'),l('동작','Action'),'ASN',l('입력 코드','Code'),l('수량','Qty'),l('원본 입력 시각','Original input time'),l('참고 / ID','Reference / ID')],[18,15,11,13,6,18,19],log,{numeric:[4]})],
- l('기기 시계 기준입니다. 취소된 스캔은 변경 이력에서 확인할 수 있으며 유효 입력에는 포함되지 않습니다.','Times use the device clock. Canceled inputs appear in the audit log, not in retained scans.'));
+ const statuses={accepted:'Accepted',excess:'Excess',unknown:'Not on this order',conflict:'Product data conflict',held:'Held'};
+ const inputs=active.map(e=>[printLocalTime(e.at),e.receipt||e.holdOrigin||'—',Engine.eventCode(e),Engine.units(e),statuses[e.scanOutcome??inferred?.get(e)]||'—',e.id||'—']).sort((a,b)=>a[0].localeCompare(b[0]));
+ const log=audit.flatMap(a=>(a.events?.length?a.events:[null]).map(e=>[printLocalTime(a.at),a.action||'—',a.receipt||'—',e?Engine.eventCode(e):'—',e?Engine.units(e):'',e?printLocalTime(e.at):'—',[a.note,e?.id,a.id].filter(Boolean).join(' · ')||'—']));
+ const tables=[
+  printGrid('Retained Scans',['Input time','Order No.','Code','Qty','Status','Input ID'],[25,15,20,7,11,22],inputs,{numeric:[3]}),
+  printGrid('Audit Log',['Event time','Action','Order No.','Code','Qty','Original input time','Reference / ID'],[18,15,11,13,6,18,19],log,{numeric:[4]})
+ ];
+ return {...header,markup:'<article class="pr-inspection">'+header.markup+tables.join('')+'</article>'};
 }
 let printDocumentKind='',printOriginalTitle='';
+function mountPrintTarget(target){
+ const root=$('printReport');
+ root.dataset.paper=target.paper;
+ root.innerHTML=target.markup;
+}
 function openPrintDocument(kind){
- if(kind==='comparison'&&!state.receipt)return;
- const target=kind==='history'?{markup:scanHistoryReport(),paper:'portrait',title:'Scan history'}:inspectionReport();
- const printReport=$('printReport');
- printReport.dataset.paper=target.paper;
- printReport.innerHTML=target.markup;printDocumentKind=kind;printOriginalTitle=document.title;
- document.title=(kind==='history'?'beam - Scan history':'beam - '+target.title+' '+String(state.receipt).replace(/[^\p{L}\p{N}_.-]/gu,'-'))+' - '+date().slice(0,10);
+ if(!state.receipt||printDocumentKind)return;
+ const target=kind==='history'?scanHistoryReport():inspectionReport();
+ mountPrintTarget(target);printDocumentKind=kind;printOriginalTitle=document.title;
+ document.title='beam - '+target.title+' '+String(state.receipt).replace(/[^\p{L}\p{N}_.-]/gu,'-')+' - '+date().slice(0,10);
  notice(printL('인쇄 창에서 PDF로 저장을 선택하세요.','Choose Save as PDF in the print dialog.'));
  const finish=()=>{if(printDocumentKind===kind)window.print();};
  if(document.fonts?.ready)document.fonts.ready.then(finish,finish);else finish();
@@ -1732,8 +1734,8 @@ $('theme').onclick=()=>applyTheme(theme==='dark'?'light':'dark');applyTheme(them
 
 function switchLanguage(nextLanguage){const asnDraft=$('receipt').value;closeStoreList();language=nextLanguage==='en'?'en':'ko';try{localStorage.setItem('returns-app-language',language);}catch{}localizeStatic();refreshUI();draw();if(asnDraft!==receiptDisplay(state.receipt)){$('receipt').value=asnDraft;renderReceiptList();}applyTheme(theme);updateLanguageToggle();MappingUI.refresh();browserRecovery?.refresh();}$('language').onclick=()=>switchLanguage(language==='ko'?'en':'ko');$('language').onchange=()=>switchLanguage($('language').value);function updateLanguageToggle(){$('beamLanguageLabel').textContent=language==='ko'?'언어 · 한국어 / English':'Language · English / 한국어';const label=language==='ko'?'현재 한국어 · 영어로 변경':'Currently English · Switch to Korean';$('language').setAttribute('aria-label',label);$('language').setAttribute('title',label);$('language').value=language;}localizeStatic();draw();updateLanguageToggle();
 
-window.addEventListener('beforeprint',()=>{if(!printDocumentKind)$('printReport').innerHTML=inspectionReport();});
-window.addEventListener('afterprint',()=>{printDocumentKind='';document.title=printOriginalTitle||'beam';printOriginalTitle='';});
+window.addEventListener('beforeprint',()=>{if(!printDocumentKind)mountPrintTarget(inspectionReport());});
+window.addEventListener('afterprint',()=>{if(printOriginalTitle)document.title=printOriginalTitle;printDocumentKind='';printOriginalTitle='';});
 
 function confirmInspection(skipPending=false,summaryOnly=false){
  if(!state.receipt)return {blocked:true,message:tr('ASN을 선택해 주세요.')};

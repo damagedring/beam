@@ -3829,3 +3829,60 @@ body>header{padding-inline:9px!important;gap:4px!important}
   display:block;width:clamp(20px,2.1vw,26px);height:clamp(20px,2.1vw,26px)
  }
 }
+
+/* Inspection glass: neutral outer material, recessed scanner, dark scan ledger.
+   The sampled phosphor colors carry information, never the window chrome. */
+@media screen and (forced-colors:none){
+ html[data-theme] #sheetWorkspace #beamTerminal{
+  --neon-cyan:#a0f0fc;--neon-lime:#cbfca1;--neon-yellow:#f7fca1;--neon-red:#fca1a1;
+  --scan-well:#151515;--scan-well-active:#1c1c1c;--scan-text:#f5f5f5;--scan-hint:#bcbcbc;
+  --recent-surface:#222222;--recent-sticky:#2a2a2a;
+  --complete-bg:#effbdc;--complete-ink:#30551d;
+  --lemon-fill:#f9fbd6;--lemon-ink:#505209;
+  --coral-fill:#fde7e7;--coral-ink:#862f36;
+  --beam-error-fill:var(--lemon-fill);--beam-error-ink:var(--lemon-ink);
+  --console-blend:linear-gradient(148deg,#fafafae8,#eeeeeee8);
+  --console-cast:#1717171a;--console-inset:#fff9;
+ }
+ html[data-theme=dark] #sheetWorkspace #beamTerminal{
+  --term-bg:#252525;--term-head:#ffffff09;--term-ink:#efefef;--term-dim:#bdbdbd;
+  --term-rule:#ffffff19;--term-edge:#ffffff2d;--term-select:#ffffff14;--term-side:#ffffff12;
+  --console-sticky-head:#2b2b2b;--console-go:#dedede;--console-go-ink:#171717;
+  --console-blend:linear-gradient(148deg,#353535e8,#242424eb);
+  --console-inset:#fff2;--console-cast:#0006;
+  --complete-bg:#293624;--complete-ink:var(--neon-lime);
+  --lemon-fill:#353621;--lemon-ink:var(--neon-yellow);
+  --coral-fill:#412d2d;--coral-ink:var(--neon-red);
+ }
+ /* Rebind semantic aliases here so inherited values resolve to these local pairs. */
+ html[data-theme] #sheetWorkspace #beamTerminal,
+ html[data-theme] #sheetWorkspace #beamTerminal #scanActivitySection{
+  --warning-bg:var(--lemon-fill);--warning-ink:var(--lemon-ink);
+  --shortage-bg:var(--lemon-fill);--shortage-ink:var(--lemon-ink);
+  --progress-bg:var(--lemon-fill);--progress-ink:var(--lemon-ink);
+  --excess-bg:var(--coral-fill);--excess-ink:var(--coral-ink);
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode{
+  background:var(--scan-well)!important;color:var(--scan-text)!important;caret-color:var(--neon-cyan);
+  border-radius:8px!important;box-shadow:inset 0 1px 0 #ffffff13,inset 0 2px 6px #0005!important;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode::placeholder{color:var(--scan-hint)!important;opacity:1}
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode:focus{
+  background:var(--scan-well-active)!important;outline:0!important;
+  box-shadow:inset 0 0 0 1px #a0f0fc54,0 0 11px #a0f0fc38!important;
+ }
+ #beamTerminal #scanform::before{color:var(--neon-cyan)}
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #scanActivitySection{
+  --term-ink:#efefef;--term-dim:#bdbdbd;--term-head:#ffffff09;--term-rule:#ffffff19;
+  --term-edge:#ffffff2d;--term-select:#ffffff12;--term-side:#ffffff12;
+  --complete-bg:#293624;--complete-ink:var(--neon-lime);
+  --lemon-fill:#353621;--lemon-ink:var(--neon-yellow);
+  --coral-fill:#412d2d;--coral-ink:var(--neon-red);
+  background:var(--recent-surface)!important;color:var(--term-ink);
+ }
+ #beamTerminal #scanActivitySection #recentActivityRef{color:var(--term-dim)}
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #scanActivitySection .compact-activity th{
+  background:var(--recent-sticky)!important;color:var(--term-dim)!important;
+ }
+ #beamTerminal #scanActivitySection :is(button,[tabindex]):focus-visible{outline-color:var(--neon-cyan)!important}
+}
