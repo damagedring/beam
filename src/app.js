@@ -2707,10 +2707,10 @@ function beamPartyLabel(id,mode){
  const head=rawRows(id)[0]||{},entry=uiIndex().orderSearch.get(id);
  return mode==='b2c'?entry?.names?.join(' / ')||head.seller||'—':head.seller||head.company||'—';
 }
-function beamTicketFace(id,mode,compact=false){
+function beamTicketFace(id,mode,compact=false,{long=false}={}){
  const raw=rawRows(id),entry=uiIndex().orderSearch.get(id),head=raw[0]||{};
  const party=beamPartyLabel(id,mode),ext=receiptDisplay(id)||'—',value=compact?'':receiptBarcodeValue(id),d=beamIndex().dateById.get(id);
- const amount=esc((entry?.expected??0).toLocaleString()),limit=compact?3:4;
+ const amount=esc((entry?.expected??0).toLocaleString()),limit=long?200:compact?3:4;
  const rows=raw.slice(0,limit).map(r=>'<span class="beam-line beam-ticket-item"><span title="'+esc(r.name||r.sku||r.barcode||'—')+'">'+esc(r.name||r.sku||r.barcode||'—')+'</span><i>'+esc(r.qty)+'</i></span>').join('');
  const more=raw.length>limit?'<span class="beam-ticket-more">+ '+(raw.length-limit)+' '+beamL('행','lines')+'</span>':'';
  const tracking=head.returnTracking?'<span class="beam-ticket-ref"><span>'+beamL('반송장번호','Return tracking')+'</span><b title="'+esc(head.returnTracking)+'">'+esc(head.returnTracking)+'</b></span>':'';
@@ -2766,13 +2766,13 @@ const beamFolderTotal=n=>n.toLocaleString()+' EA';
 function beamFolderFace(el,group,preview=false){
  const at=beam.folderPeek.get(group.key)||0,id=group.ids[at],label=beamPartyLabel(id,beam.mode);
  const {items,total}=beamFolderItems(rawRows(id)),ext=receiptDisplay(id)||id;
- const position=(at+1)+' / '+group.ids.length;
- el.dataset.peek=String(preview);
+ const position=(at+1)+' / '+group.ids.length,long=beam.openFolderPreview===group.key;
+ el.dataset.peek=String(preview);el.dataset.longPeek=String(long);
  el.innerHTML='<span class="beam-file" aria-hidden="true">'
  +'<span class="beam-file-back"></span>'
  +(group.ids.length>1?'<span class="beam-file-sheet beam-file-sheet-left"></span>':'')
  +(group.ids.length>2?'<span class="beam-file-sheet beam-file-sheet-right"></span>':'')
- +'<span class="beam-file-window"><span class="beam-file-paper">'+beamTicketFace(id,beam.mode)+'</span></span>'
+ +'<span class="beam-file-window"><span class="beam-file-paper">'+beamTicketFace(id,beam.mode,false,{long})+'</span></span>'
  +'<span class="beam-file-glass"><span class="beam-file-position">'+position+'</span><span class="beam-file-arrow">↗</span></span></span>'
  +'<span class="beam-file-caption"><strong title="'+esc(label)+'">'+esc(label)+'</strong><span>'+beamL('주문 ','Orders: ')+group.ids.length.toLocaleString()+beamL('건','')+'</span></span>';
  el.setAttribute('aria-label',label+beamL(' · 주문 ',' · Orders: ')+group.ids.length+(preview?' · '+position+' · '+ext+' · '+beamFolderCount(items.length)+' · '+beamL('합계 ','Total ')+beamFolderTotal(total):''));
@@ -2800,19 +2800,35 @@ function beamOpenFolderReceipt(){
  openUtilityDialog('beamFolderReceiptDialog','beamFolderReceiptOpen','beamFolderReceiptClose');
  $('beamFolderReceiptScroll').scrollTop=0;
 }
+function beamSizeLongFolder(){
+ const stage=$('beamStage'),el=beam.nodes.get(beam.browseAnchor);
+ const paper=el?.dataset.longPeek==='true'?el.querySelector('.beam-file-paper'):null;
+ if(!beam.openFolderPreview||!paper?.getBoundingClientRect||!stage.clientHeight){
+  delete stage.dataset.longPeek;beam.folderStageHeight=null;return;
+ }
+ const base=beam.folderStageHeight??stage.clientHeight;
+ beam.folderStageHeight=base;
+ stage.style.setProperty('--beam-peek-anchor',Math.round(base*.47)+'px');
+ stage.style.setProperty('--beam-peek-height',base+'px');
+ stage.dataset.longPeek='true';
+ const needed=paper.getBoundingClientRect().bottom-stage.getBoundingClientRect().top+22;
+ stage.style.setProperty('--beam-peek-height',Math.ceil(Math.max(base,needed))+'px');
+}
 function beamPeekFolder(el,step){
  const group=beam.phase!=='asn'&&beam.groups?.byId.get(el?.dataset.id);
  if(!group||dataImportBusy)return false;
  const from=beam.folderPeek.get(group.key)||0,to=Math.max(0,Math.min(group.ids.length-1,from+step));
- if(to===from)return false;
- beam.folderPeek.set(group.key,to);beamFolderFace(el,group,true);
+ const center=el.dataset.id===beam.browseAnchor,firstPull=center&&beam.openFolderPreview!==group.key;
+ if(to===from&&!firstPull)return false;
+ if(center)beam.openFolderPreview=group.key;
+ beam.folderPeek.set(group.key,to);beamFolderFace(el,group,true);beamSizeLongFolder();
  const paper=el.querySelector('.beam-file-paper');
  if(paper?.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
   paper.animate([{translate:'0 '+(step>0?26:-12)+'px',opacity:.4},{translate:'0 0',opacity:1}],{duration:260,easing:'cubic-bezier(.17,.74,.24,1)'});
  }
  return true;
 }
-function beamResetSelection(){beam.phase='search';beam.party='';beam.picked='';}
+function beamResetSelection(){beam.phase='search';beam.party='';beam.picked='';beam.openFolderPreview='';}
 function beamFocusCard(){beam.nodes.get(beam.browseAnchor)?.focus({preventScroll:true});}
 function beamAdvance(){
  if(dataImportBusy||!beam.candidate)return;
@@ -2829,7 +2845,7 @@ function beamAdvance(){
  beamRender(beam.phase==='asn'?'open-folder':true);beamFocusCard();
 }
 function beamBackStep(edit=false){
- if(!edit&&beam.phase==='asn'){beam.phase='party';beamRender(true);beamFocusCard();return;}
+ if(!edit&&beam.phase==='asn'){beam.phase='party';beam.ribbonAxis='x';beamRender(true);beamFocusCard();return;}
  beamResetSelection();beamRender(true);$('beamQuery').focus({preventScroll:true});
 }
 function beamStep(direction,axis='x'){
@@ -2891,6 +2907,7 @@ function beamRender(animate=false){
  const chosen=selectedGroup&&groups.byId.get(beam.picked)===selectedGroup?beam.picked:selectedGroup?.rep;
  const browseAnchor=partyMode?selectedGroup.rep:asnMode?chosen:(groups.byId.get(beam.picked)?.rep??browse[0]);
  const at=Math.max(0,browse.indexOf(browseAnchor));
+ if(!folders||groups.byId.get(browseAnchor)?.key!==beam.openFolderPreview)beam.openFolderPreview='';
  beam.filteredIds=filtered;beam.browseIds=browse;beam.browseAnchor=browseAnchor;beam.candidate=partyMode?chosen||selectedGroup.rep:browse[at]||'';
  const root=$('beamSearch'),find=$('beamFindFold'),edit=$('beamEditSearch'),start=$('beamStart'),stage=$('beamStage'),rail=$('beamRailLabel');
  root.dataset.pickPhase=phase;stage.dataset.folders=String(folders);find.inert=fold;find.setAttribute('aria-hidden',String(fold));edit.hidden=!fold;
@@ -2942,10 +2959,10 @@ function beamRender(animate=false){
   const face=folders?'folder':String(slot===0);
   if(folders){
    el.dataset.folder='true';
-   if(el.dataset.face!==face||el.beamFolderGroup!==group)beamFolderFace(el,group,beam.folderPeek.has(group.key));
+   if(el.dataset.face!==face||el.beamFolderGroup!==group||(el.dataset.longPeek==='true')!==(beam.openFolderPreview===group.key))beamFolderFace(el,group,beam.folderPeek.has(group.key));
    el.beamFolderGroup=group;
   }else{
-   delete el.dataset.folder;delete el.dataset.peek;
+   delete el.dataset.folder;delete el.dataset.peek;delete el.dataset.longPeek;el.removeAttribute('title');
    if(el.dataset.face!==face)el.innerHTML=beamTicketFace(id,beam.mode,slot!==0);
    if(slot===0&&animate==='open-folder'&&!reduced){
     el.insertAdjacentHTML('beforeend','<span class="beam-file-opening" aria-hidden="true"></span>');
@@ -2969,7 +2986,7 @@ function beamRender(animate=false){
    [{opacity:0},{opacity:Number(el.style.opacity)}],{duration:200,easing:'ease-out'});
  }
  if(active&&!reduced&&changedResult&&(animate==='query'||animate==='step'))beamTurnPaper(animate,beam.ribbonAxis||'x',Math.sign(travel)||1);
- beam.revealedReceipt=active;beam.hadQuery=!!lookup.q;
+ beam.revealedReceipt=active;beam.hadQuery=!!lookup.q;beamSizeLongFolder();
 }
 function beamInput(isSku=false){
  if(isSku){const next=beamCode($('beamSku').value);if(next===beam.sku)return;beam.sku=next;}else{const next=$('beamQuery').value;if(next===beam.query)return;beam.query=next;beam.sku='';$('beamSku').value='';}
@@ -3004,6 +3021,7 @@ function beamPick(id,animate=true){
  beam.picked=id;if(beam.phase==='party')beam.party=beam.groups.byId.get(id).key;beamRender(animate);
 }
 const beamRibbon=$('beamStage');
+window.addEventListener?.('resize',()=>{if(beam.openFolderPreview){delete beamRibbon.dataset.longPeek;beam.folderStageHeight=null;beamSizeLongFolder();}});
 let ribbonPointer=null,ribbonClickUntil=0;
 function beamDrawRibbonDrag(n){
  for(const el of beam.nodes.values())beamPlaceOnRibbon(el,Number(el.dataset.ribbonSlot),n);
@@ -3048,7 +3066,9 @@ beamRibbon.addEventListener('wheel',e=>{
  if(!el||e.ctrlKey||e.metaKey||Math.abs(e.deltaY)<=Math.abs(e.deltaX)||!e.deltaY)return;
  const group=beam.groups.byId.get(el.dataset.id);if(!group)return;
  const from=beam.folderPeek.get(group.key)||0,step=Math.sign(e.deltaY);
- if(group.ids.length<2||from+step<0||from+step>=group.ids.length)return;
+ const atEnd=from+step<0||from+step>=group.ids.length;
+ const canPull=el.dataset.id===beam.browseAnchor&&beam.openFolderPreview!==group.key;
+ if(atEnd&&!canPull)return;
  e.preventDefault();
  const now=performance.now();
  if(folderWheel.id!==el.dataset.id||now-folderWheel.at>280||Math.sign(folderWheel.delta)!==step)folderWheel={id:el.dataset.id,delta:0,at:now-145};
@@ -3078,9 +3098,11 @@ $('beamNext').onclick=()=>beamStep(1);
 $('beamEditSearch').onclick=()=>beamBackStep(true);
 $('beamSearch').addEventListener('keydown',e=>{
  if((beam.phase==='search'&&!e.target.closest?.('.beam-receipt'))||e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
- if(e.key==='Escape'){e.preventDefault();beamBackStep();return;}
- const folder=e.target.closest?.('[data-folder=true]');
- if(folder&&(e.key==='PageDown'||e.key==='PageUp')){e.preventDefault();beamPeekFolder(folder,e.key==='PageDown'?1:-1);return;}
+ if(e.key==='Escape'){e.preventDefault();if(beam.openFolderPreview){beam.openFolderPreview='';beamRender();beamFocusCard();return;}beamBackStep();return;}
+ const folder=beam.phase!=='asn'&&(e.target.closest?.('[data-folder=true]')||beam.nodes.get(beam.browseAnchor));
+ if(folder&&['ArrowDown','ArrowUp','PageDown','PageUp'].includes(e.key)){
+  e.preventDefault();beamPeekFolder(folder,e.key.endsWith('Down')?1:-1);return;
+ }
  const direction={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];
  if(direction){e.preventDefault();beamStep(direction,/Up|Down/.test(e.key)?'y':'x');}
  else if(e.key==='Enter'&&(e.target===$('beamStart')||e.target.closest?.('.beam-receipt'))){

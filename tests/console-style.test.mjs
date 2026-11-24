@@ -36,3 +36,13 @@ test('last scan shows a visible quantity, with shortage, equality or surplus spe
  assert.equal(label(7,6,false).detail,'1개 초과');
  assert.equal(label(1,6,true).detail,'5 remaining');
 });
+
+
+test('normal displays do not paint focus glows while forced contrast and selected cards stay supported',async()=>{
+ const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
+ const joined=css+'\n'+glass;
+ assert.doesNotMatch(joined,/:focus(?:-visible|-within)?[^{}]*\{[^{}]*(?:box-shadow|filter):\s*(?!none)[^{}]*drop-shadow/);
+ assert.match(css,/\(forced-colors:none\)\{\s*html\[data-theme\] body :focus\{outline:none!important/);
+ assert.match(css,/\(forced-colors:active\)[^\n]*Highlight/);
+ assert.match(glass,/\[data-center=true\] \.beam-file-caption>strong\{font-size:clamp\(24px,3.2vw,38px\)!important/);
+});
