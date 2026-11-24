@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <title>Beam · 작업공간</title>
+ <link rel="stylesheet" href="./app.css">
+ <script type="module" src="./app.js"></script>
+</head>
+<body>
+ <header><a href="/beam/" class="wordmark">Beam</a><nav aria-label="작업공간 메뉴"><button id="join-tab" type="button" aria-current="page">작업공간 참여</button><button id="host-tab" type="button">작업공간 관리</button></nav></header>
+ <main>
+  <section id="join-view" aria-labelledby="join-title">
+   <h1 id="join-title">작업공간 참여</h1>
+   <p>Teams에서 받은 링크를 열거나 코드를 입력하세요. Beam 계정은 필요 없어요.</p>
+   <form id="join-form">
+    <label for="code">초대 코드</label>
+    <div class="fields"><input id="code" type="text" spellcheck="false" autocomplete="off" autocapitalize="characters" placeholder="XXXXX-XXXXX" maxlength="18" required><button type="submit" class="primary">참여 요청</button></div>
+   </form>
+   <ul id="my-spaces" class="cards" aria-label="나의 작업공간"></ul>
+  </section>
+  <section id="host-view" aria-labelledby="host-title" hidden>
+   <h1 id="host-title">작업공간 관리</h1>
+   <form id="host-form">
+    <p>브랜드 책임자에게 발급된 관리 키가 필요해요.</p>
+    <label for="key">관리 키</label>
+    <div class="fields"><input id="key" type="password" maxlength="128" autocomplete="off" required><button type="submit" class="primary">작업공간 관리 열기</button></div>
+   </form>
+   <div id="host-panel" hidden>
+    <h2 id="organization"></h2>
+    <p>관리하는 브랜드별로 Teams 초대를 만들 수 있어요.</p>
+    <ul id="host-spaces" class="cards" aria-label="관리 중인 작업공간"></ul>
+    <button id="signout" type="button">관리 화면 잠그기</button>
+   </div>
+  </section>
+  <p id="status" role="status" aria-live="polite"></p>
+  <p class="foot">작업공간 참여는 작업 공간 연결만 허용해요. RAW와 검수 기록은 전송하지 않아요.</p>
+ </main>
+ <dialog id="copy-dialog" aria-labelledby="copy-title">
+  <h2 id="copy-title">Teams에 붙여넣기</h2><label for="copy-text">초대 내용</label>
+  <textarea id="copy-text" readonly rows="4"></textarea>
+  <button type="button" id="copy-close" class="primary">닫기</button>
+ </dialog>
+</body>
+</html>

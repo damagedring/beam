@@ -31,3 +31,9 @@ For GitHub Pages, select **GitHub Actions** as the Pages source. The Pages workf
 The hosting service serves static application assets. XLSX files, searches, and scans are processed in the browser, not by the hosting service. Profiles and saved work may remain in the browser or in files an operator explicitly saves. A shared workstation or an exported file has its own access-control risks. Use synthetic data on public demos. The site is not a WMS and never writes to inventory.
 
 Inspection records are autosaved in this browser. After a reload, import the same reference workbook and mappings and choose **Recover work**. A different reference or customer-lookup set cannot restore that draft. Browser storage can be cleared by browser settings, private browsing, or storage limits; download a separate work file if you need a durable backup. No reference workbook or lookup file is included in the browser recovery draft.
+
+## Internal workspaces
+
+For an optional company-network-only setup with separate brand invites and no
+worker account in Beam, see [Internal Beam workspaces](docs/workspaces.md).
+This feature is not shipped on the public static site.

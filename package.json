@@ -3,10 +3,13 @@
   "version": "1.58.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "node tools/build.mjs",
     "serve": "node tools/serve.mjs",
-    "test": "node tools/build.mjs && node --test"
+    "test": "node tools/build.mjs && node --test",
+    "serve:workspaces": "node tools/serve-workspaces.mjs"
   }
 }
