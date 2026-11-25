@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { execFileSync } from 'node:child_process';
 
 const dist = new URL('../dist/',import.meta.url);
-const files = ['.nojekyll','app.css','app.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2','domain/code128.js','domain/reconcile.js','domain/scanner-input.js','domain/search-keys.js','import/workbook.js','index.html','ui/translations.js','vendor/xml-parser.js'];
+const files = ['.nojekyll','app.css','app.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2','domain/browser-recovery.js','domain/code128.js', 'domain/inspection-report.js','domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','import/workbook.js','index.html','ui/translations.js','vendor/xml-parser.js'];
 const read=(name)=>readFile(new URL(name,dist),'utf8');
 
 test('static distribution allowlist, syntax and all relative module targets', async () => {
@@ -15,6 +15,9 @@ test('static distribution allowlist, syntax and all relative module targets', as
   assert.ok(entries.every(entry=>entry.isDirectory()||entry.isFile()));
   const base=decodeURIComponent(dist.pathname);
   assert.deepEqual(entries.filter(entry=>entry.isFile()).map(entry=>relative(fileURLToPath(dist),join(entry.parentPath,entry.name))).sort(),files);
+  const html=await read('index.html');
+  const moduleRevision=html.match(/src="\.\/app\.js\?v=([a-f0-9]{12})"/)?.[1];
+  assert.ok(moduleRevision);
   for(const name of files.filter(x=>x.endsWith('.js'))){
     execFileSync(process.execPath,['--check',new URL(name,dist).pathname]);
     const text=await read(name);
@@ -22,6 +25,7 @@ test('static distribution allowlist, syntax and all relative module targets', as
       assert.ok(/^[.]{1,2}\//.test(m[1]));
       const target=new URL(m[1],new URL(name,dist));
       assert.ok(files.includes(target.pathname.slice(base.length)));
+      assert.equal(target.search,'?v='+moduleRevision);
     }
   }
 });
@@ -31,7 +35,7 @@ test('no runtime network submissions, private branding, or external resource lin
   const css=await read('app.css');
   const js=await read('app.js');
   for(const policy of ["default-src 'none'","connect-src 'none'","form-action 'none'","script-src-attr 'none'","base-uri 'none'"])assert.ok(html.includes(policy));
-  assert.match(html,/<script type="module" src="\.\/app\.js"><\/script>/);
+  assert.match(html,/<script type="module" src="\.\/app\.js\?v=[a-f0-9]{12}"><\/script>/);
   assert.doesNotMatch(html,/\s(?:src|href)=["'](?:https?:)?\/\//i);
   assert.doesNotMatch(css,/@import\b|url\s*\(\s*["']?(?:https?:)?\/\//i);
   assert.doesNotMatch(js,/\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts)\s*\(/);
@@ -57,4 +61,12 @@ test('satin glass uses filter support rather than requiring a transparency prefe
   assert.doesNotMatch(layer,/prefers-reduced-transparency\s*:\s*no-preference/);
   assert.match(layer,/@supports \(backdrop-filter:blur\(2px\)\) or \(-webkit-backdrop-filter:blur\(2px\)\)/);
   assert.match(layer,/@media \(prefers-reduced-transparency:reduce\)[\s\S]+background:revert-layer!important;[\s\S]+backdrop-filter:none!important/);
+});
+
+test('v0.11 release keeps the approved document and styles except its version and module revision',async()=>{
+ const [html,css]=await Promise.all([read('index.html'),read('app.css')]);
+ const normalized=html.replace(/src="\.\/app\.js\?v=[0-9a-f]{12}"/,'src="./app.js"').replace(' · v0.11',' · v0.10');
+ const sha=value=>createHash('sha256').update(value).digest('hex');
+ assert.equal(sha(normalized),'b9874b80234bdc030c8819ba2934ca25f4b391bb7951e130c5868e90ad5c995d');
+ assert.equal(sha(css),'cc1868c74b49a556e8f2a8a23d3d204b462d7395eb30c74b2b3316d4e95c23b6');
 });

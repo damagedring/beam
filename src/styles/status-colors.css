@@ -1,0 +1,52 @@
+/* The one source of truth for information colors. Screen components consume
+   semantic roles. Print intentionally remains monochrome. */
+:root {
+ --status-match:#cbfca1;
+ --status-short:#f7fca1;
+ --status-over:#fca1a1;
+ --status-info:#a0f0fc;
+}
+
+@media screen {
+ :root {
+  --status-neutral-ink:#505050;--status-neutral-bg:#e8e8e8;
+  --status-bg-base:#fff;
+  --status-fg-base:#111;
+  --status-bg-mix:30%;
+  --status-fg-mix:28%;
+ }
+ html[data-theme=dark],html #scanActivitySection {
+  --status-neutral-ink:#d2d2d2;--status-neutral-bg:#303030;
+  --status-bg-base:#1d1d1d;
+  --status-fg-base:#f5f5f5;
+  --status-bg-mix:15%;
+  --status-fg-mix:100%;
+ }
+ html,html[data-theme=dark],html #scanActivitySection {
+  --complete-ink:color-mix(in srgb,var(--status-match) var(--status-fg-mix),var(--status-fg-base));
+  --complete-bg:color-mix(in srgb,var(--status-match) var(--status-bg-mix),var(--status-bg-base));
+  --lemon-ink:color-mix(in srgb,var(--status-short) var(--status-fg-mix),var(--status-fg-base));
+  --lemon-fill:color-mix(in srgb,var(--status-short) var(--status-bg-mix),var(--status-bg-base));
+  --lemon-edge:color-mix(in srgb,var(--status-short) 35%,var(--lemon-ink));
+  --lemon-alert:var(--status-short);
+  --alert-ink:#151515;
+  --coral-ink:color-mix(in srgb,var(--status-over) var(--status-fg-mix),var(--status-fg-base));
+  --coral-fill:color-mix(in srgb,var(--status-over) var(--status-bg-mix),var(--status-bg-base));
+  --coral-edge:color-mix(in srgb,var(--status-over) 35%,var(--coral-ink));
+  --info-ink:color-mix(in srgb,var(--status-info) var(--status-fg-mix),var(--status-fg-base));
+  --info-fill:color-mix(in srgb,var(--status-info) var(--status-bg-mix),var(--status-bg-base));
+  --warning-ink:var(--lemon-ink);--warning-bg:var(--lemon-fill);
+  --shortage-ink:var(--lemon-ink);--shortage-bg:var(--lemon-fill);
+  --progress-ink:var(--shortage-ink);--progress-bg:var(--shortage-bg);
+  --excess-ink:var(--coral-ink);--excess-bg:var(--coral-fill);
+  --beam-error-ink:var(--warning-ink);--beam-error-fill:var(--warning-bg);--beam-error-edge:var(--lemon-edge);
+ }
+ @media(forced-colors:active){
+  html,html[data-theme=dark],html #scanActivitySection{
+   --status-neutral-ink:CanvasText;--status-neutral-bg:Canvas;
+   --complete-ink:CanvasText;--complete-bg:Canvas;
+   --lemon-ink:CanvasText;--lemon-fill:Canvas;--lemon-edge:Highlight;--lemon-alert:Canvas;--alert-ink:CanvasText;
+   --coral-ink:CanvasText;--coral-fill:Canvas;--coral-edge:Highlight;--info-ink:LinkText;--info-fill:Canvas;
+  }
+ }
+}

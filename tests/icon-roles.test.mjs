@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
+import {runInNewContext} from 'node:vm';
 
 const read=(name)=>readFile(new URL('../dist/'+name,import.meta.url),'utf8');
 test('the functional icon family is local, complete and keeps control semantics',async()=>{
@@ -19,8 +20,23 @@ test('the functional icon family is local, complete and keeps control semantics'
   assert.match(button(id),/<svg\b[^>]*aria-hidden="true"[^>]*focusable="false"/,id);
  }
  assert.match(button('availabilityToggle'),/role="switch".*aria-checked="false"/);
+ assert.match(button('availabilityToggle'),/<span lang="en">Location<\/span>/);
  assert.match(button('availabilityToggle'),/beam-glyph-eye-open.*beam-glyph-eye-closed/);
  assert.match(button('theme'),/beam-glyph-moon.*beam-glyph-sun/);
+ assert.match(js,/class="status-symbol.*beamIcon\('warning'\)/);
  assert.match(js,/beamIcon\(collapsed\?'add':'minus'\)/);
  assert.match(js,/role="img" aria-label="'\+label[^\n]+beamIcon\('check'\)/);
+});
+
+
+test('one accepted scan gets a check without claiming that expected quantities match',async()=>{
+ const src=await read('app.js');
+ const logic=src.slice(src.indexOf('function activityCellState('),src.indexOf('function syncAvailabilitySetting('));
+ const state=runInNewContext(logic+'\nactivityCellState',{language:'en',tr:x=>x});
+ assert.equal(state({scanOutcome:'accepted',status:'부족',expected:6,actual:1},true).kind,'accepted');
+ assert.equal(state({scanOutcome:'accepted',status:'부족',expected:6,actual:1},true).symbol,'✓');
+ assert.equal(state({status:'부족',expected:6,actual:1}).kind,'progress');
+ assert.equal(state({status:'일치',expected:6,actual:6}).symbol,'O');
+ assert.equal(state({scanOutcome:'excess',status:'초과',expected:6,actual:7},true).symbol,'⚠︎');
+ assert.match(src,/visual.kind==='accepted'\?beamIcon\('check'\)/);
 });

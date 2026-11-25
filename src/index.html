@@ -27,7 +27,9 @@
 <symbol id="beam-glyph-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.05"/><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4m0-12.8L17 7M7 17l-1.4 1.4"/></g></symbol>
 <symbol id="beam-glyph-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5h4l.65 2.3 1.64.95 2.3-.6 2 3.45-1.67 1.68v1.9l1.67 1.68-2 3.46-2.3-.61-1.64.95L14 21h-4l-.65-2.34-1.64-.95-2.3.61-2-3.46 1.67-1.68v-1.9L3.41 9.6l2-3.45 2.3.6 1.64-.95Z"/><circle cx="12" cy="12.25" r="2.65"/></g></symbol>
 <symbol id="beam-glyph-database" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6.45" rx="7.25" ry="2.95"/><path d="M4.75 6.5v11.1c0 1.6 3.25 2.9 7.25 2.9s7.25-1.3 7.25-2.9V6.5M4.75 12c0 1.6 3.25 2.9 7.25 2.9s7.25-1.3 7.25-2.9"/></g></symbol>
+<symbol id="beam-glyph-open-file" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 18.5V6.8a1.6 1.6 0 0 1 1.6-1.6h4.1l2.1 2.2h6.2a1.6 1.6 0 0 1 1.6 1.6v1.3M4.9 19.7h12.4a1.8 1.8 0 0 0 1.7-1.2l2.2-6.1a1.2 1.2 0 0 0-1.1-1.6H8.2a1.6 1.6 0 0 0-1.5 1l-3 6.1a1.2 1.2 0 0 0 1.2 1.8Z"/></g></symbol>
 <symbol id="beam-glyph-folder" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.2A1.7 1.7 0 0 1 5.2 5.5h4.2l2.05 2.3h7.3a1.7 1.7 0 0 1 1.7 1.7v8.8A1.7 1.7 0 0 1 18.75 20H5.2a1.7 1.7 0 0 1-1.7-1.7Z"/></g></symbol>
+<symbol id="beam-glyph-warning" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.72 3.52a1.48 1.48 0 0 1 2.56 0l9.01 15.7a1.52 1.52 0 0 1-1.32 2.28H3.03a1.52 1.52 0 0 1-1.32-2.28l9.01-15.7ZM12 8a1 1 0 0 0-1 1v4.75a1 1 0 1 0 2 0V9a1 1 0 0 0-1-1Zm0 10.4a1.15 1.15 0 1 0 0-2.3 1.15 1.15 0 0 0 0 2.3Z"/></symbol>
 <symbol id="beam-glyph-add" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.25v13.5M5.25 12h13.5"/></g></symbol>
 <symbol id="beam-glyph-minus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.25 12h13.5"/></g></symbol>
 <symbol id="beam-glyph-language" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.25"/><path d="M3.75 12h16.5M12 3.75c2.1 2.1 3.25 4.85 3.25 8.25s-1.15 6.15-3.25 8.25c-2.1-2.1-3.25-4.85-3.25-8.25s1.15-6.15 3.25-8.25Z"/></g></symbol>
@@ -60,9 +62,10 @@
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-download"/></svg>
 </button>
 </span>
-<button type="button" id="beamBack" hidden aria-controls="beamSearch" aria-label="ASN 검색으로 돌아가기">
+<button type="button" id="beamHomeBack" hidden aria-controls="beamHome" data-ko="업무 선택" data-en="Work selection">업무 선택</button>
+<button type="button" id="beamBack" hidden aria-controls="beamSearch" aria-label="반품 주문 검색으로 돌아가기">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-chevron-left"/></svg>
-<span data-ko="ASN 검색" data-en="ASN search">ASN 검색</span>
+<span data-ko="반품 주문 검색" data-en="Return order search">반품 주문 검색</span>
 </button>
 <div class="beam-modes" role="group" aria-label="검색 방식">
 <button type="button" data-beam-mode="b2b" aria-pressed="true">B2B</button>
@@ -77,7 +80,7 @@
 <div class="toolbar">
 <div class="availability-setting header-availability">
 <button id="availabilityToggle" type="button" role="switch" aria-checked="false" aria-describedby="availabilityNote">
-<span data-ko="피킹 위치" data-en="Picking locations">피킹 위치</span>
+<span lang="en">Location</span>
 <svg class="beam-ui-icon loc-eye" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use class="loc-eye-open" href="#beam-glyph-eye-open"/><use class="loc-eye-closed" href="#beam-glyph-eye-closed"/></svg>
 <b id="availabilityState" hidden>OFF</b>
 </button>
@@ -142,8 +145,17 @@
 <nav id="beamJobs" aria-label="작업 및 ASN 시트"></nav>
 <div class="beam-drawer-foot"><button type="button" id="beamNewWork"><span data-ko="새 작업" data-en="New work">새 작업</span><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-add"/></svg></button></div>
 </aside>
-<section id="beamSearch" aria-labelledby="beamSearchTitle">
- <h1 id="beamSearchTitle" class="beam-sr">반품 ASN 검색</h1>
+<main id="beamHome" aria-labelledby="beamHomeTitle" tabindex="-1">
+ <h1 id="beamHomeTitle" class="beam-sr" data-ko="업무 선택" data-en="Work selection">업무 선택</h1>
+ <ul class="beam-home-choices" aria-label="업무 선택">
+  <li id="beamHomeSlotInbound"><button type="button" id="beamHomeInbound" class="beam-home-word" aria-describedby="beamHomeInboundHint"><span class="beam-home-en" lang="en">Inbound</span> <span class="beam-home-ko" lang="ko">입고</span></button><small id="beamHomeInboundHint" data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
+  <li id="beamHomeSlotOutbound"><button type="button" id="beamHomeOutbound" class="beam-home-word" aria-describedby="beamHomeOutboundHint"><span class="beam-home-en" lang="en">Outbound</span> <span class="beam-home-ko" lang="ko">출고</span></button><small id="beamHomeOutboundHint" data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
+  <li id="beamHomeSlotInventory"><button type="button" id="beamHomeInventory" class="beam-home-word" aria-describedby="beamHomeInventoryHint"><span class="beam-home-en" lang="en">Inventory</span> <span class="beam-home-ko" lang="ko">재고관리</span></button><small id="beamHomeInventoryHint" data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
+  <li id="beamHomeSlotReturns"><button type="button" id="beamHomeReturns" class="beam-home-word" aria-controls="beamSearch"><span class="beam-home-en" lang="en">Returns</span> <span class="beam-home-ko" lang="ko">반품</span></button></li>
+ </ul>
+</main>
+<section id="beamSearch" aria-labelledby="beamSearchTitle" hidden inert>
+ <h1 id="beamSearchTitle" class="beam-sr">반품 주문 검색</h1>
  <div class="beam-find-fold" id="beamFindFold">
 <div class="beam-find-clip">
 <div class="beam-find">
@@ -179,7 +191,7 @@
 <p id="beamSearchStatus" role="status" aria-live="polite">
 </p>
 </div>
- <div class="beam-stage" id="beamStage" role="group" aria-label="반품 ASN 후보">
+ <div class="beam-stage" id="beamStage" role="group" aria-label="반품 주문 후보">
 </div>
  <div class="beam-empty" id="beamEmpty" hidden>
 <strong id="beamEmptyTitle">
@@ -241,6 +253,7 @@
 </section>
 </div>
 </div>
+<section id="inspectionOrderSurface" aria-label="선택 주문 검수 시트" data-ko-label="선택 주문 검수 시트" data-en-label="Selected order inspection sheet">
 <section id="orderWorkspace" aria-label="현재 작업 안의 ASN">
 <div class="order-workspace-top">
 <section id="activeOrderSheet" class="overview-asn order-selector" aria-labelledby="overviewAsnLabel">
@@ -395,10 +408,11 @@
 <div class="last-scanned-product-line">
 <strong id="lastScannedName">
 </strong>
-<span id="lastScannedProgress">
-</span>
-<progress id="lastScannedBar" max="100" value="0" aria-label="최근 스캔 상품 검수 진행률" hidden>
-</progress>
+<div id="lastScannedProgressGroup" class="last-scanned-progress-group" hidden>
+<strong id="lastScannedProgress"></strong>
+<span id="lastScannedRemaining"></span>
+<progress id="lastScannedBar" max="100" value="0" data-ko-label="최근 스캔 상품 검수 진행률" data-en-label="Last scanned product progress" aria-label="최근 스캔 상품 검수 진행률"></progress>
+</div>
 </div>
 <div class="last-scanned-codes">
 <span id="lastScannedSku">
@@ -558,6 +572,7 @@
 </div>
 </main>
 </div>
+</section>
 </div>
 <div id="orderSummarySource" hidden>
 <div class="asn-numbers">
@@ -682,10 +697,9 @@
 </div>
 <div class="panel" id="dataPanel">
 <div class="workbook-import">
-<button id="openWorkbook" type="button">통합 파일 불러오기</button>
-<section id="profileShelf" class="profile-shelf" aria-labelledby="profileShelfTitle"></section>
-<p class="small data-privacy" data-ko="XLSX · XLSM / 파일은 이 브라우저에서만 읽어요." data-en="XLSX · XLSM / Files are read only in this browser.">XLSX · XLSM / 파일은 이 브라우저에서만 읽어요.</p>
-<input id="workbookFile" type="file" accept=".xlsx,.xlsm" hidden>
+<section id="profileShelf" class="profile-shelf" aria-labelledby="profileShelfTitle"><button id="openWorkbook" type="button" aria-describedby="referenceFileTypes"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-open-file"/></svg><span data-ko="불러오기" data-en="Import">불러오기</span></button></section>
+<p id="referenceFileTypes" class="small data-privacy" data-ko="RAW 엑셀 (.xlsx, .xlsm) · 프로필 (.json) / 브라우저에서만 읽어요." data-en="RAW workbook (.xlsx, .xlsm) · Profile (.json) / Read only in this browser.">RAW 엑셀 (.xlsx, .xlsm) · 프로필 (.json) / 브라우저에서만 읽어요.</p>
+<input id="workbookFile" type="file" accept=".xlsx,.xlsm,.json,application/json" hidden>
 <label class="raw-import-mode" for="rawImportMode">
 <span id="rawImportModeLabel">예정 자료 적용</span>
 <select id="rawImportMode">
@@ -914,7 +928,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</pre>
  <tbody id="beamFolderReceiptRows"></tbody></table>
  <button type="button" id="beamFolderReceiptMore" hidden></button>
 </div>
-<p id="beamFolderReceiptTotal"></p>
+<div class="beam-long-receipt-foot">
+ <p id="beamFolderReceiptTotal"></p>
+ <div id="beamFolderReceiptNav" hidden>
+  <button type="button" id="beamFolderReceiptPrev" aria-label="이전 영수증" data-ko-label="이전 영수증" data-en-label="Previous receipt"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-arrow-left"/></svg></button>
+  <span id="beamFolderReceiptPosition" role="status" aria-atomic="true"></span>
+  <button type="button" id="beamFolderReceiptNext" aria-label="다음 영수증" data-ko-label="다음 영수증" data-en-label="Next receipt"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-arrow-right"/></svg></button>
+ </div>
+</div>
 </dialog>
 <dialog id="asnShareDialog" aria-labelledby="asnShareTitle">
 <div class="dialog-heading">
@@ -924,17 +945,17 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</pre>
 <div class="beam-share-actions">
 <button id="print" type="button">
 <span data-ko="대조 결과 PDF" data-en="Comparison PDF">대조 결과 PDF</span>
-<small data-ko="현재 ASN · PDA 바코드 포함" data-en="This ASN · PDA barcode included">현재 ASN · PDA 바코드 포함</small>
+<small data-ko="현재 주문 · 전산 바코드 포함" data-en="Selected order · Barcode included">현재 주문 · 전산 바코드 포함</small>
 </button>
 <button id="evidence" type="button">
 <span data-ko="스캔 이력 PDF" data-en="Scan history PDF">스캔 이력 PDF</span>
-<small data-ko="이 작업 전체" data-en="Entire work sheet">이 작업 전체</small>
+<small data-ko="이 작업 전체 · 선택 주문 바코드" data-en="Entire work sheet · Selected order barcode">이 작업 전체 · 선택 주문 바코드</small>
 </button>
 </div>
 </dialog>
 <article id="printReport">
 </article>
-<footer>로컬 작업 · v1.58</footer>
+<footer>로컬 작업 · v0.11</footer>
 <input id="file" type="file" accept=".xlsx,.xlsm" class="hidden">
 <input id="backup" type="file" accept=".json" class="hidden">
 </body></html>

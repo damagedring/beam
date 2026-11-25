@@ -85,3 +85,35 @@ test('large reference data and long scans read only the appended entries when ag
  assert.equal(reconcile(large,'0',list)[0].actual,600);
  assert.equal(readCount,600);
 });
+
+test('indexed excess budgets exactly preserve selection for mixed batches, whole inputs, aliases and conflicts',()=>{
+ const timestamp='2026-11-24T00:00:00Z';
+ const raw=[
+  {receipt:'A',sku:'sku-a',barcode:'101',qty:7},
+  {receipt:'A',sku:'sku-b',qty:4},
+  {receipt:'A',sku:'sku-c',barcode:'303',qty:1,name:'x'},
+  {receipt:'A',sku:'sku-conflict',barcode:'303',qty:1,name:'y'},
+  {receipt:'B',sku:'sku-a',barcode:'101',qty:2},
+  {receipt:'B',unresolvedId:'missing',qty:2},
+ ];
+ const data={raw,sku:[{sku:'sku-b',barcode:'202',name:'Alias'}],loc:[]};
+ const codes=['101','sku-a','202','303','9999'];
+ const scan=(i)=>({id:String(i+1),receipt:i%7?'A':'B',kind:i%3===0?'code':'barcode',barcode:codes[i%5],sequence:i%19,at:timestamp,qty:(i%7)+1,batch:i%4?'now':'older'});
+ let scans=[];
+ for(let i=0;i<180;i++){
+  scans.push(scan(i));
+  if(i%21===0)scans=scans.filter(e=>+e.id%3);
+  const previous=new Set();
+  for(const [receipt,events] of readScanIndex(scans).byReceipt){
+   const budget=new Map(reconcile(data,receipt,scans).filter(r=>!r.unregistered&&!r.conflict&&!r.unresolved&&r.excess>0).map(r=>[r.key,r.excess]));
+   for(const event of events.filter(e=>e.batch==='now').sort((a,b)=>(b.sequence||0)-(a.sequence||0)||Date.parse(b.at)-Date.parse(a.at))){
+    const {row}=inspectEntry(data,receipt,scans,event);
+    if(!row||!budget.has(row.key))continue;
+    const remaining=budget.get(row.key)-event.qty;
+    if(remaining>=0)previous.add(event.id);
+    if(remaining<=0)budget.delete(row.key);else budget.set(row.key,remaining);
+   }
+  }
+  assert.deepEqual([...excessEntrySet(data,scans,'now',()=>true)],[...previous]);
+ }
+});

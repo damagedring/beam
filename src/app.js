@@ -1,7 +1,10 @@
+import { latestScanEvent, recentScanEvents, scanHistoryPage } from "./domain/scan-history.js";
+import { BrowserRecovery } from "./domain/browser-recovery.js";
 import { createScannerBurst } from "./domain/scanner-input.js";
 import { key, units, eventCode, matches, getIndex, invalidate, masterInfo, reconcile, asnProgress, storeMatches, inspectEntry, entryOutcome, candidateReceipts, readScanIndex, excessEntrySet } from "./domain/reconcile.js";
 import { readWorkbook as readSpreadsheet } from "./import/workbook.js";
 import { encodeReceiptCode128 } from "./domain/code128.js";
+import { renderInspectionHeader, renderInspectionReport } from "./domain/inspection-report.js";
 import { trackingExactKey, trackingKey, trackingNumericCore, looksLikeTracking, beamInitialKey } from "./domain/search-keys.js";
 import { translations } from "./ui/translations.js";
 
@@ -475,10 +478,23 @@ const MappingUI=(()=>{
  });}
  function option(select,value,label){select.append(node('option',label,{value:String(value)}));}
  function colLetter(i){let s='';for(i++;i;i=Math.floor((i-1)/26))s=String.fromCharCode(65+(i-1)%26)+s;return s;}
- async function begin(kind,sourceType,{onReview=null,canChangeProfile=false}={}){
+ function sameConnection(a,b){
+  return !!a&&!!b&&MappingCore.comparableHeader(a.sheetName)===MappingCore.comparableHeader(b.sheetName)&&
+   Object.keys(a.headerNames).length===Object.keys(b.headerNames).length&&Object.entries(a.headerNames).every(([key,value])=>
+    Object.hasOwn(b.headerNames,key)&&MappingCore.comparableHeader(value)===MappingCore.comparableHeader(b.headerNames[key]));
+ }
+ function workbookProfileName(staged,file,except){
+  const base=String(file?.name||'').split(/[\\/]/u).at(-1).replace(/\.xls[xm]$/iu,'').trim()||t('연결 프로필','Connection profile');
+  const used=new Set(Object.entries(staged.profiles).filter(([id])=>id!==except).map(([,p])=>p.name));
+  for(let n=1;;n++){
+   const suffix=n===1?'':' ('+n+')',name=base.slice(0,100-suffix.length).trimEnd()+suffix;
+   if(!used.has(name))return name;
+  }
+ }
+ async function begin(kind,sourceType,{onReview=null,canChangeProfile=false,autoProfile=false}={}){
   if(busy)throw Error(t('다른 가져오기가 진행 중입니다.','Another import is in progress.'));
   if(kind!==null&&!kinds.includes(kind))throw Error('Invalid mapping kind');if(!['file','paste'].includes(sourceType))throw Error('Invalid mapping source');
-  busy=true;refresh();const mode=db.active,staged=copy(db),profiles=staged.profiles[mode][sourceType],captured=new Map();let finished=false;
+  busy=true;refresh();const mode=db.active,staged=copy(db),profiles=staged.profiles[mode][sourceType],captured=new Map();let finished=false,owner=mode,profileNote='';
   function remember(k,sheetName,preview,mapping){captured.set(k,{sheetName,header:preview[mapping.headerRow].slice(),headerRow:mapping.headerRow});return mapping;}
   function end(){if(finished)return;finished=true;busy=false;refresh();}
   async function review(reason,open){onReview?.(reason,true);try{return await open();}finally{onReview?.(reason,false);}}
@@ -552,23 +568,54 @@ const MappingUI=(()=>{
      header.onchange=()=>{populate();selects.returnChannel?.onchange?.();};const suggested=reconnect?.mapping?.headerRow??reconnect?.headerRow;if(Number.isInteger(suggested))header.value=String(suggested);header.onchange();if(k==='loc')body.append(node('p',t('위치 유형 열이 없으면 유형 미확인으로 가져옵니다. 피킹 위치로 추정하지 않습니다.','Without a location-type column, type stays unknown. Picking locations are not inferred.')));
      return ()=>{if(header.value==='')throw Error(t('헤더 행을 선택하세요.','Select the header row.'));const headerRow=Number(header.value),columns={};for(const [id,s] of Object.entries(selects))if(s.value!=='')columns[id]=Number(s.value);const valid=MappingCore.validateColumns(k,preview[headerRow],columns);
       const removed=known?Object.keys(known.headerNames).filter(id=>!Object.hasOwn(valid,id)):[];
-      if(removed.length&&!uiConfirm(t('연결하지 않은 기존 열 '+removed.length+'개를 이 프로필에서 해제할까요?','Remove '+removed.length+' previously mapped fields from this profile?')))throw Error(t('빠진 열을 연결하거나, 연결 해제를 확인해 주세요.','Reconnect the missing columns or confirm their removal.'));
+      const protectsOriginal=autoProfile&&sourceType==='file'&&k==='raw'&&!!db.profiles[mode].file.raw;
+      if(removed.length&&!protectsOriginal&&!uiConfirm(t('연결하지 않은 기존 열 '+removed.length+'개를 이 프로필에서 해제할까요?','Remove '+removed.length+' previously mapped fields from this profile?')))throw Error(t('빠진 열을 연결하거나, 연결 해제를 확인해 주세요.','Reconnect the missing columns or confirm their removal.'));
       const result={headerRow,columns:valid,...(k==='raw'?{returnChannelReviewed:true}:{}),...(channelInputs&&Object.hasOwn(valid,'returnChannel')?{returnChannelValues:known?.returnChannelValues?.exact===true&&MappingCore.knownColumns(known,preview[headerRow]).columns.returnChannel===valid.returnChannel&&['b2b','b2c'].every(k=>channelInputs[k].value===returnChannelFormText(known.returnChannelValues[k],k.toUpperCase()))?known.returnChannelValues:returnChannelFormValues(channelInputs.b2b.value,channelInputs.b2c.value)}:{})};MappingCore.makeProfile(k,sheetName,preview,result);return result;};
     },undefined,canChangeProfile));
     profiles[k]=MappingCore.makeProfile(k,sheetName,preview,mapping);return remember(k,sheetName,preview,mapping);
    }
   };
-  return {hooks,commit(original){if(finished)throw Error('Mapping transaction ended');persist(staged);
+  return {hooks,prepareProfile(file,hasRaw){
+   if(finished)throw Error('Mapping transaction ended');
+   if(!autoProfile||sourceType!=='file'||!hasRaw||!captured.has('raw'))return;
+   const previous=db.profiles[mode];
+   const props=[...captured.keys()];
+   const changedSchema=props.some(k=>previous.file[k]&&!sameConnection(previous.file[k],profiles[k]));
+   if(changedSchema){
+    const fileConnections=Object.fromEntries(props.map(k=>[k,profiles[k]]));
+    const match=Object.entries(db.profiles).find(([id,p])=>id!==mode&&props.every(k=>sameConnection(p.file[k],fileConnections[k])));
+    staged.profiles[mode]=previous;
+    if(match){
+     owner=match[0];
+     staged.profiles[owner].file={...staged.profiles[owner].file,...fileConnections};
+    }else{
+     if(Object.keys(staged.profiles).length>=50)throw Error(t('저장할 수 있는 프로필은 최대 50개예요. 기존 프로필과 같은 구조의 RAW를 선택해 주세요.','Up to 50 profiles can be saved. Choose a workbook that matches an existing profile.'));
+     do{owner='p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);}while(Object.hasOwn(staged.profiles,owner));
+     staged.profiles[owner]={name:workbookProfileName(staged,file),file:fileConnections,paste:{}};
+     profileNote=t('새 프로필 연결 완료','New profile connected');
+    }
+    staged.active=owner;
+   }else if(mode==='default'&&!Object.keys(previous.file).length&&!Object.keys(previous.paste).length&&!previous.locationRules){
+    staged.profiles[mode].name=workbookProfileName(staged,file,mode);
+    profileNote=t('새 프로필 연결 완료','New profile connected');
+   }
+  },commit(original){if(finished)throw Error('Mapping transaction ended');
+   if(owner!==mode)forgetSources();
+   persist(staged,profileNote);
    for(const [k,metadata] of captured){
     const key=sessionKey(sourceType,k);sessionSources.delete(key);
-    if(sourceType==='file'&&typeof original?.file?.arrayBuffer==='function'||sourceType==='paste'&&typeof original?.text==='string')sessionSources.set(key,{...metadata,owner:mode,...(sourceType==='file'?{file:original.file}:{text:original.text}),activeRaw:k==='raw'?original.activeRaw:null,codes:new Map()});
+    if(sourceType==='file'&&typeof original?.file?.arrayBuffer==='function'||sourceType==='paste'&&typeof original?.text==='string')sessionSources.set(key,{...metadata,owner,...(sourceType==='file'?{file:original.file}:{text:original.text}),activeRaw:k==='raw'?original.activeRaw:null,codes:new Map()});
    }
    end();},abort:end};
  }
- async function editName(create){
-  if(busy)return;busy=true;refresh();try{if(create&&Object.keys(db.profiles).length>=50)throw Error(t('프로필은 최대 50개입니다.','Maximum 50 profiles.'));
-   const name=await modal(create?t('새 프로필','New profile'):t('프로필 이름 변경','Rename profile'),body=>{const label=node('label',t('프로필 이름','Profile name')),input=node('input',undefined,{type:'text',maxLength:100,value:create?'':db.profiles[db.active].name});label.append(input);body.append(label);return ()=>{const value=input.value.trim();if(!value)throw Error(t('이름을 입력하세요.','Enter a name.'));if(Object.entries(db.profiles).some(([id,p])=>p.name===value&&(create||id!==db.active)))throw Error(t('같은 이름의 프로필이 있습니다.','A profile with that name exists.'));return value;};});
-   const next=copy(db);if(create){let id;do{id='p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);}while(Object.hasOwn(next.profiles,id));next.profiles[id]={name,file:{},paste:{}};next.active=id;offerWorkbookRetry();}else next.profiles[next.active].name=name;persist(next);
+ async function editName(){
+  if(busy)return;busy=true;refresh();
+  try{
+   const name=await modal(t('프로필 이름 변경','Rename profile'),body=>{
+    const label=node('label',t('프로필 이름','Profile name')),input=node('input',undefined,{type:'text',maxLength:100,value:db.profiles[db.active].name});label.append(input);body.append(label);
+    return ()=>{const value=input.value.trim();if(!value)throw Error(t('이름을 입력하세요.','Enter a name.'));if(Object.entries(db.profiles).some(([id,p])=>id!==db.active&&p.name===value))throw Error(t('같은 이름의 프로필이 있습니다.','A profile with that name exists.'));return value;};
+   });
+   const next=copy(db);next.profiles[next.active].name=name;persist(next);
   }catch(e){if(e.name!=='AbortError')storageNote=e.message;}finally{busy=false;refresh();}
  }
  async function inspectProfileSource(file,kind,profile,columnName=null){
@@ -710,6 +757,26 @@ const MappingUI=(()=>{
   persist(next,t('선택한 프로필은 다음 파일에 적용돼요.','The selected profile applies to the next file.'));
   return true;
  }
+ function importProfile(f){
+  if(!f||busy)return false;
+  return loadProfile(f);
+ }
+ async function loadProfile(f){
+   let settleImport;profileImport=new Promise(resolve=>{settleImport=resolve;});
+   busy=true;storageNote=t('프로필 JSON 확인 중…','Reading profile JSON…');refresh();
+   let applied=false;
+   try{
+    const incoming=await readProfileFile(f);
+    if(!uiConfirm(t('현재 프로필 목록을 가져온 목록으로 바꿀까요? 검수 데이터는 바뀌지 않아요.','Replace the current profile list with the imported list? Inspection data stays unchanged.'))){
+     storageNote=t('가져오기를 취소했어요. 기존 프로필을 유지합니다.','Import cancelled. Existing profiles retained.');return;
+    }
+    forgetSources();offerWorkbookRetry();applied=true;
+    const count=fileMappingCount(incoming.profiles[incoming.active]);
+    persist(incoming,count?t('프로필 적용 완료 · 저장된 Excel 시트 '+count+'개','Profile applied · '+count+' saved Excel worksheets'):t('프로필을 적용했어요. 첫 파일에서 연결할 시트를 골라 주세요.','Profile applied. Choose the worksheets on the first import.'));
+   }catch(e){storageNote=e.message;}
+   finally{busy=false;profileImport=null;settleImport(applied);refresh();if(applied)document.getElementById(lastWorkbook?.offer?'retryCombinedWorkbook':'openWorkbook')?.focus({preventScroll:true});}
+   return applied;
+ }
  function init(){
   load();
   const shelf=document.getElementById('profileShelf'),details=document.getElementById('dataProfileDetails');
@@ -717,9 +784,9 @@ const MappingUI=(()=>{
   const top=node('div',undefined,{className:'profile-shelf-heading'});
   const title=node('h3','',{id:'profileShelfTitle'});
   const page=node('span','',{className:'profile-shelf-page'});page.setAttribute('aria-hidden','true');
-  const addProfile=node('button',undefined,{type:'button',className:'profile-shelf-add'});
+  const openWorkbook=document.getElementById('openWorkbook');
   const shelfTools=node('span',undefined,{className:'profile-shelf-tools'});
-  shelfTools.append(page,addProfile);top.append(title,shelfTools);
+  shelfTools.append(page,openWorkbook);top.append(title,shelfTools);
   const row=node('div',undefined,{className:'profile-shelf-row'});
   const prev=node('button',undefined,{type:'button',className:'profile-shelf-arrow'});prev.append(icon('back'));
   const next=node('button',undefined,{type:'button',className:'profile-shelf-arrow'});next.append(icon('forward'));
@@ -727,7 +794,7 @@ const MappingUI=(()=>{
   const activeInfo=node('p','',{className:'profile-active-info'});activeInfo.setAttribute('role','status');
   const status=node('p','',{className:'small profile-storage-note'});status.setAttribute('role','status');
   statusNodes.push(status);row.append(prev,rail,next);
-  const retry=node('button','',{type:'button',className:'profile-workbook-button profile-retry-workbook'});
+  const retry=node('button','',{id:'retryCombinedWorkbook',type:'button',className:'profile-workbook-button profile-retry-workbook'});
   retry.onclick=()=>{if(lastWorkbook?.offer&&!busy)void runCombinedWorkbook(lastWorkbook.file,{retry:true});};
   shelf.append(top,row,activeInfo,retry,status);
   let direction=0,gesture=null,suppressUntil=0;
@@ -766,7 +833,7 @@ const MappingUI=(()=>{
   const io=node('div',undefined,{className:'profile-json-actions'});
   function icon(id){
    const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),use=document.createElementNS(ns,'use');
-   const role={rename:'edit',out:'download',in:'upload',back:'chevron-left',forward:'chevron-right'}[id]||id;
+   const role={rename:'edit',out:'download',back:'chevron-left',forward:'chevron-right'}[id]||id;
    svg.setAttribute('class','beam-ui-icon');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');
    use.setAttribute('href','#beam-glyph-'+role);svg.append(use);return svg;
   }
@@ -777,42 +844,22 @@ const MappingUI=(()=>{
    return button;
   }
   action(actions,'열 연결 편집','Edit column mapping',editConnection,'columns','',()=>!savedConnections().length);
-  action(actions,'이름 변경','Rename',()=>editName(false),'rename');
+  action(actions,'이름 변경','Rename',editName,'rename');
   action(actions,'위치 표시 규칙','Location display rules',editLocationRules,null,'locationRulesButton');
-  addProfile.append(icon('add'));addProfile.onclick=()=>editName(true);
-  const file=node('input',undefined,{type:'file',accept:'.json,application/json',hidden:true});
-  action(io,'JSON 불러오기','Import JSON',()=>{if(!busy)file.click();},'in');
   action(io,'JSON 내보내기','Export JSON',()=>{
    if(busy)return;download('mapping-profiles.json',JSON.stringify(db,null,2),'application/json');
    storageNote=t('프로필 다운로드 요청됨 · 파일 저장 여부를 확인하세요.','Profile download requested · verify the saved file.');refresh();
   },'out');
-  file.onchange=async()=>{
-   const f=file.files[0];file.value='';if(!f||busy)return;
-   let settleImport;profileImport=new Promise(resolve=>{settleImport=resolve;});
-   busy=true;storageNote=t('프로필 JSON 확인 중…','Reading profile JSON…');refresh();
-   let applied=false;
-   try{
-    const incoming=await readProfileFile(f);
-    if(!uiConfirm(t('현재 프로필 목록을 가져온 목록으로 바꿀까요? 검수 데이터는 바뀌지 않아요.','Replace the current profile list with the imported list? Inspection data stays unchanged.'))){
-     storageNote=t('가져오기를 취소했어요. 기존 프로필을 유지합니다.','Import cancelled. Existing profiles retained.');return;
-    }
-    forgetSources();offerWorkbookRetry();applied=true;
-    const count=fileMappingCount(incoming.profiles[incoming.active]);
-    persist(incoming,count?t('프로필 적용 완료 · 저장된 Excel 시트 '+count+'개','Profile applied · '+count+' saved Excel worksheets'):t('프로필을 적용했어요. 첫 파일에서 연결할 시트를 골라 주세요.','Profile applied. Choose the worksheets on the first import.'));
-   }catch(e){storageNote=e.message;}
-   finally{busy=false;profileImport=null;settleImport(applied);refresh();if(applied)(lastWorkbook?.offer?retry:document.getElementById('openWorkbook'))?.focus({preventScroll:true});}
-  };
-  io.append(file);group.append(named,mappings,actions,io);details.append(group);
+  group.append(named,mappings,actions,io);details.append(group);
   localizers.push(()=>{
    const list=entries(),index=activeIndex(list),profile=list[index][1],files=fileMappingCount(profile);
    retry.hidden=!lastWorkbook?.offer;retry.disabled=busy;
    retry.textContent=lastWorkbook?.offer?t('이 프로필로 다시 연결: ','Reconnect with this profile: ')+lastWorkbook.file.name:'';
    title.textContent=t('사용 중인 프로필','Active profile');
    page.textContent=list.length>1?(index+1)+' / '+list.length:'';page.hidden=list.length===1;
-   const createLabel=t('프로필 추가','Add profile');
-   addProfile.setAttribute('aria-label',createLabel);
-   addProfile.title=list.length>=50?t('프로필은 최대 50개입니다.','Up to 50 profiles are supported.'):createLabel;
-   addProfile.disabled=busy||list.length>=50;
+   const workbookLabel=t('RAW 또는 프로필 불러오기','Import workbook or profile');
+   openWorkbook.setAttribute('aria-label',workbookLabel);openWorkbook.title=workbookLabel;
+   openWorkbook.disabled=busy||(typeof dataImportBusy!=='undefined'&&dataImportBusy);
    row.dataset.count=String(Math.min(list.length,3));
    prev.hidden=next.hidden=list.length===1;
    for(const [button,edge,label] of [[prev,index===0,t('이전 프로필','Previous profile')],[next,index===list.length-1,t('다음 프로필','Next profile')]]){
@@ -845,7 +892,7 @@ const MappingUI=(()=>{
   });
   refresh();
  }
- return {begin,init,refresh,editConnection,forgetSources,locationRules,rememberWorkbook,offerWorkbookRetry,waitForProfileImport,isBusy:()=>busy};
+ return {begin,init,refresh,importProfile,editConnection,forgetSources,locationRules,rememberWorkbook,offerWorkbookRetry,waitForProfileImport,isBusy:()=>busy};
 })();
 
 
@@ -1464,132 +1511,6 @@ const WorkDelta=(()=>{
  return {prepareSave,prepareRestore,finalizeRestore,recoveryReference:()=>verifiedReferences(capture()),customerScheme,legacyScheme,validateWorkSheets};
 })();
 
-/* Crash recovery: work-only drafts, scoped to the verified reference content.
-   Never request persistent-storage permission and never send data off-device. */
-const BrowserRecovery=(()=>{
- const databaseName='beam-work-recovery',storeName='drafts';
- function indexedStore(getIndexedDB=()=>globalThis.indexedDB){
-  let opening;
-  function open(){
-   if(opening)return opening;
-   opening=new Promise((resolve,reject)=>{
-    const idb=getIndexedDB();if(!idb)throw Error('IndexedDB unavailable');
-    const request=idb.open(databaseName,1);
-    request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(storeName))request.result.createObjectStore(storeName,{keyPath:'key'});};
-    request.onerror=()=>reject(request.error||Error('IndexedDB open failed'));
-    request.onblocked=()=>reject(Error('IndexedDB is blocked by another tab'));
-    request.onsuccess=()=>{
-     const db=request.result;db.onversionchange=()=>{db.close();opening=null;};resolve(db);
-    };
-   }).catch(error=>{opening=null;throw error;});
-   return opening;
-  }
-  async function operate(mode,run){
-   const db=await open();
-   return new Promise((resolve,reject)=>{
-    let tx;
-    if(mode==='readwrite'){try{tx=db.transaction(storeName,mode,{durability:'strict'});}catch{tx=db.transaction(storeName,mode);}}
-    else tx=db.transaction(storeName,mode);
-    let result;
-    tx.oncomplete=()=>resolve(result);
-    tx.onerror=tx.onabort=()=>reject(tx.error||Error('IndexedDB transaction failed'));
-    try{run(tx.objectStore(storeName),value=>{result=value;});}catch(error){try{tx.abort();}catch{}reject(error);}
-   });
-  }
-  return {
-   read:key=>operate('readonly',(s,finish)=>{const req=s.get(key);req.onsuccess=()=>finish(req.result??null);}),
-   hasDraft:()=>operate('readonly',(s,finish)=>{const req=s.openKeyCursor();req.onsuccess=()=>finish(!!req.result);}),
-   write:(entry,expected)=>operate('readwrite',(s,finish)=>{
-    const req=s.get(entry.key);req.onsuccess=()=>{if((req.result?.revision??null)!==expected){finish(false);return;}s.put(entry);finish(true);};
-   }),
-  };
- }
- function create(api){
-  let current=null,timer=null,inflight=null,rerun=false,version=0,savedVersion=-1,display={kind:'hidden'},stopped=false,acting=false;
-  const same=(a,b)=>a?.reference===b?.reference&&a?.names===b?.names;
-  const still=(context)=>same(context,api.context());
-  const tell=(kind,draft=null)=>{display={kind,draft};api.paint(display);};
-  const validity=d=>d&&typeof d.revision==='string'&&typeof d.savedAt==='string'&&Number.isFinite(Date.parse(d.savedAt))&&typeof d.text==='string'&&d.text.length<=50e6;
-  async function load(context){
-   if(current&&same(current.context,context))return current;
-   const reference=await api.reference();
-   if(!still(context))return null;
-   const key='v1:'+reference.root+':'+reference.customerRoot;
-   const draft=await api.store.read(key);
-   if(!still(context))return null;
-   current={context,key,revision:draft?.revision??null,draft:draft||null};
-   savedVersion=-1;
-   if(draft)tell(validity(draft)?'offer':'invalid',validity(draft)?draft:null);
-   else if(await api.store.hasDraft()&&still(context))tell('other');
-   else if(still(context))tell('hidden');
-   return current;
-  }
-  async function save(active,allowReplace=false){
-   if(active.draft&&!allowReplace)return;
-   if(!api.hasWork()||savedVersion===version)return;
-   const started=version;
-   const prepared=await api.prepare();
-   if(!still(active.context)||current!==active)return;
-   prepared.assertCurrent();
-   const entry={key:active.key,revision:api.id(),savedAt:api.now(),text:prepared.text};
-   const committed=await api.store.write(entry,active.revision);
-   if(!still(active.context)||current!==active)return;
-   if(!committed){
-    current=null;await load(active.context);
-    if(!current?.draft)tell('conflict');
-    return;
-   }
-   active.revision=entry.revision;active.draft=null;savedVersion=started;tell('saved');
-  }
-  async function run(){
-   const context=api.context();
-   try{
-    if(!context){current=null;tell(await api.store.hasDraft()&&!api.context()?'needs-raw':'hidden');return;}
-    const active=await load(context);if(!active||!still(context))return;
-    if(active.draft)api.paint(display);
-    await save(active);
-   }catch(error){if(still(context))tell('unavailable');}
-  }
-  function flush(){
-   clearTimeout(timer);timer=null;if(stopped)return Promise.resolve();
-   if(acting){rerun=true;return Promise.resolve();}
-   if(inflight){rerun=true;return inflight;}
-   inflight=run().finally(()=>{inflight=null;if(rerun){rerun=false;void flush();}});return inflight;
-  }
-  // One short window per burst, not a trailing debounce: continuous scans
-  // still reach durable checkpoints without writing on every keypress.
-  function schedule(delay=450){version++;if(timer===null)timer=setTimeout(()=>void flush(),delay);}
-  async function recover(){
-   const active=current,draft=active?.draft,started=version;
-   if(inflight||acting||!validity(draft)||!still(active.context))return false;
-   acting=true;
-   try{
-    const plan=await api.prepareRestore(JSON.parse(draft.text));
-    if(current!==active||version!==started||!still(active.context))return false;
-    // A second tab may update a draft, but the user is only offered the exact
-    // checkpoint that was reviewed; an old revision must not supersede it.
-    const live=await api.store.read(active.key);
-    if(current!==active||version!==started||!still(active.context))return false;
-    if(live?.revision!==draft.revision){current=null;await load(active.context);return false;}
-    if(!api.confirmRestore())return false;
-    api.finishRestore(plan);
-    active.draft=null;savedVersion=version;tell('restored');return true;
-   }catch(error){if(still(active.context))tell('restore-error',draft);return false;}
-   finally{acting=false;if(rerun){rerun=false;void flush();}}
-  }
-  async function replace(){
-   const active=current;
-   if(inflight||acting||!active?.draft||!still(active.context)||!api.hasWork()||!api.confirmReplace())return false;
-   acting=true;
-   try{await save(active,true);return !active.draft;}
-   catch(error){if(still(active.context))tell('restore-error',validity(active.draft)?active.draft:null);return false;}
-   finally{acting=false;if(rerun){rerun=false;void flush();}}
-  }
-  return {schedule,flush,recover,replace,refresh:()=>api.paint(display),stop(){stopped=true;clearTimeout(timer);}};
- }
- return {indexedStore,create};
-})();
-
 $('save').onclick=async()=>{
  try{
   const work={...state,savedAt:new Date().toISOString()};WorkDelta.validateWorkSheets(work);checkedWorkJSONSize(work);download('반품검수-작업-'+date()+'.json',JSON.stringify(work,null,2),'application/json');setUI('saved','다운로드 요청됨',false,false);notice('작업파일 다운로드를 확인하세요.');
@@ -1632,49 +1553,49 @@ function printLocalTime(value){
  const pad=n=>String(n).padStart(2,'0'),m=-d.getTimezoneOffset(),offset=(m<0?'-':'+')+pad(Math.floor(Math.abs(m)/60))+':'+pad(Math.abs(m)%60);
  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+' UTC'+offset;
 }
-function printSheet(title,caption,fields,sections,notes,stub=null){
- const label=printL('인쇄 시각','Printed at');
- return '<header class="pr-heading"><p class="pr-brand"><b>BEAM</b><span>'+esc(stub?.external||'RETURN OPERATIONS')+'</span></p><h1>'+esc(title)+'</h1><p class="pr-caption-line">'+esc(caption)+'</p>'
-  +(stub?.party?'<p class="pr-stub-party"><b>'+esc(stub.party)+'</b><b>'+esc(stub.quantity)+'</b></p>':'')+(stub?.barcode||'')+'<p class="pr-issued">'+esc(label)+' <b>'+esc(printLocalTime(new Date().toISOString()))+'</b></p></header>'
-  +'<div class="pr-tear" aria-hidden="true"><i></i></div><div class="pr-sheet-meta"><div class="pr-band">'+esc(printL('문서 정보','DOCUMENT DETAILS'))+'</div><dl class="pr-fields">'+fields.map(([k,v])=>'<div><dt>'+esc(k)+'</dt><dd>'+esc(v===''||v==null?'—':v)+'</dd></div>').join('')+'</dl></div>'
-  +sections.join('')+'<div class="pr-end"><div class="pr-band">'+esc(printL('비고','NOTES'))+'</div><p>'+esc(notes)+'</p></div>';
-}
 function printGrid(title,labels,widths,rows,{numeric=[],total=null}={}){
  const cls=i=>numeric.includes(i)?' class="pr-number"':'';
  return '<section class="pr-section"><h2>'+esc(title)+'</h2><table><colgroup>'+widths.map(w=>'<col style="width:'+w+'%">').join('')+'</colgroup><thead><tr>'+labels.map((v,i)=>'<th scope="col"'+cls(i)+'>'+esc(v)+'</th>').join('')+'</tr></thead><tbody>'+
- (rows.length?rows.map(row=>'<tr>'+row.map((v,i)=>'<td'+cls(i)+'>'+esc(v)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+labels.length+'" class="pr-empty">'+esc(printL('표시할 기록 없음','No records'))+'</td></tr>')+
+ (rows.length?rows.map(row=>'<tr>'+row.map((v,i)=>'<td'+cls(i)+'>'+esc(v)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+labels.length+'" class="pr-empty">'+'No records'+'</td></tr>')+
  '</tbody>'+(!total?'':'<tfoot><tr>'+total.map((v,i)=>'<td'+cls(i)+'>'+esc(v)+'</td>').join('')+'</tr></tfoot>')+'</table></section>';
 }
-function inspectionReport(){
+function inspectionPrintContext(){
  const receipt=state.receipt,meta=rawRows(receipt);
- if(!receipt)return printSheet(printL('반품 검수 대조표','RETURN INSPECTION RECORD'),'RETURN ASN',[],[],printL('선택한 ASN이 없습니다.','No ASN selected.'));
- const rows=sortProductRows(currentOrderComparison()),field=k=>[...new Set(meta.map(r=>r[k]).filter(Boolean))].join(' / '),assigned=state.scans.filter(e=>e.receipt===receipt);
- const held=rows.some(r=>r.heldDisplay),sum=k=>rows.reduce((n,r)=>n+r[k],0),l=printL;
- const label=isB2C()?l('고객명','Customer'):l('매장명','Store');
+ const field=k=>[...new Set(meta.map(r=>r[k]).filter(Boolean))].join(' / ');
  const party=isB2C()?MappingCore.checkedCustomerNames(state.customerNames,state.data.raw)[receipt]?.join(' / ')||field('seller'):field('seller');
- const data=rows.map(r=>[(r.status==='예정 외'?(language==='en'?'Not on this ASN':'현재 ASN에 없음'):tr(r.status))+(r.heldDisplay?' · '+l('보류 포함','Incl. held'):''),[r.barcode,r.sku].filter(Boolean).join(' / '),uiData(r.name),pickingLocationExport(r),r.expected,r.actual,signedDifference(r.actual-r.expected)]);
- return printSheet(l('반품 검수 대조표','RETURN INSPECTION RECORD'),l('RETURN ASN · 현재 오더 대조 결과','RETURN ASN · SELECTED ORDER COMPARISON'),
- [[l('입고 오더 ID','Receiving order ID'),receipt],[l('외부 오더 ID','External order ID'),field('external')],[label,party],[l('회사','Company'),field('company')],[l('검수 유형','Mode'),isB2C()?'B2C':'B2B'],[l('ASN에 배정된 실물','Assigned physical units'),assigned.reduce((n,e)=>n+Engine.units(e),0)+' EA']],
- [printGrid(l('01  현재 오더 대조 결과','01  CURRENT ORDER COMPARISON'),[l('상태','Status'),l('상품 바코드 / SKU','Barcode / SKU'),l('상품명','Product'),l('피킹 위치','Picking location'),l('예정','Expected'),l('실물','Counted'),l('차이','Delta')],[16,21,23,19,7,7,7],data,{numeric:[4,5,6],total:[l('합계','TOTAL'),'','','',sum('expected'),sum('actual'),signedDifference(sum('actual')-sum('expected'))]})],
- l('현재 ASN의 전체 행을 인쇄합니다. 다른 ASN에 배정된 입력은 제외합니다.','All comparison rows of the selected ASN are printed. Entries assigned to other ASNs are excluded.')+(held?' '+l('보류 포함 행의 실물은 대조표에 표시하되, ASN 배정 수량에는 포함하지 않습니다.','Held units are shown for review but are not assigned to the ASN.'):'') ,{external:field('external'),party,quantity:sum('expected').toLocaleString()+' EA',barcode:printReceiptPda(receipt)});
+ return {mode:'return',orderId:receipt,externalId:field('external'),party,work:'Work '+(state.workNumber||1)+' · '+(isB2C()?'B2C':'B2B')};
 }
-function signedDifference(n){return (n>0?'+':'')+n;}
+function inspectionReport(){
+ const rows=sortProductRows(currentOrderComparison()).map(r=>({
+  status:r.status,held:!!r.heldDisplay,
+  barcode:r.barcode,sku:r.sku,name:r.name,expected:r.expected,actual:r.actual,
+ }));
+ return renderInspectionReport({...inspectionPrintContext(),rows});
+}
 function scanHistoryReport(){
- const l=printL,active=sheetEvents(true,'all'),audit=activeWorkAudit();
+ const header=renderInspectionHeader({...inspectionPrintContext(),history:true});
+ const active=sheetEvents(true,'all'),audit=activeWorkAudit();
  const inferred=active.some(e=>!e.scanOutcome)?legacyScanOutcomes(active):null;
- const inputs=active.map(e=>{const result=e.scanOutcome??inferred?.get(e);const labels={accepted:l('정상','Accepted'),excess:l('수량 초과','Excess'),unknown:l('현재 ASN에 없음','Not on this ASN'),conflict:l('상품 정보 충돌','Product data conflict'),held:l('보류','Held')};return [printLocalTime(e.at),e.receipt||e.holdOrigin||'—',Engine.eventCode(e),Engine.units(e),labels[result]||'—',e.id||'—'];}).sort((a,b)=>a[0].localeCompare(b[0]));
- const log=audit.flatMap(a=>(a.events?.length?a.events:[null]).map(e=>{return [printLocalTime(a.at),a.action||'—',a.receipt||'—',e?Engine.eventCode(e):'—',e?Engine.units(e):'',e?printLocalTime(e.at):'—',[a.note,e?.id,a.id].filter(Boolean).join(' · ')||'—'];}));
- return printSheet(l('반품 검수 스캔 이력','RETURN INSPECTION SCAN HISTORY'),l('현재 작업 · 스캔 및 변경 기록','CURRENT WORK · INPUT AND AUDIT LOG'),
- [[l('기록 범위','Scope'),workLabel(state)],[l('유효·보류 입력','Retained inputs'),active.length],[l('변경 사건','Audit events'),audit.length],[l('시간 기준','Time basis'),Intl.DateTimeFormat().resolvedOptions().timeZone||'local']],
- [printGrid(l('01  현재 남아 있는 스캔','01  RETAINED SCANS'),[l('입력 시각','Input time'),'ASN',l('입력 코드','Code'),l('수량','Qty'),l('상태','Status'),l('입력 ID','Input ID')],[25,15,20,7,11,22],inputs,{numeric:[3]}),printGrid(l('02  취소·배정 등 변경 이력','02  AUDIT LOG'),[l('변경 시각','Event time'),l('동작','Action'),'ASN',l('입력 코드','Code'),l('수량','Qty'),l('원본 입력 시각','Original input time'),l('참고 / ID','Reference / ID')],[18,15,11,13,6,18,19],log,{numeric:[4]})],
- l('기기 시계 기준입니다. 취소된 스캔은 변경 이력에서 확인할 수 있으며 유효 입력에는 포함되지 않습니다.','Times use the device clock. Canceled inputs appear in the audit log, not in retained scans.'));
+ const statuses={accepted:'Accepted',excess:'Excess',unknown:'Not on this order',conflict:'Product data conflict',held:'Held'};
+ const inputs=active.map(e=>[printLocalTime(e.at),e.receipt||e.holdOrigin||'—',Engine.eventCode(e),Engine.units(e),statuses[e.scanOutcome??inferred?.get(e)]||'—',e.id||'—']).sort((a,b)=>a[0].localeCompare(b[0]));
+ const log=audit.flatMap(a=>(a.events?.length?a.events:[null]).map(e=>[printLocalTime(a.at),a.action||'—',a.receipt||'—',e?Engine.eventCode(e):'—',e?Engine.units(e):'',e?printLocalTime(e.at):'—',[a.note,e?.id,a.id].filter(Boolean).join(' · ')||'—']));
+ const tables=[
+  printGrid('Retained Scans',['Input time','Order No.','Code','Qty','Status','Input ID'],[25,15,20,7,11,22],inputs,{numeric:[3]}),
+  printGrid('Audit Log',['Event time','Action','Order No.','Code','Qty','Original input time','Reference / ID'],[18,15,11,13,6,18,19],log,{numeric:[4]})
+ ];
+ return {...header,markup:'<article class="pr-inspection">'+header.markup+tables.join('')+'</article>'};
 }
 let printDocumentKind='',printOriginalTitle='';
+function mountPrintTarget(target){
+ const root=$('printReport');
+ root.dataset.paper=target.paper;
+ root.innerHTML=target.markup;
+}
 function openPrintDocument(kind){
- if(kind==='comparison'&&!state.receipt)return;
+ if(!state.receipt||printDocumentKind)return;
  const target=kind==='history'?scanHistoryReport():inspectionReport();
- $('printReport').innerHTML=target;printDocumentKind=kind;printOriginalTitle=document.title;
- document.title=(kind==='history'?'beam - Scan history':'beam - ASN '+String(state.receipt).replace(/[^\p{L}\p{N}_.-]/gu,'-'))+' - '+date().slice(0,10);
+ mountPrintTarget(target);printDocumentKind=kind;printOriginalTitle=document.title;
+ document.title='beam - '+target.title+' '+String(state.receipt).replace(/[^\p{L}\p{N}_.-]/gu,'-')+' - '+date().slice(0,10);
  notice(printL('인쇄 창에서 PDF로 저장을 선택하세요.','Choose Save as PDF in the print dialog.'));
  const finish=()=>{if(printDocumentKind===kind)window.print();};
  if(document.fonts?.ready)document.fonts.ready.then(finish,finish);else finish();
@@ -1691,8 +1612,8 @@ $('theme').onclick=()=>applyTheme(theme==='dark'?'light':'dark');applyTheme(them
 
 function switchLanguage(nextLanguage){const asnDraft=$('receipt').value;closeStoreList();language=nextLanguage==='en'?'en':'ko';try{localStorage.setItem('returns-app-language',language);}catch{}localizeStatic();refreshUI();draw();if(asnDraft!==receiptDisplay(state.receipt)){$('receipt').value=asnDraft;renderReceiptList();}applyTheme(theme);updateLanguageToggle();MappingUI.refresh();browserRecovery?.refresh();}$('language').onclick=()=>switchLanguage(language==='ko'?'en':'ko');$('language').onchange=()=>switchLanguage($('language').value);function updateLanguageToggle(){$('beamLanguageLabel').textContent=language==='ko'?'언어 · 한국어 / English':'Language · English / 한국어';const label=language==='ko'?'현재 한국어 · 영어로 변경':'Currently English · Switch to Korean';$('language').setAttribute('aria-label',label);$('language').setAttribute('title',label);$('language').value=language;}localizeStatic();draw();updateLanguageToggle();
 
-window.addEventListener('beforeprint',()=>{if(!printDocumentKind)$('printReport').innerHTML=inspectionReport();});
-window.addEventListener('afterprint',()=>{printDocumentKind='';document.title=printOriginalTitle||'beam';printOriginalTitle='';});
+window.addEventListener('beforeprint',()=>{if(!printDocumentKind)mountPrintTarget(inspectionReport());});
+window.addEventListener('afterprint',()=>{if(printOriginalTitle)document.title=printOriginalTitle;printDocumentKind='';printOriginalTitle='';});
 
 function confirmInspection(skipPending=false,summaryOnly=false){
  if(!state.receipt)return {blocked:true,message:tr('ASN을 선택해 주세요.')};
@@ -1966,9 +1887,15 @@ function drawOrderWorkspace(){
  const heading=$('beamWorkName'),partyRow=known.get(state.receipt)?.[0],partyEntry=state.receipt?uiIndex().orderSearch.get(state.receipt):null;
  const party=isB2C()?partyEntry?.names?.join(' / ')||partyRow?.seller:partyRow?.seller||partyRow?.company||state.store;
  heading.textContent=party||'';heading.hidden=!state.receipt||!party;
- const activeIndex=ids.indexOf(state.receipt),active=$('activeOrderSheet');active.dataset.orderPeek=state.receipt;$('activeOrderInfo').dataset.orderInfo=state.receipt;$('activeOrderInfo').disabled=!state.receipt;$('activeOrderInfo').setAttribute('aria-label',(receiptDisplay(state.receipt)||state.receipt||'')+' · '+(language==='en'?'Order inspection info':'오더 검수 정보'));active.style.order=String(Math.max(0,activeIndex));active.classList.toggle('is-order-active',!!state.receipt);active.setAttribute('aria-label',(language==='en'?'Selected order: ':'선택 오더: ')+(receiptDisplay(state.receipt)||state.receipt||'External order ID'));
- $('orderTabs').innerHTML=ids.map((id,i)=>{if(id===state.receipt)return '';const label=receiptDisplay(id)||id;return '<div class="order-sheet" style="order:'+i+'" role="group" data-order-peek="'+esc(id)+'" aria-label="'+esc(label)+'"><button type="button" class="order-sheet-select" data-order-tab="'+esc(id)+'" aria-controls="orderInspectionPanel" title="'+esc('Order ID '+id)+'"'+(state.receiptLocked?' disabled':'')+'><span class="order-key">'+esc(label)+'</span>'+completionMark(id)+'</button><button type="button" class="order-sheet-action order-info-button" data-order-info="'+esc(id)+'" aria-label="오더 검수 정보" aria-haspopup="dialog" aria-controls="orderInfoPopover">'+beamIcon('info')+'</button><button type="button" class="order-sheet-action" data-order-open="'+esc(id)+'" aria-label="'+esc(language==='en'?'Select order':'오더 선택')+'"'+(state.receiptLocked?' disabled':'')+'>'+beamIcon('chevron-down')+'</button><button type="button" class="order-sheet-action" data-order-barcode="'+esc(id)+'" aria-label="Order ID PDA 바코드"'+(state.receiptLocked?' disabled':'')+'>'+beamIcon('barcode')+'</button></div>';}).join('');
- for(const b of $('orderTabs').querySelectorAll('[data-order-info]'))b.setAttribute('aria-label',(receiptDisplay(b.dataset.orderInfo)||b.dataset.orderInfo)+' · '+(language==='en'?'Order inspection info':'오더 검수 정보'));
+ const active=$('activeOrderSheet');active.dataset.orderPeek=state.receipt;
+ const info=$('activeOrderInfo');info.dataset.orderInfo=state.receipt;info.disabled=!state.receipt;
+ info.setAttribute('aria-label',(receiptDisplay(state.receipt)||state.receipt||'')+' · '+(language==='en'?'Order inspection info':'오더 검수 정보'));
+ active.classList.toggle('is-order-active',!!state.receipt);
+ active.setAttribute('aria-label',(language==='en'?'Selected order: ':'선택 오더: ')+(receiptDisplay(state.receipt)||state.receipt||'External order ID'));
+ $('orderTabs').innerHTML=ids.filter(id=>id!==state.receipt).map(id=>{
+  const label=esc(receiptDisplay(id)||id);
+  return '<button type="button" class="order-tab-link" data-order-tab="'+esc(id)+'" aria-controls="orderInspectionPanel"'+(state.receiptLocked?' disabled':'')+'><span class="order-key">'+label+'</span>'+completionMark(id)+'</button>';
+ }).join('');
  $('orderInspectionPanel').removeAttribute('aria-labelledby');$('orderInspectionPanel').setAttribute('aria-label',(language==='en'?'Selected order inspection: ':'선택 오더 검수: ')+(receiptDisplay(state.receipt)||state.receipt||'—'));
 }
 function switchOrderTab(id){
@@ -2096,7 +2023,13 @@ function sheetEvents(all=false,scope='order'){
  if(scope==='pending'||!state.receipt)return events.filter(e=>!e.receipt&&pendingInSelectedStore(e));
  return events.filter(e=>e.receipt===state.receipt);
 }
-function latestSheetEvent(scope='order'){return sheetEvents(false,scope).slice().sort((a,b)=>(a.sequence||0)-(b.sequence||0)||Date.parse(a.at)-Date.parse(b.at)).at(-1);}
+function latestSheetEvent(scope='order'){
+ const cacheKey='latest-sheet-event:'+scope;
+ if(renderReadCache?.has(cacheKey))return renderReadCache.get(cacheKey);
+ const event=latestScanEvent(sheetEvents(false,scope));
+ renderReadCache?.set(cacheKey,event);
+ return event;
+}
 function syncSheetView(){
  const key=JSON.stringify([state.receipt||'',selectedWorkStoreKey(),state.currentBatch||'']);
  if(key!==viewedSheetKey){viewedSheetKey=key;historyPage=0;resultPage=0;$('historyScope').value='order';setUI('feedback','',false,true);}
@@ -2119,11 +2052,12 @@ function legacyScanOutcomes(events){
  return outcomes;
 }
 function scanActivityRows(rows,all=false){
- const events=sheetEvents(all,all?$('historyScope').value:'order');
  const cacheKey=all?'activity-history':'activity-recent';
  if(renderReadCache?.has(cacheKey))return renderReadCache.get(cacheKey);
+ const events=sheetEvents(all,all?$('historyScope').value:'order');
  let historical;
- const values=events.map((e,i)=>({e,i})).sort((a,b)=>Date.parse(a.e.at)-Date.parse(b.e.at)||a.i-b.i).slice(all?historyPage*200:-5,all?(historyPage+1)*200:undefined).map(({e})=>{
+ const page=all?scanHistoryPage(events,historyPage*200,(historyPage+1)*200):recentScanEvents(events);
+ const values=page.map(e=>{
   const pending=!e.receipt,master=Engine.masterInfo(state.data,e);const eventRows=e.receipt&&e.receipt!==state.receipt?reconcileView(state.data,e.receipt,state.scans):rows;
   const inAsn=pending?[...candidateReceipts(state.data,e)].flatMap(id=>{const {row}=inspectEntry(state.data,id,state.scans,e);return row&&matchesStore(row)?[row]:[];}):eventRows.filter(r=>!r.unregistered&&matchesReference(r,e));
   const outsideKey=(e.kind==='sku'?'M:':'X:')+Engine.eventCode(e);
@@ -2145,7 +2079,7 @@ function activityDateLabel(date){
 function activityCellState(e,ledger=false){
  if(ledger&&e.held&&!e.assignedReceipt)return {kind:'hold',symbol:'Ⅱ',label:language==='en'?'Another ASN may match':'다른 ASN 혼입 후보 · 배정 확인'};
  if(ledger&&e.scanOutcome==='held')return {kind:'hold',symbol:'Ⅱ',label:language==='en'?'Held at scan time':'입력 당시 보류'};
- if(ledger&&e.scanOutcome==='accepted')return {kind:'complete',symbol:'O',label:language==='en'?'Accepted at scan time':'입력 당시 정상'};
+ if(ledger&&e.scanOutcome==='accepted')return {kind:'accepted',symbol:'✓',label:language==='en'?'Scan accepted':'스캔 정상 등록'};
  if(ledger&&e.scanOutcome==='excess')return {kind:'excess',symbol:'⚠︎',label:language==='en'?'This entry exceeded the expected quantity':'이 입력부터 예정 수량 초과'};
  if(ledger&&e.scanOutcome==='unknown')return {kind:'unknown',symbol:'⚠︎',label:language==='en'?'Entry not on the selected order':'현재 ASN에 없는 입력'};
  if(ledger&&e.scanOutcome==='conflict')return {kind:'review',symbol:'⚠︎',label:language==='en'?'Product identifiers conflict':'상품 식별 정보 충돌'};
@@ -2190,7 +2124,6 @@ function pickingLocationData(item){
  }
  return {reason:'',missingType,putaway:[...new Set(typed.map(r=>r.putawayZone).filter(Boolean))],groups:[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([zone,locs])=>({zone,locs:locs.sort()}))};
 }
-function pickingLocationExport(item){const info=pickingLocationData(item);if(info.reason)return tr(info.reason);return info.groups.flatMap(g=>g.locs).join(', ')+(info.missingType?(language==='en'?' · Some location types need verification':' · 일부 위치 유형 확인 필요'):'');}
 function pickingLocationText(item){const info=pickingLocationData(item);if(info.reason)return '';return (language==='en'?'Picking location · ':'피킹 위치 · ')+info.groups.flatMap(g=>g.locs).join(', ')+(info.missingType?(language==='en'?' · Some location types need verification':' · 일부 위치 유형 확인 필요'):'');}
 function pickingLocationLine(item){const value=pickingLocationText(item);return value?'<div class="small">'+esc(value)+'</div>':'';}
 function pickingLocationInfo(last){
@@ -2220,6 +2153,11 @@ function lastScannedOutsideStore(last){
  return ![...candidateReceipts(state.data,e,{allowMasterSku:true})].some(id=>modeAllowsReceipt(id)&&asnStoreKey(id)===key);
 }
 
+function lastScannedCountLabel(actual,expected,english){
+ const delta=expected-actual, count=Math.abs(delta).toLocaleString(english?'en':'ko');
+ const quantity=actual.toLocaleString(english?'en':'ko')+' / '+expected.toLocaleString(english?'en':'ko')+' EA';
+ return {quantity,detail:delta===0?(english?'Quantity matched':'수량 일치'):delta>0?(english?count+' remaining':count+'개 남음'):(english?count+' excess':count+'개 초과')};
+}
 function drawLastScanned(rows){
  const entries=scanActivityRows(rows),last=entries.at(-1),box=$('lastScanned');$('scanReadout').hidden=!last&&!state.availabilityEnabled;
  box.hidden=!last;
@@ -2230,12 +2168,14 @@ function drawLastScanned(rows){
  $('lastScannedSku').textContent='SKU · '+(last.sku||'—');
  $('lastScannedBarcode').textContent=(language==='en'?'Barcode · ':'상품 바코드 · ')+(last.barcode||'—');
  $('lastScannedContext').textContent=last.pending?(language==='en'?'ASN pending':'ASN 미배정'):last.assignedReceipt!==state.receipt?'ASN · '+last.assignedReceipt:'';
- const progress=$('lastScannedProgress');
+ const progress=$('lastScannedProgress'),group=$('lastScannedProgressGroup'),bar=$('lastScannedBar');
  const valid=last.assignedReceipt===state.receipt&&!last.pending&&Number.isFinite(last.actual)&&Number.isFinite(last.expected)&&last.expected>0&&!['정보 충돌','식별자 없음','예정 외','확인 필요'].includes(last.status);
- progress.textContent=valid?`${last.actual.toLocaleString()} / ${last.expected.toLocaleString()} EA`:'';
- progress.hidden=!valid;const bar=$('lastScannedBar');bar.hidden=!valid;bar.value=valid?Math.min(100,Math.max(0,last.actual/last.expected*100)):0;bar.dataset.phase=valid?activityCellState(last).kind:'';bar.setAttribute('aria-valuetext',valid?`${last.actual} / ${last.expected} EA`:'');
- progress.title=valid?(language==='en'?'Current inspected quantity / expected quantity for this SKU in the selected ASN':'선택 ASN 내 이 SKU의 현재 검수 수량 / 예정 수량'):'';
- progress.dataset.phase=valid?activityCellState(last).kind:'';
+ const phase=valid?activityCellState(last).kind:'';
+ const {quantity,detail}=valid?lastScannedCountLabel(last.actual,last.expected,language==='en'):{quantity:'',detail:''};
+ group.hidden=!valid;group.dataset.phase=phase;
+ progress.textContent=quantity;$('lastScannedRemaining').textContent=detail;
+ bar.value=valid?Math.min(100,Math.max(0,last.actual/last.expected*100)):0;
+ bar.dataset.phase=phase;bar.setAttribute('aria-valuetext',valid?quantity+' · '+detail:'');
  box.title=(language==='en'?'Last input: ':'마지막 입력: ')+last.code;
 }
 
@@ -2266,7 +2206,7 @@ function activityMarkup(events,compact=false){
  const codeLine=(label,value,secondary=false)=>'<span class="'+(secondary?'secondary-code':'primary-code')+'" title="'+esc(label+': '+(value||'—'))+'"><span class="sr-only">'+label+' </span>'+esc(value||'—')+'</span>';
  const head='<thead><tr>'+columns.map((label,i)=>'<th scope="col" class="'+(compact?'compact-col-':'sheet-col-')+i+'">'+esc(label)+'</th>').join('')+'</tr></thead>';
  const body=events.map((e,i)=>{const visual=activityCellState(e,true);const date=new Date(e.at),validDate=Number.isFinite(date.getTime()),time=!validDate?'—':date.toLocaleTimeString(language==='ko'?'ko-KR':'en-GB',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
- return `<tr class="sheet-row" data-status="${esc(e.held?'보류':e.status)}">${compact?'<td class="sheet-code activity-code-pair">'+codeLine(language==='en'?'Barcode':'상품 바코드',e.barcode)+codeLine('SKU',e.sku,true)+'</td>':`<th scope="row" class="sheet-index">${historyPage*200+i+1}</th><td class="sheet-code sheet-barcode">${esc(e.barcode||'—')}</td><td class="sheet-code sheet-sku">${esc(e.sku||'—')}</td>`}<td class="sheet-name" title="${esc(e.name)}">${esc(e.name)}${e.code&&e.code!==e.barcode&&e.code!==e.sku?'<small class="original-input">'+esc((language==='en'?'Input: ':'입력: ')+e.code)+'</small>':''}</td><td class="sheet-qty"><b>${e.qty.toLocaleString()}</b><small>EA</small></td><td class="sheet-time"><time datetime="${esc(validDate?e.at:'')}" title="${esc(validDate?date.toString():(language==='en'?'Timestamp unavailable':'입력 시각 확인 필요'))}"><span>${esc(time)}</span><small>${esc(validDate?activityDateLabel(date):'—')}</small></time>${e.priorWork?'<small>'+esc(tr('이전 작업'))+'</small>':''}</td><td class="sheet-status" data-cell-state="${visual.kind}" title="${esc(visual.label)}" aria-label="${esc(visual.label)}"><span class="status-symbol" aria-hidden="true">${visual.symbol}</span>${(e.held||e.reallocatable)&&!e.priorWork?'<button type="button" class="assign-entry" data-assign-event="'+esc(e.id)+'" aria-haspopup="dialog" aria-label="'+esc(e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr('이 입력을 ASN에 배정'))+'" title="'+esc(e.canAssign&&e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr(e.canAssign?'이 입력을 ASN에 배정':state.receiptLocked?'검수 대상 고정을 먼저 해제해 주세요.':'배정 가능한 ASN 없음'))+'"'+(e.canAssign?'':' disabled')+'>↗</button>':''}</td></tr>`;
+ return `<tr class="sheet-row" data-status="${esc(e.held?'보류':e.status)}">${compact?'<td class="sheet-code activity-code-pair">'+codeLine(language==='en'?'Barcode':'상품 바코드',e.barcode)+codeLine('SKU',e.sku,true)+'</td>':`<th scope="row" class="sheet-index">${historyPage*200+i+1}</th><td class="sheet-code sheet-barcode">${esc(e.barcode||'—')}</td><td class="sheet-code sheet-sku">${esc(e.sku||'—')}</td>`}<td class="sheet-name" title="${esc(e.name)}">${esc(e.name)}${e.code&&e.code!==e.barcode&&e.code!==e.sku?'<small class="original-input">'+esc((language==='en'?'Input: ':'입력: ')+e.code)+'</small>':''}</td><td class="sheet-qty"><b>${e.qty.toLocaleString()}</b><small>EA</small></td><td class="sheet-time"><time datetime="${esc(validDate?e.at:'')}" title="${esc(validDate?date.toString():(language==='en'?'Timestamp unavailable':'입력 시각 확인 필요'))}"><span>${esc(time)}</span><small>${esc(validDate?activityDateLabel(date):'—')}</small></time>${e.priorWork?'<small>'+esc(tr('이전 작업'))+'</small>':''}</td><td class="sheet-status" data-cell-state="${visual.kind}" title="${esc(visual.label)}" aria-label="${esc(visual.label)}"><span class="status-symbol${visual.symbol==='⚠︎'?' status-warning':visual.kind==='accepted'?' status-accepted':''}" aria-hidden="true">${visual.symbol==='⚠︎'?beamIcon('warning'):visual.kind==='accepted'?beamIcon('check'):visual.symbol}</span>${(e.held||e.reallocatable)&&!e.priorWork?'<button type="button" class="assign-entry" data-assign-event="'+esc(e.id)+'" aria-haspopup="dialog" aria-label="'+esc(e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr('이 입력을 ASN에 배정'))+'" title="'+esc(e.canAssign&&e.reallocatable?(language==='en'?'Reassign this excess entry to another ASN':'이 초과 입력을 다른 ASN에 재배정'):tr(e.canAssign?'이 입력을 ASN에 배정':state.receiptLocked?'검수 대상 고정을 먼저 해제해 주세요.':'배정 가능한 ASN 없음'))+'"'+(e.canAssign?'':' disabled')+'>↗</button>':''}</td></tr>`;
  }).join('')||'<tr><td colspan="'+columns.length+'" class="sheet-empty">'+esc(tr('스캔 기록이 없습니다.'))+'</td></tr>';
  return '<table class="activity-sheet'+(compact?' compact-activity':'')+'" aria-label="'+esc(tr(compact?'최근 입력 5건':'입력 기록'))+'">'+head+'<tbody>'+body+'</tbody></table>';
 }
@@ -2314,14 +2254,6 @@ $('availabilityToggle').onclick=()=>{state.availabilityEnabled=state.availabilit
 
 function receiptBarcodeValue(id=state.receipt){return typeof id==='string'&&/^[\x20-\x7e]{1,80}$/.test(id)&&rawRows(id).length>0?id:'';}
 
-function printReceiptPda(id){
- const value=receiptBarcodeValue(id),l=printL;
- if(!value)return '<section class="pr-pda"><b>'+esc(l('PDA 입고용 주문번호','Receiving order barcode'))+'</b><small>'+esc(l('바코드로 인쇄할 수 없는 주문번호입니다.','This order ID cannot be encoded.'))+'</small></section>';
- const result=encodeReceiptCode128(value),w=result.modules;
- let x=10,bars='';for(const [i,n] of result.runs.entries()){if(!(i%2))bars+='<rect x="'+x+'" y="0" width="'+n+'" height="46"/>';x+=n;}
- const wide=w*.34>91,mm=Math.min(177,Math.max(65,w*.34));
- return '<section class="pr-pda'+(wide?' pr-pda-wide':'')+'"><div><b>'+esc(l('PDA 입고용 주문번호','Receiving order barcode'))+'</b><small>'+esc(value)+'</small><small>CODE 128</small></div><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+w+' 46" width="'+mm+'mm" height="17mm" preserveAspectRatio="none" style="height:17mm" role="img" aria-label="'+esc('Code 128 · '+value)+'"><rect width="100%" height="100%" fill="#fff"/><g fill="#000">'+bars+'</g></svg></section>';
-}
 function showReceiptBarcode(){
  const id=state.receipt;if(!receiptBarcodeValue(id))return;
  $('receiptBarcodeTicket').innerHTML=beamTicketFace(id,isB2C()?'b2c':'b2b');
@@ -2382,7 +2314,7 @@ $('resultNext').onclick=()=>{resultPage++;draw();$('results').querySelector('.ta
 $('historyPrev').onclick=()=>{historyPage=Math.max(0,historyPage-1);drawActivityHistory(reconcileView(state.data,state.receipt,state.scans));$('activityHistoryViewport').scrollTop=0;};
 $('historyNext').onclick=()=>{historyPage++;drawActivityHistory(reconcileView(state.data,state.receipt,state.scans));$('activityHistoryViewport').scrollTop=0;};
 
-$('orderTabs').onclick=e=>{const b=e.target.closest?.('[data-order-tab],[data-order-open],[data-order-barcode]');if(!b||b.disabled)return;const id=b.dataset.orderTab||b.dataset.orderOpen||b.dataset.orderBarcode,open=!!b.dataset.orderOpen,barcode=!!b.dataset.orderBarcode;if(switchOrderTab(id)){if(barcode)showReceiptBarcode();else if(open)$('receiptToggle').click();}};
+$('orderTabs').onclick=e=>{const tab=e.target.closest?.('[data-order-tab]');if(tab&&!tab.disabled)switchOrderTab(tab.dataset.orderTab);};
 $('orderTabs').onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const list=[...$('orderTabs').querySelectorAll('[data-order-tab]:not(:disabled)')],at=list.indexOf(e.target);if(at<0)return;e.preventDefault();const n=e.key==='Home'?0:e.key==='End'?list.length-1:(at+(e.key==='ArrowRight'?1:-1)+list.length)%list.length;list[n].focus();};
 /* Replace the existing apply/file/workbookFile handlers, do not append duplicates. */
 // Reclassify only a positively identified live source; never replace an appended set or alter scan entries.
@@ -2478,12 +2410,13 @@ async function runCombinedWorkbook(file,{retry=false}={}){
   beamView(true,false);
   // Give the main screen a paint opportunity before decompression or indexing.
   await new Promise(resolve=>setTimeout(resolve,0));
-  tx=await MappingUI.begin(null,'file',{canChangeProfile:reusable,onReview:(kind,waiting)=>{
+  tx=await MappingUI.begin(null,'file',{canChangeProfile:reusable,autoProfile:true,onReview:(kind,waiting)=>{
    if(waiting)beamRawStatus('review',kind==='sheet'?l('시트 연결 확인 대기 중','Waiting for worksheet mapping'):l('열 연결 확인 대기 중','Waiting for column mapping'),false);
    else beamRawStatus('read',l('통합 RAW 읽는 중…','Reading combined workbook…'));
   }});
   const parsed=await readWorkbook(file,null,beamRawProgress,tx.hooks);
   phase='apply';
+  tx.prepareProfile(file,!!parsed.raw?.length);
   beamRawStatus('apply',l('기준 자료 적용 중…','Applying reference data…'));
   await new Promise(resolve=>setTimeout(resolve,0));
   await applyMappedResult(parsed,file.name,parsed.headerOnlyKinds||[]);
@@ -2503,12 +2436,18 @@ async function runCombinedWorkbook(file,{retry=false}={}){
   if(beam.visible&&(!document.activeElement||document.activeElement===document.body||document.activeElement===$('dataLauncher')))$('beamQuery').focus({preventScroll:true});
  }
 }
-$('workbookFile').onchange=async e=>{
- const file=e.target.files[0];e.target.value='';await runCombinedWorkbook(file);
+function importReferenceFile(file){
+ if(!file||dataImportBusy)return;
+ if(/\.json$/iu.test(file.name))return MappingUI.importProfile(file);
+ if(/\.xls[xm]$/iu.test(file.name))return runCombinedWorkbook(file);
+ notice(language==='en'?'Select a RAW workbook (.xlsx, .xlsm) or a profile (.json).':'RAW 엑셀(.xlsx, .xlsm)이나 프로필(.json)을 선택하세요.','warning');
+}
+$('workbookFile').onchange=e=>{
+ const file=e.target.files[0];e.target.value='';return importReferenceFile(file);
 };
 $('file').onchange=async e=>{
  const file=e.target.files[0],kind=$('kind').value;if(!file||dataImportBusy||!dataDefinitions[kind])return;let tx;mappingBusyUI(true);
- try{tx=await MappingUI.begin(kind,'file');const parsed=await readWorkbook(file,kind,showImportProgress,tx.hooks);await applyMappedResult(parsed,file.name,parsed.headerOnlyKinds||[]);tx.commit({file,activeRaw:state.data.raw===parsed.raw?parsed.raw:null});finishDataImport(kind,false);}
+ try{tx=await MappingUI.begin(kind,'file',{autoProfile:kind==='raw'});const parsed=await readWorkbook(file,kind,showImportProgress,tx.hooks);tx.prepareProfile(file,!!parsed.raw?.length);await applyMappedResult(parsed,file.name,parsed.headerOnlyKinds||[]);tx.commit({file,activeRaw:state.data.raw===parsed.raw?parsed.raw:null});finishDataImport(kind,false);}
  catch(error){tx?.abort();dataImportError(error.message);}finally{e.target.value='';mappingBusyUI(false);}
 };
 
@@ -2555,7 +2494,7 @@ function trackingMatches(query,allow){
 function trackingOrders(query){return trackingMatches(query,workReceiptGate());}
 
 let trackingToastTimer=null;
-function trackingNotFound(){let toast=$('trackingSearchToast');if(!toast){toast=document.createElement('div');toast.id='trackingSearchToast';toast.setAttribute('role','status');toast.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:calc(100vw - 32px);padding:12px 18px;background:#ffdb69;color:#151515;border:1px solid #8b711e;border-radius:5px;z-index:2000;transition:opacity .8s;pointer-events:none';document.body.append(toast);}clearTimeout(trackingToastTimer);toast.textContent=language==='en'?(isB2C()?'Return tracking number not found. Search by customer name.':'Return tracking number not found. Search by store name.'):(isB2C()?'반송장번호를 찾지 못했어요. 고객명으로 검색해 주세요.':'반송장번호를 찾지 못했어요. 매장명으로 검색해 주세요.');toast.style.opacity='1';trackingToastTimer=setTimeout(()=>{toast.style.opacity='0';},3200);}
+function trackingNotFound(){let toast=$('trackingSearchToast');if(!toast){toast=document.createElement('div');toast.id='trackingSearchToast';toast.setAttribute('role','status');toast.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:calc(100vw - 32px);padding:12px 18px;background:var(--lemon-alert);color:var(--alert-ink);border:1px solid var(--lemon-edge);border-radius:5px;z-index:2000;transition:opacity .8s;pointer-events:none';document.body.append(toast);}clearTimeout(trackingToastTimer);toast.textContent=language==='en'?(isB2C()?'Return tracking number not found. Search by customer name.':'Return tracking number not found. Search by store name.'):(isB2C()?'반송장번호를 찾지 못했어요. 고객명으로 검색해 주세요.':'반송장번호를 찾지 못했어요. 매장명으로 검색해 주세요.');toast.style.opacity='1';trackingToastTimer=setTimeout(()=>{toast.style.opacity='0';},3200);}
 const trackingSyncMode=syncSearchMode;
 syncSearchMode=function(){trackingSyncMode();$('customerQuery').placeholder=language==='en'?'Customer name or return tracking number':'고객명 또는 반송장번호';$('customerQuery').previousElementSibling.textContent=language==='en'?'Customer name':'고객명';$('store').placeholder=language==='en'?'Store name or return tracking number':'매장명 또는 반송장번호';};
 const trackingReceiptOptions=receiptOptions;
@@ -2656,10 +2595,10 @@ function beamPartyLabel(id,mode){
  const head=rawRows(id)[0]||{},entry=uiIndex().orderSearch.get(id);
  return mode==='b2c'?entry?.names?.join(' / ')||head.seller||'—':head.seller||head.company||'—';
 }
-function beamTicketFace(id,mode,compact=false){
+function beamTicketFace(id,mode,compact=false,{long=false}={}){
  const raw=rawRows(id),entry=uiIndex().orderSearch.get(id),head=raw[0]||{};
  const party=beamPartyLabel(id,mode),ext=receiptDisplay(id)||'—',value=compact?'':receiptBarcodeValue(id),d=beamIndex().dateById.get(id);
- const amount=esc((entry?.expected??0).toLocaleString()),limit=compact?3:4;
+ const amount=esc((entry?.expected??0).toLocaleString()),limit=long?200:compact?3:4;
  const rows=raw.slice(0,limit).map(r=>'<span class="beam-line beam-ticket-item"><span title="'+esc(r.name||r.sku||r.barcode||'—')+'">'+esc(r.name||r.sku||r.barcode||'—')+'</span><i>'+esc(r.qty)+'</i></span>').join('');
  const more=raw.length>limit?'<span class="beam-ticket-more">+ '+(raw.length-limit)+' '+beamL('행','lines')+'</span>':'';
  const tracking=head.returnTracking?'<span class="beam-ticket-ref"><span>'+beamL('반송장번호','Return tracking')+'</span><b title="'+esc(head.returnTracking)+'">'+esc(head.returnTracking)+'</b></span>':'';
@@ -2672,7 +2611,7 @@ function beamTicketFace(id,mode,compact=false){
  }
  const pda=compact?'':(value?'<span class="beam-ticket-pda"><span class="beam-ticket-pda-caption"><b title="'+esc(value)+'">'+esc(value)+'</b><span>CODE 128</span></span>'+barcode+'</span>':'<small>'+beamL('바코드로 표시할 수 없는 키','Key unavailable for barcode')+'</small>');
  return '<span class="beam-ticket beam-paper-ticket '+(compact?'beam-side':'beam-center-paper')+'">'
- +'<span class="beam-paper-top"><span class="beam-paper-ref"><span>RETURN ASN</span><b title="'+esc(ext)+'">'+esc(ext)+'</b></span><span class="beam-paper-party"><b title="'+esc(party)+'">'+esc(party)+'</b><b>'+amount+' EA</b></span></span>'
+ +'<span class="beam-paper-top"><span class="beam-paper-ref"><span>RETURN ORDER</span><b title="'+esc(ext)+'">'+esc(ext)+'</b></span><span class="beam-paper-party"><b title="'+esc(party)+'">'+esc(party)+'</b><b>'+amount+' EA</b></span></span>'
  +'<span class="beam-paper-tear" aria-hidden="true"></span>'
  +'<span class="beam-paper-body">'+pda+date
  +'<span class="beam-line beam-headline"><span>'+beamL('상품','Items')+'</span><span>'+beamL('수량','Qty')+'</span></span>'+rows+more+tracking+'</span></span>';
@@ -2715,21 +2654,17 @@ const beamFolderTotal=n=>n.toLocaleString()+' EA';
 function beamFolderFace(el,group,preview=false){
  const at=beam.folderPeek.get(group.key)||0,id=group.ids[at],label=beamPartyLabel(id,beam.mode);
  const {items,total}=beamFolderItems(rawRows(id)),ext=receiptDisplay(id)||id;
- const position=(at+1)+' / '+group.ids.length,limit=4;
- const itemRows=items.slice(0,limit).map(item=>'<span class="beam-file-item"><span title="'+esc(item.name)+'">'+esc(item.name)+'</span><b>'+esc(item.qty.toLocaleString())+'</b></span>').join('');
- const remainder=items.length>limit?'<span class="beam-file-more">'+beamL('외 ','+ ')+beamFolderCount(items.length-limit)+'</span>':'';
- el.dataset.peek=String(preview);
+ const position=(at+1)+' / '+group.ids.length,long=beam.openFolderPreview===group.key;
+ el.dataset.peek=String(preview);el.dataset.longPeek=String(long);
  el.innerHTML='<span class="beam-file" aria-hidden="true">'
  +'<span class="beam-file-back"></span>'
  +(group.ids.length>1?'<span class="beam-file-sheet beam-file-sheet-left"></span>':'')
  +(group.ids.length>2?'<span class="beam-file-sheet beam-file-sheet-right"></span>':'')
- +'<span class="beam-file-paper"><span class="beam-file-paper-top"><span>RETURN ASN</span><b>'+esc(ext)+'</b></span>'
- +'<span class="beam-file-item beam-file-columns"><span>'+beamL('상품','Item')+'</span><span>'+beamL('수량','Qty')+'</span></span>'+itemRows+remainder
- +'<span class="beam-file-total"><span>'+beamL('합계','Total')+' · '+beamFolderCount(items.length)+'</span><b>'+esc(beamFolderTotal(total))+'</b></span></span>'
+ +'<span class="beam-file-window"><span class="beam-file-paper">'+beamTicketFace(id,beam.mode,false,{long})+'</span></span>'
  +'<span class="beam-file-glass"><span class="beam-file-position">'+position+'</span><span class="beam-file-arrow">↗</span></span></span>'
- +'<span class="beam-file-caption"><strong title="'+esc(label)+'">'+esc(label)+'</strong><span>ASN '+group.ids.length.toLocaleString()+beamL('건','')+'</span></span>';
- el.setAttribute('aria-label',label+' · ASN '+group.ids.length+(preview?' · '+position+' · '+ext+' · '+beamFolderCount(items.length)+' · '+beamL('합계 ','Total ')+beamFolderTotal(total):''));
- el.title=label+' · ASN '+group.ids.length+(group.ids.length>1?' · '+beamL('휠 또는 Page ↑/↓로 영수증 미리보기','Wheel or Page ↑/↓ to preview receipts'):'');
+ +'<span class="beam-file-caption"><strong title="'+esc(label)+'">'+esc(label)+'</strong><span>'+beamL('주문 ','Orders: ')+group.ids.length.toLocaleString()+beamL('건','')+'</span></span>';
+ el.setAttribute('aria-label',label+beamL(' · 주문 ',' · Orders: ')+group.ids.length+(preview?' · '+position+' · '+ext+' · '+beamFolderCount(items.length)+' · '+beamL('합계 ','Total ')+beamFolderTotal(total):''));
+ el.title=label+beamL(' · 주문 ',' · Orders: ')+group.ids.length+(group.ids.length>1?' · '+beamL('휠 또는 Page ↑/↓로 영수증 미리보기','Wheel or Page ↑/↓ to preview receipts'):'');
 }
 let beamLongReceipt=null;
 function beamAppendReceiptItems(){
@@ -2741,31 +2676,64 @@ function beamAppendReceiptItems(){
  more.hidden=remaining<=0;
  more.textContent=beamL('다음 '+Math.min(remaining,200).toLocaleString()+'종 보기','Show next '+Math.min(remaining,200).toLocaleString()+' items');
 }
-function beamOpenFolderReceipt(){
- const group=beam.phase==='party'&&beam.mode==='b2b'&&beam.groups.byKey.get(beam.party);
- if(!group||dataImportBusy)return;
- const id=group.ids[beam.folderPeek.get(group.key)||0],sheet=beamFolderItems(rawRows(id));
- beamLongReceipt={items:sheet.items,next:0};
- $('beamFolderReceiptTitle').textContent=receiptDisplay(id)||id;
+function beamDrawFolderReceipt(group,at){
+ const id=group.ids[at],sheet=beamFolderItems(rawRows(id));
+ beamLongReceipt={group,at,items:sheet.items,next:0};
+ const title=receiptDisplay(id)||id;
+ $('beamFolderReceiptTitle').textContent=title;
  $('beamFolderReceiptStore').textContent=beamPartyLabel(id,beam.mode);
  $('beamFolderReceiptTotal').textContent=beamL('합계','Total')+' · '+beamFolderCount(sheet.items.length)+' · '+beamFolderTotal(sheet.total);
+ $('beamFolderReceiptNav').hidden=group.ids.length<2;
+ $('beamFolderReceiptPosition').textContent=(at+1)+' / '+group.ids.length;
+ $('beamFolderReceiptPosition').setAttribute('aria-label',title+' · '+(at+1)+' / '+group.ids.length);
+ const more=$('beamFolderReceiptMore'),hadMoreFocus=document.activeElement===more;
  $('beamFolderReceiptRows').replaceChildren();beamAppendReceiptItems();
- openUtilityDialog('beamFolderReceiptDialog','beamFolderReceiptOpen','beamFolderReceiptClose');
+ if(hadMoreFocus&&more.hidden)$('beamFolderReceiptScroll').focus({preventScroll:true});
  $('beamFolderReceiptScroll').scrollTop=0;
 }
-function beamPeekFolder(el,step){
- const group=beam.phase==='party'&&beam.mode==='b2b'&&beam.groups.byId.get(el?.dataset.id);
+function beamOpenFolderReceipt(){
+ const group=beam.phase!=='asn'&&beam.groups?.byId.get(beam.browseAnchor);
+ if(!group||dataImportBusy)return;
+ beamDrawFolderReceipt(group,beam.folderPeek.get(group.key)||0);
+ openUtilityDialog('beamFolderReceiptDialog','beamFolderReceiptOpen','beamFolderReceiptClose');
+}
+function beamStepFolderReceipt(step){
+ if(!beamLongReceipt||dataImportBusy)return false;
+ const {group,at}=beamLongReceipt,count=group.ids.length;
+ if(count<2)return false;
+ beamDrawFolderReceipt(group,(at+step+count)%count);
+ return true;
+}
+function beamSizeLongFolder(){
+ const stage=$('beamStage'),el=beam.nodes.get(beam.browseAnchor);
+ const paper=el?.dataset.longPeek==='true'?el.querySelector('.beam-file-paper'):null;
+ if(!beam.openFolderPreview||!paper?.getBoundingClientRect||!stage.clientHeight){
+  delete stage.dataset.longPeek;beam.folderStageHeight=null;return;
+ }
+ const base=beam.folderStageHeight??stage.clientHeight;
+ beam.folderStageHeight=base;
+ stage.style.setProperty('--beam-peek-anchor',Math.round(base*.47)+'px');
+ stage.style.setProperty('--beam-peek-height',base+'px');
+ stage.dataset.longPeek='true';
+ const needed=paper.getBoundingClientRect().bottom-stage.getBoundingClientRect().top+22;
+ stage.style.setProperty('--beam-peek-height',Math.ceil(Math.max(base,needed))+'px');
+}
+function beamPeekFolder(el,step,{wrap=false}={}){
+ const group=beam.phase!=='asn'&&beam.groups?.byId.get(el?.dataset.id);
  if(!group||dataImportBusy)return false;
- const from=beam.folderPeek.get(group.key)||0,to=Math.max(0,Math.min(group.ids.length-1,from+step));
- if(to===from)return false;
- beam.folderPeek.set(group.key,to);beamFolderFace(el,group,true);
+ const from=beam.folderPeek.get(group.key)||0,count=group.ids.length;
+ const to=wrap?(from+step+count)%count:Math.max(0,Math.min(count-1,from+step));
+ const center=el.dataset.id===beam.browseAnchor,firstPull=center&&beam.openFolderPreview!==group.key;
+ if(to===from&&!firstPull)return false;
+ if(center)beam.openFolderPreview=group.key;
+ beam.folderPeek.set(group.key,to);beamFolderFace(el,group,true);beamSizeLongFolder();
  const paper=el.querySelector('.beam-file-paper');
  if(paper?.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-  paper.animate([{translate:'0 '+(step>0?26:-12)+'px',opacity:.4},{translate:'0 0',opacity:1}],{duration:260,easing:'cubic-bezier(.17,.74,.24,1)'});
+  paper.animate([{translate:'0 '+(step>0?26:-12)+'px',opacity:.4},{translate:'0 0',opacity:1}],{duration:475,easing:'cubic-bezier(.28,.08,.22,1)'});
  }
  return true;
 }
-function beamResetSelection(){beam.phase='search';beam.party='';beam.picked='';}
+function beamResetSelection(){beam.phase='search';beam.party='';beam.picked='';beam.openFolderPreview='';}
 function beamFocusCard(){beam.nodes.get(beam.browseAnchor)?.focus({preventScroll:true});}
 function beamAdvance(){
  if(dataImportBusy||!beam.candidate)return;
@@ -2773,23 +2741,25 @@ function beamAdvance(){
   if(!beam.query.trim()&&!beam.picked)return;
   const group=beam.groups.byId.get(beam.candidate);if(!group)return;
   beam.party=group.key;beam.picked=beam.candidate;beam.phase='party';
-  const previewAt=group.ids.indexOf(beam.picked);if(beam.mode==='b2b'&&previewAt>0&&!beam.folderPeek.has(group.key))beam.folderPeek.set(group.key,previewAt);
+  const previewAt=group.ids.indexOf(beam.picked);if(previewAt>0&&!beam.folderPeek.has(group.key))beam.folderPeek.set(group.key,previewAt);
  }else if(beam.phase==='party'){
   const group=beam.groups.byKey.get(beam.party);if(!group)return;
-  if(group.ids.length===1){beamEnter();return;}
-  if(beam.mode==='b2b'&&beam.folderPeek?.has(group.key))beam.picked=group.ids[beam.folderPeek.get(group.key)];
+  if(beam.folderPeek?.has(group.key))beam.picked=group.ids[beam.folderPeek.get(group.key)];
   beam.phase='asn';
  }else{beamEnter();return;}
- beamRender(true);beamFocusCard();
+ beamRender(beam.phase==='asn'?'open-folder':true);beamFocusCard();
 }
 function beamBackStep(edit=false){
- if(!edit&&beam.phase==='asn'){beam.phase='party';beamRender(true);beamFocusCard();return;}
+ if(!edit&&beam.phase==='asn'){beam.phase='party';beam.ribbonAxis='x';beamRender(true);beamFocusCard();return;}
  beamResetSelection();beamRender(true);$('beamQuery').focus({preventScroll:true});
 }
 function beamStep(direction,axis='x'){
- const ids=beam.browseIds,at=ids?.indexOf(beam.browseAnchor),id=ids?.[at+direction];
- if(!id||dataImportBusy)return;
- beam.ribbonAxis=axis;beamPick(id,'step');beamFocusCard();
+ const ids=beam.browseIds||[],at=ids.indexOf(beam.browseAnchor);
+ if(ids.length<2||at<0||dataImportBusy)return;
+ const wrap=beam.phase==='asn'&&axis==='x';
+ const id=ids[wrap?(at+direction+ids.length)%ids.length:at+direction];
+ if(!id)return;
+ beam.ribbonAxis=axis;beam.railStepDirection=direction;beamPick(id,'step');beamFocusCard();
 }
 function beamPlaceOnRibbon(el,slot,slide=0){
  const offset=slot-slide,dist=Math.abs(offset),vertical=beam.ribbonAxis==='y';
@@ -2806,7 +2776,7 @@ function beamPlaceOnRibbon(el,slot,slide=0){
 function beamTurnPaper(phase,axis,direction){
  const el=[...beam.nodes.values()].find(node=>node.dataset.ribbonSlot==='0');
  const paper=el?.firstElementChild;
- if(!paper?.animate||el.dataset.folder==='true')return;
+ if(!paper?.animate)return;
  beam.paperTurns??=new WeakMap();
  const existing=beam.paperTurns.get(paper);
  if(existing?.playState==='running')return;
@@ -2840,47 +2810,47 @@ function beamRender(animate=false){
  let selectedGroup=groups.byKey.get(beam.party);
  if(beam.phase!=='search'&&!selectedGroup){beamResetSelection();selectedGroup=null;}
  const phase=beam.phase,fold=phase!=='search',partyMode=phase==='party',asnMode=phase==='asn';
- const folders=partyMode&&beam.mode==='b2b';
- const browse=partyMode?groups.reps:asnMode?selectedGroup.ids:filtered;
- const chosen=groups.byId.get(beam.picked)===selectedGroup&&selectedGroup?beam.picked:selectedGroup?.rep;
- const browseAnchor=partyMode?selectedGroup.rep:asnMode?chosen:(groups.byId.has(beam.picked)?beam.picked:filtered[0]);
+ const folders=!asnMode;
+ const browse=folders?groups.reps:selectedGroup.ids;
+ const chosen=selectedGroup&&groups.byId.get(beam.picked)===selectedGroup?beam.picked:selectedGroup?.rep;
+ const browseAnchor=partyMode?selectedGroup.rep:asnMode?chosen:(groups.byId.get(beam.picked)?.rep??browse[0]);
  const at=Math.max(0,browse.indexOf(browseAnchor));
+ if(!folders||groups.byId.get(browseAnchor)?.key!==beam.openFolderPreview)beam.openFolderPreview='';
  beam.filteredIds=filtered;beam.browseIds=browse;beam.browseAnchor=browseAnchor;beam.candidate=partyMode?chosen||selectedGroup.rep:browse[at]||'';
  const root=$('beamSearch'),find=$('beamFindFold'),edit=$('beamEditSearch'),start=$('beamStart'),stage=$('beamStage'),rail=$('beamRailLabel');
  root.dataset.pickPhase=phase;stage.dataset.folders=String(folders);find.inert=fold;find.setAttribute('aria-hidden',String(fold));edit.hidden=!fold;
  edit.querySelector('span').textContent=beamL('다시 검색','Edit search');
  const noun=beam.mode==='b2c'?beamL('고객','customer'):beamL('매장','store');
  const partyLabel=selectedGroup?beamPartyLabel(selectedGroup.rep,beam.mode):'';
- const matched=lookup.q?beamL('검색 결과 ','Matching ASNs · ')+filtered.length.toLocaleString()+(language==='en'?'':'건'):beamL('전체 반품 ASN · ','All return ASNs · ')+filtered.length.toLocaleString();
- $('beamSearchStatus').textContent=partyMode?partyLabel+' · ASN '+selectedGroup.ids.length.toLocaleString()+beamL('건',''):asnMode?partyLabel+' · ASN '+selectedGroup.ids.length.toLocaleString()+beamL('건','')+' · '+(at+1)+' / '+selectedGroup.ids.length:filtered.length?matched:'';
+ const matched=lookup.q?beamL('검색 결과 ','Matching return orders · ')+filtered.length.toLocaleString()+(language==='en'?'':'건'):beamL('전체 반품 주문 · ','All return orders · ')+filtered.length.toLocaleString();
+ $('beamSearchStatus').textContent=partyMode?partyLabel+beamL(' · 주문 ',' · Orders: ')+selectedGroup.ids.length.toLocaleString()+beamL('건',''):asnMode?partyLabel+beamL(' · 주문 ',' · Orders: ')+selectedGroup.ids.length.toLocaleString()+beamL('건','')+' · '+(at+1)+' / '+selectedGroup.ids.length:filtered.length?matched:'';
  $('beamEmpty').hidden=!!filtered.length||(!state.data.raw.length&&dataImportBusy);$('beamConnect').hidden=!!state.data.raw.length||dataImportBusy;
- $('beamEmptyTitle').textContent=!state.data.raw.length?beamL('연결된 기준 자료가 없어요','No reference data loaded'):lookup.q||beam.sku?beamL('일치하는 ASN이 없어요','No matching ASN'):beamL('이 모드에 반품 ASN이 없어요','No return ASNs in this mode');
+ $('beamEmptyTitle').textContent=!state.data.raw.length?beamL('연결된 기준 자료가 없어요','No reference data loaded'):lookup.q||beam.sku?beamL('일치하는 반품 주문이 없어요','No matching return order'):beamL('이 모드에 반품 주문이 없어요','No return orders in this mode');
  $('beamEmptyText').textContent=!state.data.raw.length?beamL('반품 예정 자료를 불러오면 매장·고객 또는 반송장번호로 검색할 수 있어요.','Load expected returns to search by store, customer, or return tracking number.'):!lookup.q&&!beam.sku?beamL('다른 검색 모드로 전환하거나 기준 자료를 확인해 주세요.','Switch search modes or check the loaded reference data.'):narrowing&&beam.sku?beamL('이 SKU나 반송장번호와 일치하는 오더가 없어요.','No order matches this SKU or return tracking number.'):beamL('다른 '+(beam.mode==='b2c'?'고객명':'매장명')+'이나 반송장번호로 찾아보세요.','Try another name or return tracking number.');
  $('beamStartArea').hidden=!filtered.length;$('beamBrowse').hidden=browse.length<=1;
  $('beamFolderReceiptOpen').hidden=!folders;$('beamFolderReceiptOpen').disabled=dataImportBusy;
  start.disabled=dataImportBusy||!beam.candidate||(!fold&&!lookup.q&&!beam.picked);
- const chooseOrder=partyMode&&selectedGroup.ids.length>1;
- const action=!fold?beamL(noun+' 선택','Choose '+noun):chooseOrder?beamL('ASN 선택','Choose ASN'):beamL('검수 시작','Start inspection');
+ const chooseOrder=partyMode;
+ const action=!fold?beamL(noun+' 선택','Choose '+noun):chooseOrder?beamL('파일 열기','Open folder'):beamL('검수 시작','Start inspection');
  start.querySelector('span').textContent=action;
- start.setAttribute('aria-label',fold&&!chooseOrder?beamL('선택 ASN 검수 시작','Start inspection for selected ASN'):action);
- $('beamPrev').setAttribute('aria-label',partyMode?beamL('이전 '+noun,'Previous '+noun):beamL('이전 ASN','Previous ASN'));
- $('beamNext').setAttribute('aria-label',partyMode?beamL('다음 '+noun,'Next '+noun):beamL('다음 ASN','Next ASN'));
+ start.setAttribute('aria-label',fold&&!chooseOrder?beamL('선택한 주문 검수 시작','Inspect selected return order'):action);
+ $('beamPrev').setAttribute('aria-label',partyMode?beamL('이전 '+noun,'Previous '+noun):beamL('이전 주문','Previous return order'));
+ $('beamNext').setAttribute('aria-label',partyMode?beamL('다음 '+noun,'Next '+noun):beamL('다음 주문','Next return order'));
  $('beamPage').textContent=browse.length?(at+1)+' / '+browse.length:'';
- $('beamPrev').disabled=at<=0;$('beamNext').disabled=at>=browse.length-1;
- const ring=fold?browse:lookup.bi.timeline[beam.mode],positions=lookup.bi.positions[beam.mode],count=ring.length;
+ $('beamPrev').disabled=asnMode?browse.length<2:at<=0;$('beamNext').disabled=asnMode?browse.length<2:at>=browse.length-1;
+ const ring=browse,count=ring.length;
  root.dataset.hasReceipts=String(!!count);root.dataset.rail=String(count>1);
  stage.dataset.axis=beam.ribbonAxis||'x';stage.dataset.browsable=String(browse.length>1&&!dataImportBusy);
- stage.setAttribute('aria-label',partyMode?beamL(noun+' 후보',noun+' results'):beamL('반품 ASN 후보','Return ASN results'));
+ stage.setAttribute('aria-label',folders?beamL(noun+' 후보',noun+' results'):beamL('반품 주문 후보','Return order results'));
  rail.hidden=fold||count<2;
- rail.textContent=lookup.bi.dated[beam.mode]?beamL('전달일 빠른 순 · 날짜 없는 ASN은 뒤에','Oldest sent date first · undated ASNs last'):beamL('원본 순서','Source order');
+ rail.textContent=lookup.bi.dated[beam.mode]?beamL('전달일 빠른 순 · 날짜 없는 주문은 뒤에','Oldest sent date first · undated orders last'):beamL('원본 순서','Source order');
  const active=partyMode?selectedGroup.rep:beam.candidate;
- const anchor=fold?at:positions.get(active)??positions.get(beam.anchor)??0;
- if(active)beam.anchor=active;
+ const anchor=at;
  const shown=new Map();
  const add=(offset)=>{
   if(!count)return;
   const i=anchor+offset;
-  const id=count<=9||fold?ring[i]:ring[(i+count*2)%count];
+  const id=ring[asnMode&&count>2?(i+count*2)%count:i];
   if(id&&!shown.has(id))shown.set(id,offset);
  };
  if(active)add(0);
@@ -2893,31 +2863,40 @@ function beamRender(animate=false){
  beam.railMode=beam.mode;beam.railPhase=phase;beam.railAnchor=anchor;
  for(const [id,slot] of shown){
   const el=beamNode(id),newNode=!el.isConnected,dist=Math.abs(slot);
-  const alternate=!fold&&!!lookup.q&&!groups.byId.has(id);
   const group=groups.byId.get(id);
   const face=folders?'folder':String(slot===0);
   if(folders){
    el.dataset.folder='true';
-   if(el.dataset.face!==face)beamFolderFace(el,group,beam.folderPeek.has(group.key));
+   if(el.dataset.face!==face||el.beamFolderGroup!==group||(el.dataset.longPeek==='true')!==(beam.openFolderPreview===group.key))beamFolderFace(el,group,beam.folderPeek.has(group.key));
+   el.beamFolderGroup=group;
   }else{
-   delete el.dataset.folder;delete el.dataset.peek;
+   delete el.dataset.folder;delete el.dataset.peek;delete el.dataset.longPeek;el.removeAttribute('title');
    if(el.dataset.face!==face)el.innerHTML=beamTicketFace(id,beam.mode,slot!==0);
+   if(slot===0&&animate==='open-folder'&&!reduced){
+    el.insertAdjacentHTML('beforeend','<span class="beam-file-opening" aria-hidden="true"></span>');
+    el.firstElementChild?.animate?.([
+     {transform:'translateY(54px) scale(.94)',clipPath:'inset(0 0 74% 0)',opacity:.5,offset:0},
+     {transform:'translateY(11px) scale(.98)',clipPath:'inset(0 0 18% 0)',opacity:1,offset:.65},
+     {transform:'translateY(0) scale(1)',clipPath:'inset(0 0 0 0)',opacity:1,offset:1}
+    ],{duration:455,easing:'cubic-bezier(.19,.75,.25,1)'});
+   }
   }
   el.dataset.face=face;
-  if(partyMode){el.dataset.partyCount=String(group.ids.length);}else delete el.dataset.partyCount;
   if(newNode)stage.append(el);
-  el.dataset.center=String(slot===0);el.dataset.distance=String(dist);el.dataset.unmatched=String(alternate);
-  el.setAttribute('aria-pressed',String(id===active&&(fold||!!beam.picked)));
-  el.tabIndex=slot===0&&!alternate?0:-1;el.setAttribute('aria-disabled',String(alternate));
-  if(!folders)el.setAttribute('aria-label',partyMode?beamPartyLabel(id,beam.mode)+' · ASN '+el.dataset.partyCount:el.dataset.asnLabel+(alternate?' · '+beamL('검색 결과 아님','Not a search result'):''));
+  el.dataset.center=String(slot===0);el.dataset.distance=String(dist);
+  el.setAttribute('aria-pressed',String(id===browseAnchor&&(fold||!!beam.picked)));
+  el.tabIndex=slot===0?0:-1;
+  if(!folders)el.setAttribute('aria-label',el.dataset.asnLabel);
   el.dataset.ribbonSlot=String(slot);
   beamPlaceOnRibbon(el,slot);
-  el.style.opacity=String(dist===0?1:alternate?.65:.94);
+  el.style.opacity=String(dist===0?1:.94);
   if(newNode&&animate&&moved&&!reduced&&typeof el.animate==='function')el.animate(
    [{opacity:0},{opacity:Number(el.style.opacity)}],{duration:200,easing:'ease-out'});
  }
- if(active&&!reduced&&changedResult&&(animate==='query'||animate==='step'))beamTurnPaper(animate,beam.ribbonAxis||'x',Math.sign(travel)||1);
- beam.revealedReceipt=active;beam.hadQuery=!!lookup.q;
+ const turnDirection=animate==='step'&&beam.railStepDirection?beam.railStepDirection:Math.sign(travel)||1;
+ beam.railStepDirection=0;
+ if(active&&!reduced&&changedResult&&(animate==='query'||animate==='step'))beamTurnPaper(animate,beam.ribbonAxis||'x',turnDirection);
+ beam.revealedReceipt=active;beam.hadQuery=!!lookup.q;beamSizeLongFolder();
 }
 function beamInput(isSku=false){
  if(isSku){const next=beamCode($('beamSku').value);if(next===beam.sku)return;beam.sku=next;}else{const next=$('beamQuery').value;if(next===beam.query)return;beam.query=next;beam.sku='';$('beamSku').value='';}
@@ -2952,6 +2931,7 @@ function beamPick(id,animate=true){
  beam.picked=id;if(beam.phase==='party')beam.party=beam.groups.byId.get(id).key;beamRender(animate);
 }
 const beamRibbon=$('beamStage');
+window.addEventListener?.('resize',()=>{if(beam.openFolderPreview){delete beamRibbon.dataset.longPeek;beam.folderStageHeight=null;beamSizeLongFolder();}});
 let ribbonPointer=null,ribbonClickUntil=0;
 function beamDrawRibbonDrag(n){
  for(const el of beam.nodes.values())beamPlaceOnRibbon(el,Number(el.dataset.ribbonSlot),n);
@@ -2972,7 +2952,8 @@ beamRibbon.addEventListener('pointermove',e=>{
  }
  g.offset=g.axis==='y'?dy:dx;
  const at=beam.browseIds.indexOf(beam.browseAnchor);
- const bound=(g.offset>0&&at<=0)||(g.offset<0&&at>=beam.browseIds.length-1);
+ const wraps=beam.phase==='asn'&&g.axis==='x';
+ const bound=!wraps&&((g.offset>0&&at<=0)||(g.offset<0&&at>=beam.browseIds.length-1));
  // Elastic at either end. A drag previews the reel; selection only changes on release.
  if(!g.reduced){
   beamDrawRibbonDrag(-Math.max(-122,Math.min(122,g.offset))/(bound?420:140));
@@ -2996,7 +2977,9 @@ beamRibbon.addEventListener('wheel',e=>{
  if(!el||e.ctrlKey||e.metaKey||Math.abs(e.deltaY)<=Math.abs(e.deltaX)||!e.deltaY)return;
  const group=beam.groups.byId.get(el.dataset.id);if(!group)return;
  const from=beam.folderPeek.get(group.key)||0,step=Math.sign(e.deltaY);
- if(group.ids.length<2||from+step<0||from+step>=group.ids.length)return;
+ const atEnd=from+step<0||from+step>=group.ids.length;
+ const canPull=el.dataset.id===beam.browseAnchor&&beam.openFolderPreview!==group.key;
+ if(atEnd&&!canPull)return;
  e.preventDefault();
  const now=performance.now();
  if(folderWheel.id!==el.dataset.id||now-folderWheel.at>280||Math.sign(folderWheel.delta)!==step)folderWheel={id:el.dataset.id,delta:0,at:now-145};
@@ -3007,15 +2990,29 @@ beamRibbon.addEventListener('wheel',e=>{
 beamRibbon.onclick=e=>{
  if(e.detail&&performance.now()<ribbonClickUntil)return;
  const el=e.target.closest('.beam-receipt');
- if(el?.dataset.folder==='true'&&el.dataset.center==='true'){beamAdvance();return;}
+ if(el?.dataset.folder==='true'&&el.dataset.center==='true'){
+  if(beam.phase==='search'&&!beam.query.trim())beam.picked=el.dataset.id;
+  beamAdvance();return;
+ }
  beamPick(el?.dataset.id);
  if(beam.phase!=='search')beamFocusCard();
 };
 $('beamFolderReceiptOpen').onclick=beamOpenFolderReceipt;
 $('beamFolderReceiptMore').onclick=beamAppendReceiptItems;
 $('beamFolderReceiptClose').onclick=()=>$('beamFolderReceiptDialog').close();
+$('beamFolderReceiptPrev').onclick=()=>beamStepFolderReceipt(-1);
+$('beamFolderReceiptNext').onclick=()=>beamStepFolderReceipt(1);
+$('beamFolderReceiptDialog').addEventListener('keydown',e=>{
+ if(e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
+ const step=e.key==='ArrowLeft'?-1:e.key==='ArrowRight'?1:0;
+ if(step&&beamStepFolderReceipt(step))e.preventDefault();
+});
 $('beamFolderReceiptDialog').onclose=()=>{
+ const viewed=beamLongReceipt;
  beamLongReceipt=null;$('beamFolderReceiptRows').replaceChildren();
+ if(viewed&&beam.groups?.byKey.get(viewed.group.key)===viewed.group&&(beam.folderPeek.get(viewed.group.key)||0)!==viewed.at){
+  beam.folderPeek.set(viewed.group.key,viewed.at);beamRender();
+ }
  $('beamFolderReceiptOpen').focus({preventScroll:true});
 };
 $('beamPrev').onclick=()=>beamStep(-1);
@@ -3023,16 +3020,23 @@ $('beamNext').onclick=()=>beamStep(1);
 $('beamEditSearch').onclick=()=>beamBackStep(true);
 $('beamSearch').addEventListener('keydown',e=>{
  if((beam.phase==='search'&&!e.target.closest?.('.beam-receipt'))||e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
- if(e.key==='Escape'){e.preventDefault();beamBackStep();return;}
- const folder=e.target.closest?.('[data-folder=true]');
- if(folder&&(e.key==='PageDown'||e.key==='PageUp')){e.preventDefault();beamPeekFolder(folder,e.key==='PageDown'?1:-1);return;}
+ if(e.key==='Escape'){e.preventDefault();if(beam.openFolderPreview){beam.openFolderPreview='';beamRender();beamFocusCard();return;}beamBackStep();return;}
+ const folder=beam.phase!=='asn'&&(e.target.closest?.('[data-folder=true]')||beam.nodes.get(beam.browseAnchor));
+ if(folder&&['ArrowDown','ArrowUp','PageDown','PageUp'].includes(e.key)){
+  e.preventDefault();beamPeekFolder(folder,e.key.endsWith('Down')?1:-1,{wrap:e.key.startsWith('Arrow')});return;
+ }
  const direction={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];
  if(direction){e.preventDefault();beamStep(direction,/Up|Down/.test(e.key)?'y':'x');}
- else if(e.key==='Enter'&&(e.target===$('beamStart')||e.target.closest?.('.beam-receipt'))){e.preventDefault();if(!e.repeat)beamAdvance();}
+ else if(e.key==='Enter'&&(e.target===$('beamStart')||e.target.closest?.('.beam-receipt'))){
+  e.preventDefault();if(e.repeat)return;
+  if(beam.phase==='search'&&!beam.query.trim()&&e.target.closest?.('[data-folder=true]'))beam.picked=beam.browseAnchor;
+  beamAdvance();
+ }
 });
 function beamView(search,animate=false){
  const wasVisible=beam.visible,s=$('beamSearch'),w=$('sheetWorkspace');
  beam.visible=search;
+ $('beamHome').hidden=true;$('beamHome').inert=true;$('beamHomeBack').hidden=false;
  s.classList.remove('beam-returning');w.classList.remove('beam-entering');
  s.hidden=!search;s.inert=!search;w.hidden=search;w.inert=search;
  $('beamBack').hidden=search;document.body.dataset.beamView=search?'search':'inspection';
@@ -3052,7 +3056,76 @@ function beamNewSearch(reset=false){
  if(reset){beam.query='';beam.sku='';$('beamQuery').value='';$('beamSku').value='';}
  beamView(true,true);
 }
+function beamShowHome(focus=true){
+ const home=$('beamHome'),search=$('beamSearch'),work=$('sheetWorkspace');
+ beam.visible=true; // Keep inspection-only Escape handlers inactive on home.
+ home.hidden=false;home.inert=false;
+ search.hidden=true;search.inert=true;work.hidden=true;work.inert=true;
+ $('beamBack').hidden=true;$('beamHomeBack').hidden=true;
+ document.body.dataset.beamView='home';
+ beamCenterHome(beamHomeAt,focus);
+ if(focus)window.scrollTo(0,0);
+}
+const beamHomeModes=['Inbound','Outbound','Inventory','Returns'];
+let beamHomeAt=beamHomeModes.length-1,beamHomeDrag=null,beamHomeIgnoreClick=0;
+function beamHomeLayout(){
+ if($('beamHome').hidden)return;
+ const n=beamHomeModes.length,rail=$('beamHome').querySelector?.('.beam-home-choices'),gap=Math.max(15,Math.min(34,(rail?.clientWidth||0)*.026));
+ const slots=beamHomeModes.map((name,i)=>{
+  const d=(i-beamHomeAt+n)%n,delta=d>2?d-n:d;
+  const button=$('beamHome'+name),slot=$('beamHomeSlot'+name);
+  return {delta,slot,button,width:(button.offsetWidth||0)*(1-Math.abs(delta)*.18)};
+ });
+ const index=new Map(slots.map(s=>[s.delta,s]));
+ let offset=0;
+ for(const delta of [1,2]){
+  offset+=(index.get(delta-1).width+index.get(delta).width)/2+gap;
+  index.get(delta).slot.style.setProperty('--home-x',offset+'px');
+ }
+ index.get(-1).slot.style.setProperty('--home-x',-((index.get(0).width+index.get(-1).width)/2+gap)+'px');
+ index.get(0).slot.style.setProperty('--home-x','0px');
+}
+function beamCenterHome(index,focus=false){
+ const n=beamHomeModes.length;beamHomeAt=((index%n)+n)%n;
+ beamHomeLayout();
+ for(const [i,name] of beamHomeModes.entries()){
+  const slot=$('beamHomeSlot'+name),button=$('beamHome'+name),d=(i-beamHomeAt+n)%n,delta=d>2?d-n:d;
+  slot.dataset.center=String(delta===0);
+  slot.style.setProperty('--home-offset',String(delta));
+  slot.style.setProperty('--home-depth',String(Math.abs(delta)));
+  slot.style.setProperty('--home-yaw',(delta*-10)+'deg');
+  button.setAttribute('aria-current',String(i===beamHomeAt));button.tabIndex=i===beamHomeAt?0:-1;
+ }
+ if(focus)$('beamHome'+beamHomeModes[beamHomeAt]).focus({preventScroll:true});
+}
+if(typeof ResizeObserver==='function'){
+ const beamHomeResize=new ResizeObserver(beamHomeLayout);
+ for(const name of beamHomeModes)beamHomeResize.observe($('beamHome'+name));
+}
 $('beamBack').onclick=()=>beamNewSearch();
+$('beamHomeBack').onclick=()=>beamShowHome();
+for(const [i,name] of beamHomeModes.entries())$('beamHome'+name).onclick=()=>{
+ if(beamHomeIgnoreClick&&performance.now()<beamHomeIgnoreClick)return;
+ if(name==='Returns'&&i===beamHomeAt){beamView(true);return;}
+ beamCenterHome(i,true);
+};
+$('beamHome').addEventListener?.('keydown',e=>{
+ if(e.defaultPrevented||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;
+ const step={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key];
+ if(step){e.preventDefault();beamCenterHome(beamHomeAt+step,true);}
+});
+$('beamHome').addEventListener?.('pointerdown',e=>{
+ if(e.isPrimary&&e.button===0)beamHomeDrag={id:e.pointerId,x:e.clientX,y:e.clientY};
+});
+$('beamHome').addEventListener?.('pointercancel',()=>{beamHomeDrag=null;});
+$('beamHome').addEventListener?.('pointerup',e=>{
+ const from=beamHomeDrag;beamHomeDrag=null;
+ if(!from||from.id!==e.pointerId)return;
+ const x=e.clientX-from.x,y=e.clientY-from.y;
+ if(Math.abs(x)<40||Math.abs(x)<Math.abs(y)*1.25)return;
+ beamHomeIgnoreClick=performance.now()+325;beamCenterHome(beamHomeAt+(x<0?1:-1),true);
+});
+
 function beamInspectionEscape(e){
  if(e.key!=='Escape'||beam.visible||dataImportBusy||e.defaultPrevented||e.repeat||
     e.isComposing||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey||
@@ -3179,7 +3252,7 @@ const beamOldDemo=$('demo').onclick;
 $('demo').onclick=()=>{let old=state;beamOldDemo();if(state!==old){beam.mode='b2b';beamNewSearch(true);}};
 const beamOldRestore=$('backup').onchange;
 $('backup').onchange=async e=>{const before=state;await beamOldRestore(e);if(state!==before){browserRecovery?.schedule();beam.mode=isB2C()?'b2c':'b2b';if(state.receipt){beamView(false);$('barcode').focus({preventScroll:true});}else beamNewSearch(true);}};
-document.body.dataset.beamView='search';beamRender();beamSaveState();
+beamRender();beamShowHome(false);beamSaveState();
 
 function hasBrowserRecoveryWork(){
  return [state,...(state.workSheets||[])].some(w=>w.receipt||['scans','pending','archivedScans','archivedPending','confirmations','confirmationCommitments'].some(key=>w[key]?.length)||w.audit?.some(entry=>entry.events?.length));
