@@ -36,19 +36,22 @@ test('UX-22/28 Outbound receipt, identity and label preview', async ({ beam: pag
   await expect(page).toHaveScreenshot('outbound-excess-dark.png');
 });
 
-test('UX-24/25 Returns paper and folder presentation at working width', async ({ beam: page }) => {
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await loadDemo(page);
-  const query = page.locator('#beamQuery');
-  await query.fill('가상 거래처');
-  await page.evaluate(() => document.fonts.ready);
-  await expect(page).toHaveScreenshot('returns-folders.png');
-  await query.press('Enter');
-  await page.locator('#beamFolderReceiptOpen').click();
-  await expect(page.locator('#beamFolderReceiptDialog')).toBeVisible();
-  await expect(page).toHaveScreenshot('returns-folder-receipt.png');
-  await page.keyboard.press('Escape');
-  await expect(page.locator('#beamFolderReceiptOpen')).toBeFocused();
+test.describe('1280 × 720 viewport', () => {
+  test.use({ viewport: { width: 1280, height: 720 } });
+
+  test('UX-24/25 Returns paper and folder presentation at working width', async ({ beam: page }) => {
+    await loadDemo(page);
+    const query = page.locator('#beamQuery');
+    await query.fill('가상 거래처');
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page).toHaveScreenshot('returns-folders.png');
+    await query.press('Enter');
+    await page.locator('#beamFolderReceiptOpen').click();
+    await expect(page.locator('#beamFolderReceiptDialog')).toBeVisible();
+    await expect(page).toHaveScreenshot('returns-folder-receipt.png');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#beamFolderReceiptOpen')).toBeFocused();
+  });
 });
 
 test.describe('touch viewport', () => {
