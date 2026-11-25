@@ -1,3 +1,81 @@
+#printReport{display:none}
+@media print{
+ @page{size:A4;margin:13mm 12mm}
+ html,body{margin:0!important;background:#fff!important}
+ body>*:not(#printReport){display:none!important}
+ #printReport{display:block!important;background:#fff!important;color:#111!important;font:9pt/1.42 Pretendard,"Malgun Gothic",Arial,sans-serif;font-variant-numeric:tabular-nums;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+ #printReport *{box-sizing:border-box}
+ #printReport :where(h1,h2,p,dl,dd){margin:0}
+ #printReport .pr-heading{padding:14pt 0 13pt;text-align:center;border-top:1pt solid #111;break-inside:avoid}
+ #printReport .pr-brand{font-size:8pt;letter-spacing:.14em;font-weight:750;color:#444}
+ #printReport h1{font-size:23pt;font-weight:850;line-height:1.15;margin-top:7pt;letter-spacing:-.025em}
+ #printReport .pr-caption-line{margin-top:3pt;color:#333;font-size:8.5pt;font-weight:700}
+ #printReport .pr-issued{margin-top:8pt;font-size:8pt}
+ #printReport .pr-issued b{display:inline-block;min-width:125pt;border-bottom:.6pt solid #555;margin-left:5pt}
+ #printReport .pr-sheet-meta,#printReport .pr-end{border:.55pt solid #999;break-inside:avoid}
+ #printReport .pr-band{padding:4.5pt 7pt;background:#111!important;color:#fff!important;font-weight:750;letter-spacing:.06em;font-size:8pt}
+ #printReport .pr-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0}
+ #printReport .pr-fields>div{padding:6pt 7pt;border-bottom:.55pt solid #aaa;border-right:.55pt solid #aaa;min-width:0;overflow-wrap:anywhere}
+ #printReport .pr-fields>div:nth-child(3n){border-right:0}
+ #printReport .pr-fields dt{font-size:7.5pt;color:#4a4a4a;font-weight:700}
+ #printReport .pr-fields dd{margin-top:2pt;font-weight:750}
+ #printReport .pr-section{margin-top:13pt}
+ #printReport h2{font-size:10pt;font-weight:800;margin-bottom:4pt;break-after:avoid;page-break-after:avoid}
+ #printReport table{display:table!important;width:100%;table-layout:fixed;border-collapse:collapse;font-size:8pt;margin:0}
+ #printReport thead{display:table-header-group;break-inside:avoid}
+ #printReport tfoot{display:table-row-group}
+ #printReport tr{break-inside:avoid;page-break-inside:avoid}
+ #printReport th,#printReport td{border:.55pt solid #a3a3a3!important;padding:5pt 4.5pt;vertical-align:top;position:static;line-height:1.35;white-space:normal;overflow-wrap:anywhere;text-align:left}
+ #printReport th{background:#111!important;color:#fff!important;font-weight:750}
+ #printReport td{background:#fff!important;color:#181818!important}
+ #printReport tbody tr:nth-child(even) td{background:#f3f3f3!important}
+ #printReport tfoot td{background:#ededed!important;font-weight:800;border-top:1pt solid #111!important}
+ #printReport .pr-number{text-align:right}
+ #printReport .pr-empty{text-align:center;padding:9pt;color:#555!important}
+ #printReport .pr-end{margin-top:11pt}
+ #printReport .pr-end p{min-height:19pt;padding:6pt 7pt;font-size:8pt;color:#444}
+}
+
+@media print{
+.pr-pda{margin:4mm 0;padding:3mm 4mm 2.5mm;border:1px dashed #6c6b66;display:grid;grid-template-columns:1fr auto;align-items:center;gap:3mm;background:#fff;color:#000;break-inside:avoid;page-break-inside:avoid}
+.pr-pda b,.pr-pda small{display:block}.pr-pda small{font-size:8pt;margin-top:1mm;overflow-wrap:anywhere;white-space:pre-wrap}
+.pr-pda svg{display:block;color:#000;max-width:100%;height:auto}
+.pr-pda.pr-pda-wide{display:block}.pr-pda.pr-pda-wide svg{margin-top:2mm}
+}
+
+@media print{
+ #printReport{print-color-adjust:economy;-webkit-print-color-adjust:economy}
+ #printReport .pr-heading{padding:0 0 10pt;text-align:left;border:0}
+ #printReport .pr-brand{display:flex;justify-content:space-between;align-items:baseline;gap:10pt;padding-bottom:7pt;border-bottom:.45pt solid #777}
+ #printReport .pr-brand span{text-align:right;overflow-wrap:anywhere}
+ #printReport .pr-issued{margin-top:6pt}
+ #printReport .pr-issued b{min-width:0;border:0}
+ #printReport .pr-pda{padding:0;margin:8pt 0 5pt;border:0;border-radius:0;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+ #printReport .pr-pda b{font-size:9pt}
+ #printReport .pr-pda small{font-size:8pt}
+ #printReport .pr-pda svg{shape-rendering:crispEdges}
+ #printReport .pr-tear{display:flex;align-items:center;gap:6pt;margin:0 0 10pt;break-after:avoid}
+ #printReport .pr-tear::before,#printReport .pr-tear::after{content:"";width:6pt;height:10pt;border:.45pt solid #777}
+ #printReport .pr-tear::before{border-left:0;border-radius:0 8pt 8pt 0}
+ #printReport .pr-tear::after{border-right:0;border-radius:8pt 0 0 8pt}
+ #printReport .pr-tear i{flex:1;border-top:.45pt dashed #777}
+ #printReport .pr-sheet-meta,#printReport .pr-end{border:0}
+ #printReport .pr-band{background:none!important;color:#181818!important;padding:0 0 4pt;border-bottom:.45pt solid #888}
+ #printReport .pr-fields>div{padding:5pt 6pt 4pt 0;border:0}
+ #printReport .pr-fields>div+div{border:0}
+ #printReport th,#printReport td{padding:3.5pt 4pt;border:0!important;background:none!important}
+ #printReport th{color:#181818!important;border-bottom:.45pt solid #777!important}
+ #printReport tbody tr:nth-child(even) td,#printReport tfoot td{background:none!important}
+ #printReport tbody tr:not(:last-child) td{border-bottom:.34pt dotted #aaa!important}
+ #printReport tfoot td{border-top:.55pt dashed #777!important}
+ #printReport .pr-end{margin-top:12pt}
+ #printReport .pr-end p{padding:5pt 0 0;min-height:0}
+}
+@media print{
+ #printReport .pr-stub-party{display:flex;justify-content:space-between;gap:9pt;margin-top:7pt;font-size:10pt;overflow-wrap:anywhere}
+ #printReport .pr-stub-party b:last-child{white-space:nowrap}
+}
+
 @page beam-pda-wide {size:A4 landscape;margin:13mm 12mm}
 @media print {
  #printReport[data-paper="landscape"] {page:beam-pda-wide}
@@ -17,4 +95,13 @@
  #printReport .pr-label .pr-pda-value {display:block;margin:0;font-size:14pt;line-height:1.1;letter-spacing:.06em;white-space:pre-wrap;overflow-wrap:anywhere}
  #printReport .pr-label .pr-pda small {font-size:7.25pt;color:#222}
  #printReport .pr-inspection .pr-section {margin-top:4mm}
+}
+
+@media print{
+ #printReport .pr-dispatch-fields{display:grid;grid-template-columns:1fr 1fr;gap:3mm 6mm;margin:0}
+ #printReport .pr-dispatch-fields>div{border-bottom:.5pt solid #bbb;padding-bottom:2mm;break-inside:avoid;overflow-wrap:anywhere}
+ #printReport .pr-dispatch-fields dt{font-size:9pt;font-weight:700}
+ #printReport .pr-dispatch-fields dd{margin:1mm 0 0;font-size:12pt}
+ #printReport .pr-dispatch-cartons{columns:2;column-gap:8mm;padding-inline-start:6mm}
+ #printReport .pr-dispatch-cartons li{break-inside:avoid;overflow-wrap:anywhere;margin-bottom:1mm}
 }

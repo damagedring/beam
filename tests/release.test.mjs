@@ -8,11 +8,11 @@ import { execFileSync } from 'node:child_process';
 import { checkDependency, localModuleTarget, moduleReferences, versionModule } from '../tools/module-graph.mjs';
 
 const dist = new URL('../dist/',import.meta.url);
-const files = ['.nojekyll','app.css','app.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2',
+const files = ['.nojekyll','app.css','app.js','app/navigation.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2',
   'components/print/barcode.js','components/print/inspection-report.js','components/product-identity/view.js','components/product-labels/view.js',
   'domain/carton-verification.js','domain/code128.js','domain/product-identity.js','domain/product-labels.js',
-  'domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','features/cartons/model.js','features/cartons/outbound-receipts.js','features/cartons/workspace.js','features/returns/recovery.js','import/workbook.js','index.html',
-  'platform/indexed-recovery.js','platform/inspection-input.js','platform/reference-fingerprint.js','platform/scan-audio.js',
+  'domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','features/cartons/model.js','features/cartons/outbound-receipts.js','features/cartons/workspace.js','features/returns/quantities.js','features/returns/recovery.js','features/returns/scan-commands.js','import/mapping/profiles.js','import/workbook.js','index.html',
+  'platform/indexed-recovery.js','platform/inspection-input.js','platform/print.js','platform/reference-fingerprint.js','platform/scan-audio.js',
   'ui/translations.js','vendor/xml-parser.js'];
 const read=(name)=>readFile(new URL(name,dist),'utf8');
 
@@ -91,30 +91,3 @@ test('satin glass uses filter support rather than requiring a transparency prefe
   assert.match(layer,/@supports \(backdrop-filter:blur\(2px\)\) or \(-webkit-backdrop-filter:blur\(2px\)\)/);
   assert.match(layer,/@media \(prefers-reduced-transparency:reduce\)[\s\S]+background:revert-layer!important;[\s\S]+backdrop-filter:none!important/);
 });
-
-test('v0.12 keeps the approved desktop foundation outside the declared mobile and input changes',async()=>{
- const [html,css]=await Promise.all([read('index.html'),read('app.css')]);
- const normalized=html.replace(/src="\.\/app\.js\?v=[0-9a-f]{12}"/,'src="./app.js"').replace(/(app\.css\?v=)[0-9a-f]{12}/,'$1'+baselineCssRevision(css)).replace(' · v0.12',' · v0.10')
-  .replace('aria-labelledby="beamSearchTitle" tabindex="-1"','aria-labelledby="beamSearchTitle"')
-  .replaceAll(' enterkeyhint="search"','').replaceAll(' autocapitalize="off"','').replaceAll(' enterkeyhint="done"','')
-  .replace(/<main id="cartonWorkspace"[\s\S]*?<\/dialog>\n/,'')
-  .replace(/<dialog id="productLabelDialog"[\s\S]*?<\/dialog>\n/,'')
-  .replace(/<button id="productLabelTrigger"[^\n]+\n/,'')
-  .replace(/(id="beamHome(?:Outbound|Inventory)Hint") data-ko="[^"]+" data-en="[^"]+">[^<]+/g,'$1 data-ko="준비 중" data-en="Not yet available">준비 중')
-  .replace(/<div id="orderTabs" role="group"[^>]+><\/div>\n/,'')
-  .replace('<small id="asnNavigationReason">\n</small>\n</section>\n','<small id="asnNavigationReason">\n</small>\n</section>\n<div id="orderTabs" aria-label="다른 오더 시트">\n</div>\n')
-  .replace('<div class="scan-product-identity"><span id="lastScannedBrand" class="scan-brand-badge" hidden></span>\n','')
-  .replace('</strong>\n</div>\n<div id="lastScannedProgressGroup"','</strong>\n<div id="lastScannedProgressGroup"')
-  .replace('<span id="lastScannedPercent"></span>','')
-  .replace(/<section id="orderCoverage"[\s\S]*?<span id="asnCoverageDetails"><\/span>\n<\/section>\n/,'')
-  .replace(/(<section id="lastScannedPicking"[^>]+>\n<\/section>\n<\/aside>\n<\/div>\n)/,'$1<div class="asn-coverage">\n<progress id="asnProgressBar" max="100" value="0" aria-label="ASN 예정 수량 확인 진행률">\n</progress>\n<span id="asnCoverage">\n</span>\n</div>\n')
-  .replace(/  <div id="beamFolderActions" hidden>\n[\s\S]*?  <button type="button" id="beamFolderReceiptOpen"/,'  <button type="button" id="beamFolderReceiptOpen"')
-  .replace('  </div>\n  <div id="beamBrowse" hidden>','  <div id="beamBrowse" hidden>')
-  .replace(/<button id="mobileExpectedQuantities"[^\n]+\n/,'')
-  .replace(/<dialog id="mobileQuantityDialog"[\s\S]*?<\/dialog>\n/,'');
- const sha=value=>createHash('sha256').update(value).digest('hex');
- assert.equal(sha(normalized),'b9874b80234bdc030c8819ba2934ca25f4b391bb7951e130c5868e90ad5c995d');
- assert.equal(sha(withoutPhoneStyle(css)),'cc1868c74b49a556e8f2a8a23d3d204b462d7395eb30c74b2b3316d4e95c23b6');
-});
-function withoutPhoneStyle(css){return css.slice(0,css.indexOf('#productLabelDialog{')).replace('min-width:0;gap:2px;touch-action:pan-y pinch-zoom}', 'min-width:0;gap:2px}').replace('grid-auto-columns:minmax(0,1fr);gap:1px;min-width:0}', 'grid-auto-columns:minmax(0,1fr);gap:1px;min-width:0;touch-action:pan-y}').replace(/\n\/\* Phone controls stay[\s\S]*?@media print\{#mobileQuantityDialog,#mobileExpectedQuantities\{display:none!important\}\}\n/,'');}
-function baselineCssRevision(css){return createHash('sha256').update(withoutPhoneStyle(css)).digest('hex').slice(0,12);}

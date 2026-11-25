@@ -3,17 +3,18 @@ import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { versionModule } from './module-graph.mjs';
+import { checkStyleReferences } from './style-metrics.mjs';
 
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const source = join(root, 'src');
 const destination = join(root, 'dist');
 const files = Object.freeze([
-  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'features/cartons/workspace.js', 'features/cartons/model.js', 'features/cartons/outbound-receipts.js', 'domain/carton-verification.js',
+  'index.html', 'app.js', 'app/navigation.js', 'import/workbook.js', 'import/mapping/profiles.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'features/cartons/workspace.js', 'features/cartons/model.js', 'features/cartons/outbound-receipts.js', 'domain/carton-verification.js',
   'components/product-identity/view.js', 'components/print/barcode.js', 'components/print/inspection-report.js',
-  'features/returns/recovery.js', 'platform/indexed-recovery.js', 'platform/inspection-input.js', 'platform/scan-audio.js', 'platform/reference-fingerprint.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
+  'features/returns/quantities.js', 'features/returns/recovery.js', 'features/returns/scan-commands.js', 'platform/indexed-recovery.js', 'platform/inspection-input.js', 'platform/print.js', 'platform/scan-audio.js', 'platform/reference-fingerprint.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
 ]);
-const styles = ['styles/status-colors.css', 'styles/glass.css', 'styles/workspace.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'features/cartons/workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'styles/return-receipts.css', 'components/product-identity/view.css', 'features/cartons/outbound-receipts.css'];
+const styles = ['styles/tokens/status.css', 'styles/tokens/typography.css', 'styles/tokens/controls.css', 'styles/glass.css', 'styles/workspace.css', 'styles/receipt-paper.css', 'features/returns/quantities.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'features/cartons/workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'features/returns/receipts.css', 'components/product-identity/view.css', 'features/cartons/outbound-receipts.css'];
 
 async function readSource(relative) {
   const file = join(source, relative);
@@ -41,6 +42,7 @@ try {
     await writeFile(file, modules ? versionModule(relative, modules.toString('utf8'), jsSources, moduleRevision) : await readSource(relative));
   }
   const css = await Promise.all(styles.map(readSource));
+  checkStyleReferences(new Map(styles.map((name, i) => [name, css[i].toString('utf8')])));
   const stylesheet = Buffer.concat(css.flatMap((data) => [data, Buffer.from('\n')]));
   const revision = createHash('sha256').update(stylesheet).digest('hex').slice(0, 12);
   let markup = (await readSource('index.html')).toString('utf8');

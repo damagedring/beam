@@ -1,0 +1,268 @@
+import { expect } from '@playwright/test';
+import { buffer } from 'node:stream/consumers';
+import { fileURLToPath } from 'node:url';
+import { enterScan, test } from './beam-fixture.mjs';
+
+const originalMapping = {
+  '주문 식별자': 'A · Intake ID',
+  '외부 주문 식별자': 'B · Public Ref',
+  'B2B/B2C 구분 열': 'C · Segment',
+  '반송장번호 (선택)': 'D · Waybill',
+  '상품 바코드': 'E · Item barcode',
+  '상품 코드': 'F · Item code',
+  상품명: 'G · Item title',
+  '예정 수량': 'H · Units planned',
+  매장명: 'I · Shop',
+  '고객명 · 조회용 (선택)': 'J · Recipient',
+};
+
+const annexMapping = {
+  '예정 수량': 'A · Annex units',
+  매장명: 'B · Annex shop',
+  '주문 식별자': 'C · Annex key',
+  '상품 코드': 'D · Annex code',
+  상품명: 'E · Annex title',
+  '상품 바코드': 'F · Annex barcode',
+  '반송장번호 (선택)': 'G · Annex waybill',
+};
+
+const wholesaleBarcode = '0012345678901';
+const wholesaleTracking = '0011-2233-4455';
+const searchStatus = page => page.locator('#beamSearchStatus');
+const columnDialog = page => page.getByRole('dialog', { name: 'Return ASN · 열 연결' });
+const mapConfirm = dialog => dialog.getByRole('button', { name: '연결 확인' });
+
+async function referenceSettings(page) {
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: '기준 데이터', exact: true }).click();
+  return page.getByRole('dialog', { name: '기준 데이터' });
+}
+
+async function chooseReferenceFile(page, settings, file) {
+  const chooser = page.waitForEvent('filechooser');
+  await settings.getByRole('button', { name: 'RAW 또는 프로필 불러오기' }).click();
+  await (await chooser).setFiles(file);
+}
+
+async function chooseWorkbook(page, name, mode = 'replace') {
+  const settings = await referenceSettings(page);
+  await settings.getByRole('combobox', { name: '예정 자료 적용' }).selectOption(mode);
+  const path = fileURLToPath(new URL('../fixtures/reference-' + name + '.xlsx', import.meta.url));
+  await chooseReferenceFile(page, settings, path);
+}
+
+async function mapWorkbook(page, sheet, fields) {
+  const sheets = page.getByRole('dialog', { name: '시트 연결' });
+  const role = sheets.getByRole('combobox', { name: 'Return ASN' });
+  await expect(role).toBeFocused();
+  await role.selectOption({ label: sheet });
+  await mapConfirm(sheets).click();
+  const columns = columnDialog(page);
+  const header = columns.getByRole('combobox', { name: '헤더 행' });
+  await expect(header).toBeFocused();
+  await header.selectOption('1');
+  for (const [name, label] of Object.entries(fields)) {
+    await columns.getByRole('combobox', { name, exact: true }).selectOption({ label });
+  }
+  return columns;
+}
+
+async function expectImported(page, rows) {
+  await expect(page.locator('#beamRawAnnounce')).toHaveText('RAW 연결 완료 · 반품 예정 ' + rows + '행');
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+}
+
+async function importOriginal(page) {
+  await page.getByRole('button', { name: /Returns/ }).click();
+  await chooseWorkbook(page, 'original');
+  const columns = await mapWorkbook(page, 'Fictional Returns', originalMapping);
+  await columns.getByRole('textbox', { name: 'B2B 원본 값' }).fill('WHOLE');
+  await columns.getByRole('textbox', { name: 'B2C 원본 값' }).fill('HOME');
+  await mapConfirm(columns).click();
+  await expectImported(page, 3);
+}
+
+async function exportProfiles(page) {
+  const settings = await referenceSettings(page);
+  const exportButton = settings.getByRole('button', { name: 'JSON 내보내기' });
+  if (!await exportButton.isVisible()) await settings.getByText('연결 프로필 관리', { exact: true }).click();
+  const download = page.waitForEvent('download');
+  await exportButton.click();
+  const file = await download;
+  const profiles = JSON.parse((await buffer(await file.createReadStream())).toString());
+  await settings.getByRole('button', { name: '닫기', exact: true }).click();
+  return profiles;
+}
+
+async function enterInspection(page, value) {
+  const query = page.locator('#beamQuery');
+  await query.fill(value);
+  await query.press('Enter');
+  await page.getByRole('button', { name: '파일 열기', exact: true }).click();
+  await page.getByRole('button', { name: '선택한 주문 검수 시작' }).click();
+  await expect(page.locator('#barcode')).toBeFocused();
+}
+
+test('UX-02 saved Returns mapping reconnects reordered headers and a moved header row', async ({ beam: page }) => {
+  await importOriginal(page);
+  await page.reload();
+  await page.getByRole('button', { name: /Returns/ }).click();
+  await chooseWorkbook(page, 'reordered');
+  await expectImported(page, 3);
+
+  await enterInspection(page, wholesaleTracking);
+  await enterScan(page.locator('#barcode'), wholesaleBarcode);
+  await expect(page.locator('#lastScannedProgress')).toHaveText(/1\s*\/\s*7/);
+  await expect(page.locator('#lastname')).toHaveText('Canvas tote revised');
+  const profiles = await exportProfiles(page);
+  expect(Object.values(profiles.profiles).map(profile => profile.name)).toEqual(['reference-original']);
+  expect(profiles.profiles[profiles.active].file.raw.headerNames).toMatchObject({
+    receipt: 'Intake ID', qty: 'Units planned', barcode: 'Item barcode', returnChannel: 'Segment',
+    customerName: 'Recipient',
+  });
+});
+
+test('UX-03 Escape cancels pending mapping without applying data and a new schema preserves the first profile', async ({ beam: page }) => {
+  await importOriginal(page);
+  const originalProfiles = await exportProfiles(page);
+
+  await chooseWorkbook(page, 'new-schema');
+  const pending = await mapWorkbook(page, 'Fictional Annex', annexMapping);
+  await page.keyboard.press('Escape');
+  await expect(pending).toBeHidden();
+  await expect(page.locator('#beamRawMessage')).toContainText('[MAP-CANCEL]');
+  await expect(page.locator('#beamQuery')).toBeFocused();
+  await expect(searchStatus(page)).toHaveText('전체 반품 주문 · 1');
+  await page.locator('#beamQuery').fill('Juniper Supply');
+  await expect(page.getByRole('button', { name: /Juniper Supply · 주문 1/ })).toBeVisible();
+  expect(await exportProfiles(page)).toEqual(originalProfiles);
+
+  await chooseWorkbook(page, 'new-schema');
+  await mapConfirm(await mapWorkbook(page, 'Fictional Annex', annexMapping)).click();
+  await expectImported(page, 1);
+  await page.locator('#beamQuery').fill('Gamma Annex');
+  await expect(page.getByRole('button', { name: /Gamma Annex · 주문 1/ })).toBeVisible();
+
+  const profiles = await exportProfiles(page);
+  expect(profiles.active).not.toBe(originalProfiles.active);
+  expect(Object.keys(profiles.profiles)).toHaveLength(2);
+  expect(profiles.profiles[originalProfiles.active]).toEqual(originalProfiles.profiles[originalProfiles.active]);
+  expect(profiles.profiles[profiles.active]).toMatchObject({
+    name: 'reference-new-schema', file: { raw: { sheetName: 'Fictional Annex', headerNames: { receipt: 'Annex key' } } },
+  });
+
+  await chooseWorkbook(page, 'reordered');
+  const sheets = page.getByRole('dialog', { name: '시트 연결' });
+  await sheets.getByRole('button', { name: '다른 프로필 사용' }).click();
+  const settings = page.getByRole('dialog', { name: '기준 데이터' });
+  const retry = settings.getByRole('button', { name: '이 프로필로 다시 연결: reference-reordered.xlsx' });
+  await expect(settings).toBeVisible();
+
+  const confirmImport = page.waitForEvent('dialog').then(async dialog => {
+    const message = dialog.message();
+    await dialog.accept();
+    return message;
+  });
+  await chooseReferenceFile(page, settings, {
+    name: 'saved-return-profile.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(originalProfiles)),
+  });
+  expect(await confirmImport).toContain('현재 프로필 목록을 가져온 목록으로 바꿀까요?');
+  await expect(retry).toBeFocused();
+  await expect(settings.getByText('프로필 적용 완료 · 저장된 Excel 시트 1개', { exact: true })).toBeVisible();
+  await retry.click();
+  await expectImported(page, 3);
+  await page.locator('#beamQuery').fill('Juniper Supply');
+  await expect(page.getByRole('button', { name: /Juniper Supply · 주문 1/ })).toBeVisible();
+});
+
+test('UX-04 append rejects overlapping orders and replacement reuses the existing inspection work', async ({ beam: page }) => {
+  await importOriginal(page);
+  await enterInspection(page, wholesaleTracking);
+  await enterScan(page.locator('#barcode'), wholesaleBarcode);
+  await expect(page.locator('#lastScannedProgress')).toHaveText(/1\s*\/\s*3/);
+  await expect(page.locator('#beamRecoverySaved')).toContainText('자동 저장됨');
+
+  await chooseWorkbook(page, 'reordered', 'append');
+  await expect(page.locator('#beamRawMessage')).toContainText('[RAW-APPLY]');
+  await expect(page.locator('#dialogNotice')).toContainText('기존 오더 키가 겹칩니다.');
+  await enterInspection(page, wholesaleTracking);
+  await expect(page.locator('#lastScannedProgress')).toHaveText(/1\s*\/\s*3/);
+
+  await chooseWorkbook(page, 'append', 'append');
+  await expectImported(page, 1);
+  await page.locator('#beamQuery').fill('Alder Goods');
+  await expect(page.getByRole('button', { name: /Alder Goods · 주문 1/ })).toBeVisible();
+  await enterInspection(page, wholesaleTracking);
+  await expect(page.locator('#lastScannedProgress')).toHaveText(/1\s*\/\s*3/);
+
+  await chooseWorkbook(page, 'reordered');
+  await expectImported(page, 3);
+  await page.locator('#beamQuery').fill('Alder Goods');
+  await expect(page.locator('#beamEmptyTitle')).toHaveText('일치하는 반품 주문이 없어요');
+  await enterInspection(page, wholesaleTracking);
+  await expect(page.locator('#lastScannedProgress')).toHaveText(/1\s*\/\s*7/);
+  await expect(page.locator('#scanActivitySection [data-cell-state]')).toHaveCount(1);
+});
+
+test('UX-04 reference fingerprint completion preserves a focused draft in the settings dialog', async ({ beam: page }) => {
+  // Hold the result of a real WebCrypto call at the browser API boundary.
+  await page.addInitScript(() => {
+    const digest = SubtleCrypto.prototype.digest;
+    SubtleCrypto.prototype.digest = async function (algorithm, bytes) {
+      const result = await digest.call(this, algorithm, bytes);
+      if (new TextDecoder().decode(bytes).includes('REF-WHOLESALE') && !window.resumeFixtureFingerprint) {
+        await new Promise(resolve => { window.resumeFixtureFingerprint = resolve; });
+      }
+      return result;
+    };
+  });
+  await page.reload();
+  await importOriginal(page);
+  await enterInspection(page, wholesaleTracking);
+  await enterScan(page.locator('#barcode'), wholesaleBarcode);
+  const confirmation = page.locator('#confirmInspection');
+  await expect(confirmation).toBeDisabled();
+  await expect(page.locator('#confirmHint')).toContainText('기준 데이터 확인을 준비');
+  await expect.poll(() => page.evaluate(() => typeof window.resumeFixtureFingerprint)).toBe('function');
+
+  const settings = await referenceSettings(page);
+  await settings.getByText('자료별 추가 · 붙여넣기', { exact: true }).click();
+  await settings.getByRole('button', { name: '반품 예정 자료 추가' }).click();
+  const draft = settings.getByRole('textbox', { name: '또는 데이터 붙여넣기' });
+  await draft.fill('Synthetic draft awaiting review');
+  await expect(draft).toBeFocused();
+  await page.evaluate(() => window.resumeFixtureFingerprint());
+  await expect(confirmation).toBeEnabled();
+  await expect(settings).toBeVisible();
+  await expect(draft).toBeFocused();
+  await expect(draft).toHaveValue('Synthetic draft awaiting review');
+});
+
+test('UX-05 B2B uses store names and B2C uses customer names and preserves tracking ambiguity', async ({ beam: page }) => {
+  await importOriginal(page);
+  const query = page.locator('#beamQuery');
+  await expect(query).toHaveAccessibleName('매장명 또는 반송장번호');
+  await query.fill('Mina Example');
+  await expect(page.locator('#beamEmptyTitle')).toHaveText('일치하는 반품 주문이 없어요');
+  await query.fill('Juniper Supply');
+  await expect(page.getByRole('button', { name: /Juniper Supply · 주문 1/ })).toBeVisible();
+  await page.getByRole('button', { name: 'B2C', exact: true }).click();
+  await expect(query).toHaveAccessibleName('고객명 또는 반송장번호');
+  await expect(query).toBeFocused();
+  await expect(page.locator('#beamEmptyTitle')).toHaveText('일치하는 반품 주문이 없어요');
+  await query.fill('Mina Example');
+  await expect(page.getByRole('button', { name: /Mina Example.*HOME-RETURN-18/ })).toBeVisible();
+
+  await query.fill('3344556677');
+  await query.press('Enter');
+  await expect(searchStatus(page)).toContainText('반송장번호를 찾지 못했어요');
+  await query.fill('００３３ ４４５５–６６７７');
+  await expect(searchStatus(page)).toHaveText('검색 결과 2건');
+  await query.press('Enter');
+  await expect(page.getByRole('button', { name: '파일 열기', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Mina Example.*HOME-RETURN-18/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Mira Example · 주문 1/ })).toBeVisible();
+  await expect(page.locator('#barcode')).toBeHidden();
+});

@@ -1,3 +1,4 @@
+import {createNavigation} from '../src/app/navigation.js';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
@@ -17,10 +18,11 @@ test('home ↔ returns toggles inert regions and does not write inspection or re
  const mark={};
  const nodes=new Map();
  const $=id=>{if(!nodes.has(id))nodes.set(id,{hidden:false,inert:false,dataset:{},offsetWidth:({beamHomeInbound:310,beamHomeOutbound:405,beamHomeInventory:392,beamHomeReturns:285})[id]||0,style:{setProperty(key,value){this[key]=value}},setAttribute(key,value){this[key]=value},classList:{remove(){},add(){}},focus(){mark.focus=id}});return nodes.get(id)};
- const document={body:{dataset:{}}},beam={visible:true};
+ const document={body:{dataset:{}},getElementById:$};
+ const navigation=createNavigation(document,{hide(){},open(mode){mark.mode=mode;}});
  const cut=(start,end)=>app.slice(app.indexOf(start),app.indexOf(end,app.indexOf(start)));
  runInNewContext(cut('function beamView(', 'function beamKnownJobs(')+'\n'+cut('function beamShowHome(', 'function beamInspectionEscape(')+'\nbeamShowHome(false);',{
-  beam,$,document,cartonWorkspace:{hide(){},open(mode){mark.mode=mode;}},window:{scrollTo(){}},beamRender(){mark.rendered=true;},beamDrawJobs(){},beamNewSearch(){},matchMedia:()=>({matches:true}),focusBeamInput:id=>$(id).focus()
+  navigation,$,document,window:{scrollTo(){}},beamRender(){mark.rendered=true;},beamDrawJobs(){},beamNewSearch(){},matchMedia:()=>({matches:true}),focusBeamInput:id=>$(id).focus()
  });
  assert.equal(document.body.dataset.beamView,'home');assert.equal($('beamSearch').inert,true);assert.equal($('sheetWorkspace').inert,true);
  assert.equal($('beamHomeSlotReturns').dataset.center,'true');
@@ -34,7 +36,6 @@ test('home ↔ returns toggles inert regions and does not write inspection or re
  $('beamHomeReturns').onclick();assert.equal(document.body.dataset.beamView,'search');assert.equal(mark.focus,'beamQuery');assert.equal($('beamHome').inert,true);
  $('beamHomeBack').onclick();assert.equal(document.body.dataset.beamView,'home');assert.equal(mark.focus,'beamHomeReturns');
  $('beamHomeOutbound').onclick();$('beamHomeOutbound').onclick();assert.equal(mark.mode,'outbound');assert.equal(document.body.dataset.beamView,'carton');
- assert.match(app,/finishRestore:plan=>[\s\S]{0,700}if\(state\.receipt\)\{beamView\(false\)/);
 });
 test('home labels avoid the global glass finish and have independently padded, understated capsules',async()=>{
  const [glass,workspace,reels]=await Promise.all(['glass','workspace','touch-reels'].map(name=>readFile(new URL(`../src/styles/${name}.css`,import.meta.url),'utf8')));

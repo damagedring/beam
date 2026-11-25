@@ -12,7 +12,8 @@
     "test": "npm run build && npm run test:unit && playwright test",
     "test:unit": "node --test tests/*.test.mjs tests/*.test.cjs",
     "test:flow": "playwright test flow.spec.mjs",
-    "test:visual": "playwright test appearance.visual.spec.mjs"
+    "test:visual": "playwright test appearance.visual.spec.mjs",
+    "test:perf": "playwright test --config playwright.perf.config.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1",

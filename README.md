@@ -27,14 +27,13 @@ npm test
 npm run serve
 ```
 
-`npm test` runs the unit, browser-flow and visual suites against one build. The reference screenshots use Playwright's pinned Chromium on macOS 26.4.1 arm64 with 1× scaling. On other systems, run `npm run build && npm run test:unit && npm run test:flow`, as the Linux GitHub runner does. The standalone `test:unit`, `test:flow` and `test:visual` commands use the existing build.
+`npm test` runs the unit, browser-flow and visual suites against one build. The reference screenshots use Playwright's pinned Chromium on macOS 26.4.1 arm64 with 1× scaling. On other systems, run `npm run build && npm run test:unit && npm run test:flow`, as the Linux GitHub runner does. The standalone `test:unit`, `test:flow`, `test:visual` and `test:perf` commands use the existing build.
 
 GitHub Pages publishes only the allowlisted static assets from `dist/` after tests pass on the default branch. Do not commit company workbooks, mapping profiles, hosted internal endpoints, or inspection exports.
 
-- `src/domain/`: reconciliation, scan ordering, recovery, Code 128, and report formatting.
-- `src/import/`: workbook reading and mapped-cell decoding.
-- `src/app.js` and `src/styles/`: workbench state, actions, and presentation.
-- [Security and safe operation](docs/security.md): update guidance and data boundaries.
+- [Architecture](docs/architecture.md) covers work ownership, browser adapters, import and the static build.
+- [Design system](docs/design-system.md) covers status colors, paper and component styles.
+- [Security and safe operation](docs/security.md) covers updates and data boundaries.
 
 ### Carton inspections and product labels
 

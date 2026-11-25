@@ -32,7 +32,7 @@
  #outboundReceiptHost .beam-file-caption strong{white-space:normal;overflow-wrap:anywhere;text-wrap:balance;font-size:clamp(14px,1.7vw,21px);letter-spacing:-.025em}
  #outboundReceiptHost [data-center=true] .beam-file-caption strong{font-size:clamp(22px,3vw,34px);font-weight:820;letter-spacing:-.035em}
  #outboundReceiptHost .beam-file-caption>span{color:var(--muted);font:650 11px/1.3 var(--font-terminal)}
- .outbound-paper{--stub-stock:#fff;--sheet-stock:#fff;--paper-ink:#181818;--paper-muted:#555;--paper-rule:#8c8c8c;display:flex;flex-direction:column;text-align:start;min-width:0;width:100%;white-space:normal;color:var(--paper-ink);filter:drop-shadow(0 3px 8px #0002)}
+ .outbound-paper{display:flex;flex-direction:column;text-align:start;min-width:0;width:100%;white-space:normal;color:var(--paper-ink);filter:drop-shadow(0 3px 8px #0002)}
  .outbound-paper .beam-paper-ref{white-space:nowrap}
  .outbound-paper .beam-paper-body{min-height:0;gap:5px}
  .outbound-paper-meta{font:620 10px/1.3 var(--font-terminal);color:var(--paper-muted);overflow-wrap:anywhere}
@@ -41,13 +41,13 @@
  .outbound-paper-line b{font:690 10px/1.2 var(--font-terminal)}
  .outbound-paper-columns{color:var(--paper-muted);border-bottom:1px solid var(--paper-rule);padding-bottom:4px;font-size:10px}
  .outbound-reel-tools{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin-block:10px}
- .outbound-reel-tools button{min-width:44px}
+ .outbound-reel-tools button{min-width:var(--touch-target-size)}
  .outbound-reel-position{font:670 11px/1 var(--font-terminal);color:var(--muted);white-space:nowrap}
  #cartonWorkspace .outbound-activate{font-weight:760;background:var(--ink);color:var(--surface-panel)}
  .outbound-ticket-dialog{box-sizing:border-box;width:min(430px,calc(100% - 24px));max-height:calc(100dvh - 24px);padding:16px;overflow:auto}
  .outbound-ticket-dialog::backdrop{background:#0005;backdrop-filter:blur(5px)}
  .outbound-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
- .outbound-dialog-heading button{min-width:44px}
+ .outbound-dialog-heading button{min-width:var(--touch-target-size)}
  .outbound-ticket-scroll{overflow:auto;max-height:58dvh;padding:4px 7px 10px;touch-action:pan-y pinch-zoom;scrollbar-width:thin}
  .outbound-code128 svg{display:block;max-width:100%;height:46px;width:100%}
  @media(max-width:680px){

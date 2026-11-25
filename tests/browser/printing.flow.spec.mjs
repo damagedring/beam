@@ -65,3 +65,16 @@ test('UX-32/33 Outbound shipment summary stays separate from scoped, rotated A4 
   expect(bars.width).toBeLessThan(width);
   await page.pdf({ path: info.outputPath('labels.pdf'), preferCSSPageSize: true });
 });
+
+test('UX-32 failed browser print restores the title and permits retry', async ({ beam: page }) => {
+  await loadCartons(page, 'Outbound');
+  await chooseCarton(page, 'OUT-1');
+  const originalTitle = await page.title();
+  await page.evaluate(() => { window.print = () => { throw Error('Fixture printer unavailable'); }; });
+  await page.locator('#cartonDispatch').click();
+  await expect(page.locator('#message')).toContainText('Fixture printer unavailable');
+  await expect(page).toHaveTitle(originalTitle);
+  await interceptPrint(page);
+  await page.locator('#cartonDispatch').click();
+  await expect.poll(() => page.evaluate(() => window.printRequested)).toBe(true);
+});

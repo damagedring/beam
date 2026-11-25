@@ -26,13 +26,14 @@ function boot(profiles,active){
  document.body=document.createElement('body');
  let state=JSON.stringify({version:1,profiles,active});
  const retries=[];
- const c=vm.createContext({document,language:'ko',localStorage:{getItem:()=>state,setItem:(_,value)=>{state=value;}},performance:{now:()=>0},returnChannelValues:()=>undefined,
+ const c=vm.createContext({document,language:'ko',localStorage:{getItem:()=>state,setItem:(_,value)=>{state=value;}},performance:{now:()=>0},
    Uint8Array,TextDecoder,returnChannelInputLimit:256,returnChannelFormText:(_,fallback)=>fallback,uiConfirm:()=>true,runCombinedWorkbook:(file,options)=>retries.push({file,options}),
  });
  const source=js.slice(js.indexOf('const MappingUI=(()=>{'),js.indexOf('Object.assign(translations,',js.indexOf('const MappingUI=(()=>{')));
  assert.ok(source.includes('function chooseProfile'));
- const core=js.slice(js.indexOf('const MappingCore=(()=>{'),js.indexOf('const Engine=(()=>{'));
- vm.runInContext(core+source+'\nMappingUI.init(); globalThis.api=MappingUI;',c);
+ const {MappingCore,returnChannelExact,returnChannelKey,returnChannelValues}=require('../dist/import/mapping/profiles.js');
+ Object.assign(c,{MappingCore,returnChannelExact,returnChannelKey,returnChannelValues});
+ vm.runInContext(source+'\nMappingUI.init(); globalThis.api=MappingUI;',c);
  return {document,c,retries,read:()=>JSON.parse(state),shelf:elements.get('profileShelf'),details:elements.get('dataProfileDetails')};
 }
 

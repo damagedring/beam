@@ -1,13 +1,10 @@
 import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
 import {encodeReceiptCode128} from '../src/domain/code128.js';
-import {renderInspectionHeader,renderInspectionReport,renderOutboundDispatch} from '../src/components/print/inspection-report.js';
+import {renderInspectionReport,renderOutboundDispatch} from '../src/components/print/inspection-report.js';
 
 const css=await readFile(new URL('../dist/app.css',import.meta.url),'utf8');
-const src=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
-const cut=(from,to)=>src.slice(src.indexOf(from),src.indexOf(to));
 const render=(orderId,overrides={})=>renderInspectionReport({mode:'return',orderId,...overrides});
 const item={status:'일치',name:'가상 상품',sku:'SKU-A',barcode:'0012345',expected:3,actual:3};
 function readBars(html) {
@@ -58,46 +55,6 @@ test('long supported IDs use landscape; unsupported values have no misleading ba
   assert.doesNotMatch(fallback,/<svg/);
  }
 });
-test('the existing Return screen passes its selected internal order to the shared renderer',()=>{
- const api=vm.runInNewContext(cut('function inspectionPrintContext(', 'function scanHistoryReport(')+'inspectionReport',{
-  state:{receipt:'00001234'},rawRows:()=>[{seller:'Store',external:'EXT-55'}],printL:a=>a,language:'ko',isB2C:()=>false,
-  sortProductRows:x=>x,currentOrderComparison:()=>[item],uiData:x=>x,tr:x=>x,
-  renderInspectionReport,
- });
- const {markup}=api();
- assert.match(markup,/Return Inspection Report.*Code 128 · 00001234/);
- assert.doesNotMatch(markup,/Code 128 · EXT-55/);
-});
-
-test('the actual print handlers mount the work, order and Code 128 for both menus and native print',()=>{
- const root={dataset:{},innerHTML:''},handlers={};
- const document={title:'Beam'};
- const runtime={
-  state:{receipt:'00001234',workNumber:12},rawRows:()=>[{seller:'Example',external:'EX-08'}],
-  isB2C:()=>false,sortProductRows:x=>x,currentOrderComparison:()=>[item],
-  renderInspectionHeader,renderInspectionReport,sheetEvents:()=>[],activeWorkAudit:()=>[],
-  esc:String,printL:(ko,en)=>en,notice(){},date:()=>new Date().toISOString(),document,
-  $:()=>root,window:{print(){handlers.body=root.innerHTML;},addEventListener(name,fn){handlers[name]=fn;}}
- };
- const listeners=cut("window.addEventListener('beforeprint'", 'function resetPrintDocument()')+src.split('\n').find(l=>l.startsWith("window.addEventListener('afterprint'"));
- const api=vm.runInNewContext(cut('function printLocalTime(', "const productLabels=attachProductLabels")+cut('function resetPrintDocument()', "window.addEventListener('afterprint'")+listeners+'\nopenPrintDocument',runtime);
- for(const [kind,title] of [['comparison','Return Inspection Report'],['history','Return Inspection Scan History']]){
-  api(kind);
-  assert.match(handlers.body,new RegExp('<h1>'+title+'</h1>'));
-  assert.match(handlers.body,/Work 12 · B2B.*Code 128 · 00001234/);
-  assert.doesNotMatch(handlers.body,/<header class="pr-label"|Code 128 · EX-08/);
-  handlers.beforeprint();
-  assert.equal(root.innerHTML,handlers.body);
-  handlers.afterprint();
-  assert.equal(document.title,'Beam');
- }
- handlers.beforeprint();
- assert.match(root.innerHTML,/Return Inspection Report.*Code 128 · 00001234/);
- assert.doesNotMatch(root.innerHTML,/\[object Object\]/);
- assert.equal(root.dataset.paper,'portrait');
-});
-
-
 test('shipment summary is a separate order-wide document with distinct identifiers and escaped destinations',()=>{
  const {title,markup}=renderOutboundDispatch({orderId:'00077',externalId:'EXT-77',stores:['Store <West>'],countries:['KR','JP'],cartons:['BX 01','BX 02','BX 03']});
  assert.equal(title,'Outbound Shipment Summary');

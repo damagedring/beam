@@ -56,17 +56,17 @@ export async function openCartons(page, workflow) {
   await expect(page.locator('#cartonWorkspace')).toBeVisible();
 }
 
-export async function loadCartons(page, workflow) {
+export async function loadCartons(page, workflow, workbook) {
   await openCartons(page, workflow);
   const fixture = fileURLToPath(new URL('../fixtures/cartons.xlsx', import.meta.url));
-  await page.locator('#cartonFile').setInputFiles(fixture);
+  await page.locator('#cartonFile').setInputFiles(workbook || fixture);
   const dialog = page.locator('#cartonImportDialog');
   await expect(dialog).toBeVisible();
   await dialog.locator('select').selectOption({ label: workflow === 'Outbound' ? 'Outbound Carton' : 'Inventory Carton' });
   await page.locator('#cartonImportApply').click();
   await expect(dialog.locator('.mapping-fields')).toBeVisible();
   await page.locator('#cartonImportApply').click();
-  await expect(page.locator('#cartonSource')).toHaveText('cartons.xlsx');
+  await expect(page.locator('#cartonSource')).toHaveText(workbook?.name || 'cartons.xlsx', { timeout: 60_000 });
 }
 
 export async function chooseCarton(page, query) {

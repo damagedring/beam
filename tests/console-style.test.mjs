@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import {runInNewContext} from 'node:vm';
 
 const css=await readFile(new URL('../src/styles/workspace.css',import.meta.url),'utf8');
-const palette=await readFile(new URL('../src/styles/status-colors.css',import.meta.url),'utf8');
+const palette=await readFile(new URL('../src/styles/tokens/status.css',import.meta.url),'utf8');
 const styles=css.slice(css.indexOf('/* Inspection glass: neutral outer material'));
 const readToken=name=>styles.match(new RegExp('--'+name+':(#[0-9a-f]{6})(?:;|\\s)'))?.[1];
 const luminance=hex=>hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255)

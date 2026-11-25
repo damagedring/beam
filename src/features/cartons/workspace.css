@@ -1,3 +1,5 @@
+/* Recorded excess marks preserve the existing warning ink. Quantity progress uses the shared excess role. */
+#cartonWorkspace{--carton-excess-mark-ink:var(--warning-ink)}
 /* Box verification shares surface, typography and status tokens with the console. */
 #cartonWorkspace[hidden],#cartonInspection[hidden]{display:none!important}
 #cartonWorkspace{max-width:1110px;margin:clamp(12px,4vw,48px) auto;padding:0 clamp(14px,3vw,24px) 36px;line-height:1.35}
@@ -25,9 +27,8 @@
 .carton-table th:first-child{width:36%}.carton-table th:nth-child(2){width:26%}
 .carton-table :is(td,th):nth-child(n+3){text-align:center;font-variant-numeric:tabular-nums}
 .carton-table tr[data-state] td:last-child{font-weight:850}
-.carton-table tr[data-state=ok] td:last-child{color:var(--beam-success-ink,currentColor)}
-.carton-table tr[data-state=excess] td:last-child{color:var(--beam-error-ink,currentColor)}
-.carton-table tr[data-state=warning] td:last-child{color:var(--beam-warning-ink,currentColor)}
+.carton-table tr:is([data-state=ok],[data-state=warning]) td:last-child{color:inherit}
+.carton-table tr[data-state=excess] td:last-child{color:var(--carton-excess-mark-ink,currentColor)}
 .carton-pages{display:flex;justify-content:flex-end;align-items:center;gap:9px;margin-top:9px}
 .carton-history{font-size:.88rem;margin-top:10px}
 #cartonImportFields select{width:100%;min-width:0}
@@ -66,19 +67,10 @@
 .carton-history li+li{border-top:1px solid color-mix(in srgb,currentColor 10%,transparent)}
 .carton-history time,.carton-table :is(td:nth-child(2),td:nth-child(3),td:nth-child(4)){font-family:var(--font-terminal);font-variant-numeric:tabular-nums}
 .carton-history time{white-space:nowrap;font-size:.73rem;color:var(--muted)}
-.carton-history [data-result=accepted] span:first-of-type{color:var(--beam-success-ink)}
-.carton-history [data-result=excess] span:first-of-type,#cartonLast[data-result=excess]{color:var(--beam-error-ink)}
-.carton-history [data-result=unexpected] span:first-of-type,#cartonLast[data-result=unexpected]{color:var(--beam-warning-ink)}
+.carton-history :is([data-result=accepted],[data-result=unexpected]) span:first-of-type,#cartonLast[data-result=unexpected]{color:inherit}
+.carton-history [data-result=excess] span:first-of-type,#cartonLast[data-result=excess]{color:var(--carton-excess-mark-ink)}
 @media(max-width:720px){.carton-console,.carton-overview{grid-template-columns:minmax(0,1fr)}}
 
-@media print{
- #printReport .pr-dispatch-fields{display:grid;grid-template-columns:1fr 1fr;gap:3mm 6mm;margin:0}
- #printReport .pr-dispatch-fields>div{border-bottom:.5pt solid #bbb;padding-bottom:2mm;break-inside:avoid;overflow-wrap:anywhere}
- #printReport .pr-dispatch-fields dt{font-size:9pt;font-weight:700}
- #printReport .pr-dispatch-fields dd{margin:1mm 0 0;font-size:12pt}
- #printReport .pr-dispatch-cartons{columns:2;column-gap:8mm;padding-inline-start:6mm}
- #printReport .pr-dispatch-cartons li{break-inside:avoid;overflow-wrap:anywhere;margin-bottom:1mm}
-}
 .dispatch-profile-options{display:grid;gap:5px;margin-bottom:10px}
 #mappingBody .dispatch-profile-options label,.dispatch-profile-options label{display:flex;align-items:center;flex-direction:row;gap:10px;min-height:40px}
 .dispatch-profile-options input[type=checkbox]{width:18px;height:18px;min-height:0;flex:0 0 auto}
