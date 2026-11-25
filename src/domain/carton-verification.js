@@ -72,26 +72,38 @@ function add(items,row){
  if(old){if(old.name!==row.name)throw Error('Conflicting product names: '+(row.sku||row.barcode));old.expected+=row.qty;if(row.brand)old.brand=mergeProductBrands([old.brand,row.brand]);}
  else items.set(key,{key,name:row.name,sku:row.sku,barcode:row.barcode,...(row.brand?{brand:row.brand}:{}),expected:row.qty,actual:0});
 }
-export function cartonRows(group,box,events=[]){
+const scopeIndexes = new WeakMap();
+function scopeIndex(expected) {
+ const existing = scopeIndexes.get(expected);
+ if (existing) return existing;
+ const barcodes = new Map(), skus = new Map();
+ function index(map, value, row) {
+  if (value) map.set(value, map.has(value) ? null : row);
+ }
+ for (const row of expected.values()) {
+  index(barcodes, row.barcode, row);
+  index(skus, row.sku, row);
+ }
+ const result = { barcodes, skus };
+ scopeIndexes.set(expected, result);
+ return result;
+}
+
+export function cartonRows(group,box,{counts,unknown}={counts:new Map(),unknown:new Map()}){
  const expected=box===null?group.totals:group.boxes.get(box);
  if(!expected)return [];
- const counts=new Map(),unknown=new Map(),codes=new Map();
- for(const e of events){
-  if(box!==null&&e.box!==box)continue;
-  if(e.key===null)unknown.set(e.value,(unknown.get(e.value)||0)+1);
-  else counts.set(e.key,(counts.get(e.key)||0)+1);
- }
- for(const r of expected.values())if(r.barcode)codes.set(r.barcode,(codes.get(r.barcode)||0)+1);
- return [...[...expected.values()].map(r=>({...r,actual:counts.get(r.key)||0,conflict:(codes.get(r.barcode)||0)>1})),
+ const {barcodes}=scopeIndex(expected);
+ return [...[...expected.values()].map(r=>({...r,actual:counts.get(r.key)||0,conflict:barcodes.get(r.barcode)===null})),
   ...[...unknown].map(([barcode,actual])=>({key:'unknown:'+barcode,barcode,actual,expected:0,unregistered:true}))];
 }
 export function matchCartonScan(group,box,input,actual=0){
  const value=codeKey(input),expected=box===null?group.totals:group.boxes.get(box);
  if(!value||!expected)return {status:'empty'};
- const rows=[...expected.values()],barcode=rows.filter(r=>r.barcode===value),matches=barcode.length?barcode:rows.filter(r=>r.sku===value);
- if(matches.length>1)return {status:'conflict'};
- if(!matches.length)return {status:'unexpected',key:null,value};
- const r=matches[0];return {status:actual>=r.expected?'excess':'accepted',key:r.key,value,name:r.name,...(r.brand?{brand:r.brand}:{}),expected:r.expected};
+ const {barcodes,skus}=scopeIndex(expected);
+ const r=barcodes.has(value)?barcodes.get(value):skus.get(value);
+ if(r===null)return {status:'conflict'};
+ if(!r)return {status:'unexpected',key:null,value};
+ return {status:actual>=r.expected?'excess':'accepted',key:r.key,value,name:r.name,...(r.brand?{brand:r.brand}:{}),expected:r.expected};
 }
 export function cartonSearch(index,query){
  const value=codeKey(query).toLocaleLowerCase();

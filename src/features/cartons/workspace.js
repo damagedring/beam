@@ -1,22 +1,22 @@
+import { createCartonWork } from './model.js';
 import { createOutboundReceipts } from './outbound-receipts.js';
-import { productIdentityMarkup } from '../components/product-identity/view.js';
-import { scannedProductLabel } from '../domain/product-identity.js';
-import { cartonAdapter, cartonRows, cartonSearch, codeKey, createCartonIndex, fields, aliases, matchCartonScan, outboundCandidates, outboundDispatch } from '../domain/carton-verification.js';
+import { productIdentityMarkup } from '../../components/product-identity/view.js';
+import { scannedProductLabel } from '../../domain/product-identity.js';
+import { cartonAdapter, cartonSearch, codeKey, createCartonIndex, fields, aliases, outboundCandidates, outboundDispatch } from '../../domain/carton-verification.js';
 
 export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglish,openLabels,openReport,openDispatch,dispatchProfile,saveDispatchMapping,showHome,notice}){
  const $=id=>document.getElementById(id), root=$('cartonWorkspace'), l=(ko,en)=>isEnglish()?en:ko;
- const sources=new Map();
+ const work=createCartonWork();
  const receiptPicker=createOutboundReceipts($('outboundReceiptHost'),{l,onChoose:select});
  let mode=null,group=null,box=null,loading=false,page=0,stage='search';
- const view=()=>sources.get(mode), work=()=>view()?.work.get(group?.id);
- const currentEvents=()=>work()?.events||[];
- const rowList=()=>group?cartonRows(group,box,currentEvents()):[];
+ const view=()=>work.reference(mode);
+ const rowList=()=>group?work.rows(mode,group,box):[];
  const inspectionActive=()=>!root.hidden&&!!group&&(mode==='inventory'||(stage==='inspection'&&box!==null));
  const inspectionContext=()=>({mode:'outbound',orderId:group.id,externalId:group.external,work:'Carton: '+box,rows:rowList().map(r=>({...r,status:r.conflict?'conflict':r.unregistered?'unexpected':r.actual>r.expected?'excess':r.actual===r.expected?'matched':'short'}))});
  const dispatchContext=()=>({...outboundDispatch(group),fields:dispatchProfile().fields});
  const scopeKey=()=>JSON.stringify([group?.id,box]);
- const locked=()=>work()?.done.has(scopeKey());
- const scopeAllowed=()=>!work()?.events.length||work().method===(box===null?'whole':'box');
+ const locked=()=>work.locked(mode,group,box);
+ const scopeAllowed=()=>work.canScan(mode,group,box);
  const warn=value=>{$('cartonFeedback').textContent=value;};
  function localize(){
   const inventory=mode==='inventory';
@@ -50,7 +50,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  });
  async function load(file){
   if(loading||!file)return;
-  if(view()?.work.size&&!window.confirm(l('이 업무의 기존 검수 기록이 바뀝니다. 새 자료를 연결할까요?','Loading a new reference replaces this mode’s inspection history. Continue?')))return;
+  if(work.hasJobs(mode)&&!window.confirm(l('이 업무의 기존 검수 기록이 바뀝니다. 새 자료를 연결할까요?','Loading a new reference replaces this mode’s inspection history. Continue?')))return;
   loading=true;const target=mode,prefs=target==='outbound'?dispatchProfile():null;let separator='',savedMapping=null;$('cartonFileButton').disabled=true;
   try{
    const adapter=cartonAdapter(target);
@@ -110,7 +110,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    },{Engine:engine,language:isEnglish()?'en':'ko'});
    const index=createCartonIndex(cartonLines);
    if(!index.groups.size)throw Error(l('검수할 예정 수량이 없습니다.','There are no positive expected quantities.'));
-   sources.set(target,{name:file.name,index,work:new Map()});if(mode===target){group=null;box=null;stage='search';$('cartonQuery').value='';render();}
+   work.connect(target,file.name,index);if(mode===target){group=null;box=null;stage='search';$('cartonQuery').value='';render();}
    if(prefs&&savedMapping)saveDispatchMapping(prefs.id,savedMapping);
    notice(l('검수 기준 연결 완료','Inspection reference connected'));
   }catch(e){if(e.name!=='AbortError')notice(e.message,'error');}
@@ -202,7 +202,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   for(const choice of choices){
    const button=make('button',choice??l('Location 전체','Whole location'),{type:'button'});
    button.setAttribute('aria-pressed',String(choice===box));
-   if(work()?.done.has(JSON.stringify([group.id,choice])))button.append(make('span',' ✓'));
+   if(work.locked(mode,group,choice))button.append(make('span',' ✓'));
    button.onclick=()=>{
     if(outbound&&stage==='pick'){
      box=choice;for(const [i,btn] of [...scopes.children].entries())btn.setAttribute('aria-pressed',String(choices[i]===box));
@@ -227,7 +227,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   const meter=$('cartonMeter');meter.max=expected||1;meter.value=covered;meter.dataset.phase=excess?'excess':pending?'warning':missing?'progress':'complete';
   meter.setAttribute('aria-valuetext',[coveredText,report].filter(Boolean).join(' · '));
   $('cartonCurrent').textContent=box??l('Location 전체','Whole location');
-  const last=currentEvents().findLast(e=>e.box===box);
+  const last=work.latest(mode,group,box);
   const item=scannedProductLabel(last?.name,last?.brand),badge=$('cartonLastBrand'),quantity=$('cartonLastQuantity');
   badge.hidden=!item.brand;badge.textContent=item.brand;
   quantity.hidden=!last?.name;quantity.textContent=last?.name?last.count+' / '+last.expected:'';
@@ -235,13 +235,13 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   $('cartonLast').dataset.result=last?.result||'';
   const allowed=scopeAllowed();
   for(const id of ['cartonScan','cartonAdd'])$(id).disabled=!allowed||locked();
-  $('cartonUndo').disabled=!allowed||locked()||!currentEvents().some(e=>e.box===box);
-  $('cartonFinish').disabled=!allowed||locked()||!currentEvents().some(e=>e.box===box);
+  $('cartonUndo').disabled=!allowed||locked()||!last;
+  $('cartonFinish').disabled=!allowed||locked()||!last;
   $('cartonLabelTrigger').hidden=mode==='inventory';$('cartonReport').hidden=mode==='inventory';
   if(!allowed)warn(l('중복 집계를 막기 위해 먼저 시작한 실사 방식에서만 입력할 수 있어요. 그 스캔을 모두 취소하면 방식을 바꿀 수 있어요.','To prevent double counting, use the counting method already started. Undo its scans to switch methods.'));
   else if(locked())warn(l('검수를 완료했어요.','Inspection complete.'));
   const body=$('cartonRows');body.replaceChildren();
-  const recent=currentEvents().filter(e=>e.box===box||(mode==='inventory'&&box===null)).slice(-8).reverse();
+  const recent=work.recent(mode,group,box);
   $('cartonHistory').replaceChildren(...(recent.length?recent.map(e=>{
    const item=make('li',null);item.dataset.result=e.result;
    const meaning={accepted:l('스캔 정상','Accepted scan'),excess:l('수량 초과','Excess scan'),unexpected:l('예정 외','Unexpected item')}[e.result];
@@ -262,18 +262,12 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   }
  }
  function add(value){
-  if(!inspectionActive()||$('cartonScan').disabled||!codeKey(value)||codeKey(value).length>200)return;
-  let job=work();
-  if(!job){job={method:box===null?'whole':'box',events:[],done:new Set()};view().work.set(group.id,job);}
-  const res=matchCartonScan(group,box,value);
-  if(res.status==='conflict'){warn(l('여러 품목과 일치합니다. 상품 바코드를 확인하세요.','Code matches multiple products. Check the product barcode.'));return;}
-  if(res.status==='empty')return;
-  if(!job.events.length)job.method=box===null?'whole':'box';
-  const scanned=job.events.reduce((n,x)=>n+(x.box===box&&x.key===res.key?1:0),0);
-  const isExcess=res.key!==null&&scanned>=res.expected;
-  job.events.push({box,key:res.key,value:res.value,result:res.key===null?'unexpected':isExcess?'excess':'accepted',at:Date.now(),name:res.name,brand:res.brand,count:scanned+1,expected:res.expected});
+  if(!inspectionActive()||$('cartonScan').disabled)return;
+  const result=work.scan(mode,group,box,value);
+  if(result==='conflict'){warn(l('여러 품목과 일치합니다. 상품 바코드를 확인하세요.','Code matches multiple products. Check the product barcode.'));return;}
+  if(!result)return;
   $('cartonScan').value='';render();
-  warn(res.key===null?l('이 범위에 예정되지 않은 상품이에요.','Not expected in this scope.'):isExcess?l('예정 수량 초과','Over expected quantity'):'');
+  warn(result==='unexpected'?l('이 범위에 예정되지 않은 상품이에요.','Not expected in this scope.'):result==='excess'?l('예정 수량 초과','Over expected quantity'):'');
  }
  $('cartonSearchForm').onsubmit=e=>{
   e.preventDefault();
@@ -310,16 +304,16 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  $('cartonScanForm').onsubmit=e=>{e.preventDefault();add($('cartonScan').value);};
  $('cartonFileButton').onclick=()=>$('cartonFile').click();
  $('cartonFile').onchange=e=>{const file=e.currentTarget.files[0];e.currentTarget.value='';load(file);};
- $('cartonUndo').onclick=()=>{const job=work(),i=job?.events.findLastIndex(e=>e.box===box);if(i>=0){job.events.splice(i,1);warn('');render();}};
+ $('cartonUndo').onclick=()=>{if(group&&work.undo(mode,group,box)){warn('');render();}};
  $('cartonFinish').onclick=()=>{
   const rows=rowList(),hasDifference=rows.some(r=>r.conflict||r.expected!==r.actual);
   if(hasDifference&&!window.confirm(l('차이가 남아 있습니다. 이 범위의 검수를 완료할까요?','Differences remain. Finish inspection for this scope?')))return;
-  work()?.done.add(scopeKey());render();
+  work.finish(mode,group,box);render();
  };
  $('cartonPrev').onclick=()=>{page--;render();};$('cartonNext').onclick=()=>{page++;render();};
  $('cartonReport').onclick=()=>{if(mode==='outbound'&&inspectionActive())openReport(inspectionContext());};
  $('cartonLabelTrigger').onclick=e=>openLabels(e.currentTarget);
- window.addEventListener('beforeunload',e=>{if([...sources.values()].some(s=>[...s.work.values()].some(w=>w.events.length))){e.preventDefault();e.returnValue='';}});
+ window.addEventListener('beforeunload',e=>{if(work.hasScans()){e.preventDefault();e.returnValue='';}});
  return {
   input:{
    root,visible:()=>!root.hidden,

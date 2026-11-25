@@ -38,10 +38,16 @@ test('UX-15/16 Returning to matching reference data after reload restores an act
 
 test('UX-17/18/19/21/22 Outbound tracks each carton and uses mapped identity for remaining labels', async ({ beam: page }) => {
   await loadCartons(page, 'Outbound');
+  await page.locator('#cartonQuery').fill('BOX-1');
+  await page.locator('#cartonQuery').press('Enter');
+  await expect(page.locator('#cartonGroupTitle')).toBeHidden();
   await chooseCarton(page, 'OUT-1');
   await page.locator('#cartonStart').click();
-  await enterScan(page.locator('#cartonScan'), '0001234567890');
+  await page.locator('#cartonScan').blur();
+  await page.keyboard.type('0001234567890');
+  await page.keyboard.press('Enter');
   await expect(page.locator('#cartonCount')).toContainText('1 / 3');
+  await expect(page.locator('#cartonHistory [data-result]')).toHaveCount(1);
   await expect(page.locator('#cartonLastBrand')).toHaveText('ACME');
   await expect(page.locator('#cartonLast')).toHaveText('Field jacket');
   await page.locator('#cartonLabelTrigger').click();

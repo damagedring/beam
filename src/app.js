@@ -1,6 +1,6 @@
 import { mergeProductBrands, optionalBrandColumn, scannedProductLabel } from "./domain/product-identity.js";
 import { productIdentityMarkup } from "./components/product-identity/view.js";
-import { attachCartonWorkspace } from "./ui/carton-workspace.js";
+import { attachCartonWorkspace } from "./features/cartons/workspace.js";
 import { validateLabelPapers } from "./domain/product-labels.js";
 import { attachProductLabels } from "./components/product-labels/view.js";
 import { latestScanEvent, recentScanEvents, scanHistoryPage } from "./domain/scan-history.js";

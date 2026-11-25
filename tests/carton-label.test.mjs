@@ -2,21 +2,33 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {A4_LABEL_PAPER, planProductLabels, labelPageLayout, fitsBarcode, labelsInRange, validateLabelPapers} from '../dist/domain/product-labels.js';
 import { productBarcodeSvg } from '../dist/components/print/barcode.js';
-import {cartonAdapter, cartonLocation, createCartonIndex, cartonRows, cartonSearch, matchCartonScan, outboundCandidates, outboundFolders, wrapOutboundIndex, outboundDispatch, validateDispatchProfile} from '../dist/domain/carton-verification.js';
+import {cartonAdapter, cartonLocation, createCartonIndex, cartonSearch, matchCartonScan, outboundCandidates, outboundFolders, wrapOutboundIndex, outboundDispatch, validateDispatchProfile} from '../dist/domain/carton-verification.js';
+import {createCartonWork} from '../dist/features/cartons/model.js';
 
 const first={group:'ORDER',box:'BOX 01',external:'EXT-001',sku:'SKU-01',barcode:'0012345678901',name:'Test product',qty:3};
 const second={...first,box:'BOX 02',qty:2};
 const third={...first,group:'OTHER',box:'BOX 01',external:'EXT-002',qty:1};
 test('outbound preserves carton scopes even when order, carton and product identifiers repeat',()=>{
  const index=createCartonIndex([first,second,third]), order=index.groups.get('ORDER');
- const event={box:'BOX 01',key:matchCartonScan(order,'BOX 01',first.barcode).key};
- assert.equal(cartonRows(order,'BOX 01',[event])[0].actual,1);
- assert.equal(cartonRows(order,'BOX 02',[event])[0].actual,0);
- assert.equal(cartonRows(order,null,[event])[0].expected,5);
- assert.equal(cartonRows(order,null,[event])[0].actual,1);
+ const work=createCartonWork();work.connect('outbound','fixture',index);
+ assert.equal(work.scan('outbound',order,'BOX 01',first.barcode),'accepted');
+ assert.equal(work.rows('outbound',order,'BOX 01')[0].actual,1);
+ assert.equal(work.rows('outbound',order,'BOX 02')[0].actual,0);
+ assert.equal(work.rows('outbound',order,null)[0].expected,5);
+ assert.equal(work.rows('outbound',order,null)[0].actual,1);
  assert.equal(index.boxes.get('BOX 01').size,2);
  assert.deepEqual(cartonSearch(index,'EXT-002').map(g=>g.id),['OTHER']);
  assert.equal(matchCartonScan(order,'BOX 02','no such barcode').status,'unexpected');
+});
+test('carton undo retains aggregate ordering across scopes and never changes earlier verdicts',()=>{
+ const index=createCartonIndex([first,second]),order=index.groups.get('ORDER'),work=createCartonWork(()=>1);
+ work.connect('inventory','fixture',index);
+ for(const [box,code] of [['BOX 01','a'],['BOX 02','b'],['BOX 02','a']])assert.equal(work.scan('inventory',order,box,code),'unexpected');
+ assert.equal(work.undo('inventory',order,'BOX 01'),true);
+ assert.deepEqual(work.rows('inventory',order,null).filter(row=>row.unregistered).map(row=>row.barcode),['b','a']);
+ assert.equal(work.canScan('inventory',order,null),false);
+ for(let i=0;i<3;i++) work.scan('inventory',order,'BOX 02',first.barcode);
+ assert.deepEqual(work.recent('inventory',order,'BOX 02').slice(0,3).map(event=>event.result),['excess','accepted','accepted']);
 });
 test('inventory splits only the last configured separator or uses explicit carton, never hardcoded work codes',()=>{
  assert.deepEqual(cartonLocation('27 105 C | CTN 21','','|'),['27 105 C','CTN 21']);

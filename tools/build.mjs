@@ -8,12 +8,12 @@ const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const source = join(root, 'src');
 const destination = join(root, 'dist');
 const files = Object.freeze([
-  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'ui/carton-workspace.js', 'ui/outbound-receipts.js', 'domain/carton-verification.js',
+  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'features/cartons/workspace.js', 'features/cartons/model.js', 'features/cartons/outbound-receipts.js', 'domain/carton-verification.js',
   'components/product-identity/view.js', 'components/print/barcode.js', 'components/print/inspection-report.js',
   'features/returns/recovery.js', 'platform/indexed-recovery.js', 'platform/inspection-input.js', 'platform/scan-audio.js', 'platform/reference-fingerprint.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
 ]);
-const styles = ['styles/status-colors.css', 'styles/glass.css', 'styles/workspace.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'styles/carton-workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'styles/return-receipts.css', 'components/product-identity/view.css', 'styles/outbound-receipts.css'];
+const styles = ['styles/status-colors.css', 'styles/glass.css', 'styles/workspace.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'features/cartons/workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'styles/return-receipts.css', 'components/product-identity/view.css', 'features/cartons/outbound-receipts.css'];
 
 async function readSource(relative) {
   const file = join(source, relative);
