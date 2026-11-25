@@ -12,7 +12,7 @@ Beam-authored software and tests are available under the [PolyForm Noncommercial
 
 ## Try it
 
-In **Settings → Help & examples**, load the fictional example data. To connect your own data, use **Settings → Reference data** to open an XLSX/XLSM workbook or load a saved connection profile. Review whether you are replacing or appending orders. Location categories are opt-in and defined by the profile.
+In **Settings → Help & examples**, try the fictional Cry Later example or download its workbook and connection profile. To connect the downloads manually, import the profile JSON before the workbook in **Settings → Reference data**. Review whether you are replacing or appending orders when connecting your own data. Location categories are opt-in and defined by the profile.
 
 ## Where data stays
 
