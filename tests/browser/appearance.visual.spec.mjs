@@ -28,6 +28,8 @@ test('UX-22/28 Outbound receipt, identity and label preview', async ({ beam: pag
   await page.locator('#cartonLabelTrigger').click();
   await expect(page).toHaveScreenshot('outbound-labels.png');
   await page.locator('#productLabelClose').click();
+  // The close handler clears the preview and returns focus before scanning resumes.
+  await expect(page.locator('#productLabelPreview')).toBeEmpty();
   for (let i = 0; i < 3; i++) await enterScan(page.locator('#cartonScan'), '0001234567890');
   await enterScan(page.locator('#cartonScan'), 'fictional-unknown');
   await expect(page.locator('#cartonMeter')).toHaveAttribute('data-phase', 'excess');
@@ -40,9 +42,15 @@ test.describe('1280 × 720 viewport', () => {
   test.use({ viewport: { width: 1280, height: 720 } });
 
   test('UX-24/25 Returns paper and folder presentation at working width', async ({ beam: page }) => {
-    await loadDemo(page);
+    await Promise.all([
+      page.locator('#helpDialog').evaluate(dialog => new Promise(resolve => {
+        dialog.addEventListener('close', () => resolve(), { once: true });
+      })),
+      loadDemo(page),
+    ]);
     const query = page.locator('#beamQuery');
     await query.fill('가상 거래처');
+    await expect(query).toBeFocused();
     await page.evaluate(() => document.fonts.ready);
     await expect(page).toHaveScreenshot('returns-folders.png');
     await query.press('Enter');
