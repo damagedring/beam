@@ -206,6 +206,29 @@ test('UX-04 append rejects overlapping orders and replacement reuses the existin
   await expect(page.locator('#scanActivitySection [data-cell-state]')).toHaveCount(1);
 });
 
+test('UX-04 a delayed settings close after workbook import preserves search focus', async ({ beam: page }) => {
+  await importOriginal(page);
+  await page.locator('#dataDialog').evaluate(dialog => {
+    // Deliver the native close notification after the fast import rejects.
+    dialog.addEventListener('close', event => {
+      event.stopImmediatePropagation();
+      window.deliverFixtureSettingsClose = () => dialog.dispatchEvent(new Event('close'));
+    }, { capture: true, once: true });
+  });
+  await chooseWorkbook(page, 'reordered', 'append');
+  await expect(page.locator('#beamRawMessage')).toContainText('[RAW-APPLY]');
+  await expect.poll(() => page.evaluate(() => typeof window.deliverFixtureSettingsClose)).toBe('function');
+
+  const query = page.locator('#beamQuery');
+  await expect(query).toBeFocused();
+  await page.evaluate(() => window.deliverFixtureSettingsClose());
+  await expect(query).toBeFocused();
+
+  const settings = await referenceSettings(page);
+  await settings.getByRole('button', { name: '닫기', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
+});
+
 test('UX-04 reference fingerprint completion preserves a focused draft in the settings dialog', async ({ beam: page }) => {
   // Hold the result of a real WebCrypto call at the browser API boundary.
   await page.addInitScript(() => {

@@ -1807,8 +1807,12 @@ $('confirmInspection').onclick=()=>{
 $('orderMixReview').onclick=()=>{const first=allocationReviewEntries().find(e=>(e.receipt||e.holdOrigin)===state.receipt);if(first&&!state.receiptLocked)openAllocation(first.id,$('orderMixReview'));};
 $('copyConfirmation').onclick=async()=>{const result=refreshReportDialog();if(result.blocked){$('copyConfirmation').disabled=true;return;}try{if(!globalThis.navigator?.clipboard?.writeText)throw Error('clipboard unavailable');await navigator.clipboard.writeText(result.message);notice('안내문을 복사했습니다.');}catch{$('confirmationText').focus();$('confirmationText').select?.();notice('안내문을 선택했습니다. Ctrl+C 또는 복사 메뉴를 사용하세요.');}};
 
+let skipWorkbookDataDialogFocusRestore=false;
 function openUtilityDialog(id,launcher,focusId){const d=$(id);d.returnFocus=launcher;if(typeof d.showModal==='function')d.showModal();else{notice('이 브라우저는 대화상자를 지원하지 않습니다. 최신 Chrome 또는 Edge에서 열어 주세요.','error');return;}$(focusId).focus();}
-for(const [id,launcher,close,focusId]of [['dataDialog','dataLauncher','dataClose','openWorkbook'],['helpDialog','helpLauncher','helpClose','helpClose'],['activityDialog','activityExpand','activityClose','activityClose'],['reportDialog',null,'reportClose','confirmationText'],['confirmDifferenceDialog',null,'confirmDifferenceClose','confirmDifferenceClose'],['allocationDialog',null,'allocationClose','allocationClose'],['newWorkDialog',null,'newWorkClose','newWorkClose']]){const d=$(id);if(launcher)$(launcher).onclick=()=>openUtilityDialog(id,launcher,focusId);$(close).onclick=()=>d.close();d.onclose=()=>{if(id==='dataDialog'&&dataImportBusy)return;const target=$(d.returnFocus||launcher);if(target&&!target.hidden&&!target.disabled)target.focus();else if(id==='confirmDifferenceDialog')$('receipt').focus();};d.oncancel=e=>{e.preventDefault();d.close();};d.onkeydown=e=>{if(e.key!=='Tab')return;const nodes=Array.from(d.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),summary,a[href],[tabindex="0"]')).filter(n=>n.getClientRects().length);if(!nodes.length){e.preventDefault();return;}const first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}};}
+for(const [id,launcher,close,focusId]of [['dataDialog','dataLauncher','dataClose','openWorkbook'],['helpDialog','helpLauncher','helpClose','helpClose'],['activityDialog','activityExpand','activityClose','activityClose'],['reportDialog',null,'reportClose','confirmationText'],['confirmDifferenceDialog',null,'confirmDifferenceClose','confirmDifferenceClose'],['allocationDialog',null,'allocationClose','allocationClose'],['newWorkDialog',null,'newWorkClose','newWorkClose']]){const d=$(id);if(launcher)$(launcher).onclick=()=>openUtilityDialog(id,launcher,focusId);$(close).onclick=()=>d.close();d.onclose=()=>{
+ if(id==='dataDialog'&&skipWorkbookDataDialogFocusRestore){skipWorkbookDataDialogFocusRestore=false;return;}
+ if(id==='dataDialog'&&dataImportBusy)return;
+ const target=$(d.returnFocus||launcher);if(target&&!target.hidden&&!target.disabled)target.focus();else if(id==='confirmDifferenceDialog')$('receipt').focus();};d.oncancel=e=>{e.preventDefault();d.close();};d.onkeydown=e=>{if(e.key!=='Tab')return;const nodes=Array.from(d.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),summary,a[href],[tabindex="0"]')).filter(n=>n.getClientRects().length);if(!nodes.length){e.preventDefault();return;}const first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}};}
 
 function updateConfirmButton(){
  const result=completionState(),button=$('confirmInspection'),report=$('directReport'),mix=$('orderMixReview'),record=inspectionCompletion();
@@ -2468,7 +2472,12 @@ async function runCombinedWorkbook(file,{retry=false}={}){
  if(typeof beamResetSelection==='function'&&$('beamFindFold'))beamResetSelection();
  mappingBusyUI(true);
  try{
-  const settings=$('dataDialog');if(settings.open)settings.close();
+  const settings=$('dataDialog');
+  if(settings.open){
+   // Native close events can arrive after the import has returned focus to search.
+   skipWorkbookDataDialogFocusRestore=true;
+   settings.close();
+  }
   beamRawStatus('read',l('통합 RAW 읽는 중…','Reading combined workbook…'));
   beamView(true,false);
   // Give the main screen a paint opportunity before decompression or indexing.
