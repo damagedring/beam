@@ -31,7 +31,7 @@ npm test
 npm run serve
 ```
 
-`npm test` runs the unit, browser-flow and visual suites against one build. The reference screenshots use Playwright's pinned Chromium on macOS 26.4.1 arm64 with 1× scaling. On other systems, run `npm run build && npm run test:unit && npm run test:flow`, as the Linux GitHub runner does. The standalone `test:unit`, `test:flow`, `test:visual` and `test:perf` commands use the existing build.
+`npm test` runs the unit, browser-flow and visual suites against one build. The visual suite uses Playwright's pinned Chromium at 1× scaling with separate baselines for macOS 26.4.1 arm64 and the Ubuntu 24.04 x64 GitHub Actions runner. CI checks every screenshot against the Linux baseline. Missing or different screenshots fail the suite. For an intentional change, run `npm run test:visual -- --update-snapshots=all` against a fresh build on the corresponding platform and review the resulting PNG changes. On other systems, run `npm run build && npm run test:unit && npm run test:flow`. The standalone `test:unit`, `test:flow`, `test:visual` and `test:perf` commands use the existing build.
 
 GitHub Pages publishes only the allowlisted static assets from `dist/` after tests pass on the default branch. Do not commit company workbooks, mapping profiles, hosted internal endpoints, or inspection exports.
 

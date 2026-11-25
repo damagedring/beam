@@ -7,7 +7,8 @@ export default defineConfig({
   testDir: './tests/browser',
   workers: 1,
   forbidOnly: !!process.env.CI,
-  snapshotPathTemplate: '{testDir}/snapshots/{testFileName}/{arg}{ext}',
+  snapshotPathTemplate: `{testDir}/snapshots/{platform}-${process.arch}/{testFileName}/{arg}{ext}`,
+  updateSnapshots: 'none',
   use: {
     browserName: 'chromium',
     baseURL,
