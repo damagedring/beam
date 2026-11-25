@@ -68,23 +68,23 @@ test('profiles store multiple physical sizes and landscape swaps actual width an
 
 
 test('outbound search can select an exact carton but never chooses an ambiguous repeated carton',()=>{
- const idx=createCartonIndex([{...first,store:'Cry Later Hannam',country:'KR'},second,{...third,country:'JP'}]);
+ const idx=createCartonIndex([{...first,store:'Fictional Site A',country:'KR'},second,{...third,country:'JP'}]);
  assert.equal(outboundCandidates(idx,'BOX 01').exact,null);
  assert.deepEqual(outboundCandidates(idx,'BOX 01').groups.map(x=>x.id),['ORDER','OTHER']);
  assert.equal(outboundCandidates(idx,'BOX 02').carton,'BOX 02');
  assert.equal(outboundCandidates(idx,'BOX 02').exact.id,'ORDER');
- assert.equal(outboundCandidates(idx,'Cry Later Hannam').exact.id,'ORDER');
+ assert.equal(outboundCandidates(idx,'Fictional Site A').exact.id,'ORDER');
  assert.equal(outboundCandidates(idx,'ORDER').carton,'');
- assert.deepEqual(outboundDispatch(idx.groups.get('ORDER')),{orderId:'ORDER',externalId:'EXT-001',stores:['Cry Later Hannam'],countries:['KR'],cartons:['BOX 01','BOX 02']});
+ assert.deepEqual(outboundDispatch(idx.groups.get('ORDER')),{orderId:'ORDER',externalId:'EXT-001',stores:['Fictional Site A'],countries:['KR'],cartons:['BOX 01','BOX 02']});
 });
 test('destination fields are optional workbook mappings on outbound',()=>{
  const headers=['Order ID','Carton Label ID','Expected Units','Product Name','SKU','Destination Store','Country'];
  const map={receipt:0,id:1,qty:2,name:3,sku:4,store:5,country:6};
  const a=cartonAdapter('outbound'),columns=a.validateColumns('cartonLines',headers,map);
- const [r]=a.table('cartonLines',[headers,['OUT-01','BOX 01','4','Hoodie','S1','Hannam',' KR ']],{columns});
- assert.equal(r.store,'Hannam');assert.equal(r.country,'KR');
+ const [r]=a.table('cartonLines',[headers,['OUT-01','BOX 01','4','Hoodie','S1','DemoAb',' KR ']],{columns});
+ assert.equal(r.store,'DemoAb');assert.equal(r.country,'KR');
  delete columns.country;
- assert(!('country' in a.table('cartonLines',[headers,['OUT-01','BOX 01','4','Hoodie','S1','Hannam',' JP ']],{columns})[0]));
+ assert(!('country' in a.table('cartonLines',[headers,['OUT-01','BOX 01','4','Hoodie','S1','DemoAb',' JP ']],{columns})[0]));
 });
 
 
@@ -123,9 +123,9 @@ test('unscanned labels keep copy counts while splitting an explicit brand from t
 
 test('outbound store folders keep destination boundaries and wrap without losing order identity',()=>{
  const i=createCartonIndex([
-  {...first,store:'Coex',country:'KR'},
-  {...third,store:'  COEX  ',country:'kr'},
-  {...third,group:'JAPAN',store:'Coex',country:'JP'},
+  {...first,store:'Demo',country:'KR'},
+  {...third,store:'  DEMO  ',country:'kr'},
+  {...third,group:'JAPAN',store:'Demo',country:'JP'},
   {...third,group:'UNKNOWN'}, {...third,group:'UNKNOWN2'}
  ]);
  assert.deepEqual(outboundFolders(i.groups.values()).map(f=>f.orders.map(o=>o.id)),[['ORDER','OTHER'],['JAPAN'],['UNKNOWN'],['UNKNOWN2']]);
