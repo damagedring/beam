@@ -18,12 +18,16 @@ Beam keeps a local draft while you work. After a reload, connect the same refere
 
 ## Develop and deploy
 
-Use the current Node.js 24 LTS security patch. There are no npm dependencies.
+Use Node.js 24 LTS. npm installs development tools for building and testing. The static browser runtime has no npm dependencies.
 
 ```sh
+npm ci
+npx playwright install chromium
 npm test
 npm run serve
 ```
+
+`npm test` runs the unit, browser-flow and visual suites against one build. The reference screenshots use Playwright's pinned Chromium on macOS 26.4.1 arm64 with 1× scaling. On other systems, run `npm run build && npm run test:unit && npm run test:flow`, as the Linux GitHub runner does. The standalone `test:unit`, `test:flow` and `test:visual` commands use the existing build.
 
 GitHub Pages publishes only the allowlisted static assets from `dist/` after tests pass on the default branch. Do not commit company workbooks, mapping profiles, hosted internal endpoints, or inspection exports.
 
