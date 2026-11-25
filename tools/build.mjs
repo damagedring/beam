@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { versionModule } from './module-graph.mjs';
 import { checkStyleReferences } from './style-metrics.mjs';
+import { copyBeamLicense } from './copy-license.mjs';
 
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const source = join(root, 'src');
@@ -71,9 +72,10 @@ try {
   await writeFile(join(stage, 'index.html'), markup.replace(stylesheetHref, `href="./app.css?v=${revision}"`));
   await writeFile(join(stage, 'app.css'), stylesheet);
   await writeFile(join(stage, '.nojekyll'), '');
+  await copyBeamLicense(stage);
   await rm(destination, { recursive: true, force: true });
   await rename(stage, destination);
-  console.log(`Built ${files.length + 2} allowlisted files in dist/.`);
+  console.log(`Built ${files.length + 3} allowlisted files in dist/.`);
 } finally {
   await rm(stage, { recursive: true, force: true });
 }

@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { checkDependency, localModuleTarget, moduleReferences, versionModule } from '../tools/module-graph.mjs';
 
 const dist = new URL('../dist/',import.meta.url);
-const files = ['.nojekyll','app.css','app.js','app/navigation.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2',
+const files = ['.nojekyll','LICENSE.txt','app.css','app.js','app/navigation.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2',
   'components/print/barcode.js','components/print/inspection-report.js','components/product-identity/view.js','components/product-labels/view.js',
   'domain/carton-verification.js','domain/code128.js','domain/product-identity.js','domain/product-labels.js',
   'domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','features/cartons/model.js','features/cartons/outbound-receipts.js','features/cartons/workspace.js','features/returns/quantities.js','features/returns/recovery.js','features/returns/scan-commands.js','import/mapping/profiles.js','import/workbook.js','index.html',
@@ -21,6 +21,7 @@ test('static distribution allowlist, syntax and all relative module targets', as
   assert.ok(entries.every(entry=>entry.isDirectory()||entry.isFile()));
   const base=dist.pathname;
   assert.deepEqual(entries.filter(entry=>entry.isFile()).map(entry=>relative(fileURLToPath(dist),join(entry.parentPath,entry.name)).split(sep).join('/')).sort(),files);
+  assert.equal(await read('LICENSE.txt'), await readFile(new URL('../LICENSE', import.meta.url), 'utf8'));
   const html=await read('index.html');
   const moduleRevision=html.match(/src="\.\/app\.js\?v=([a-f0-9]{12})"/)?.[1];
   assert.ok(moduleRevision);

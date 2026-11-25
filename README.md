@@ -6,6 +6,10 @@ A returns check illustrates the workflow: connect a workbook once with a reusabl
 
 [Open Beam](https://damagedring.github.io/beam/)
 
+## License
+
+Beam-authored software and tests are available under the [PolyForm Noncommercial License 1.0.0](LICENSE). The packaged app and exporters include a copy as `LICENSE.txt`. The bundled [Pretendard font](src/assets/OFL-Pretendard.txt) and [XML parser dependencies](src/vendor/xml-parser.js) retain their own terms and notices.
+
 ## Try it
 
 In **Settings → Help & examples**, load the fictional example data. To connect your own data, use **Settings → Reference data** to open an XLSX/XLSM workbook or load a saved connection profile. Review whether you are replacing or appending orders. Location categories are opt-in and defined by the profile.

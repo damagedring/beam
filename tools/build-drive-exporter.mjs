@@ -2,6 +2,7 @@ import {cp,mkdtemp,readFile,rename,rm,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {pinnedOrigin} from '../drive-export/core.mjs';
+import {copyBeamLicense} from './copy-license.mjs';
 
 const appOrigin=pinnedOrigin(process.env.BEAM_APP_ORIGIN);
 const exporterOrigin=pinnedOrigin(process.env.BEAM_DRIVE_EXPORTER_ORIGIN);
@@ -26,6 +27,7 @@ try{
   .replace("https://www.googleapis.com/upload/drive/v3/files;","https://www.googleapis.com/upload/drive/v3/files https://www.googleapis.com/drive/v3/files/;");
  await writeFile(join(stage,'index.html'),markup);
  await writeFile(join(stage,'.nojekyll'),'');
+ await copyBeamLicense(stage);
  await rm(destination,{force:true,recursive:true});
  await rename(stage,destination);
  console.log('Built standalone Google Drive exporter. Do not publish this on the Beam app origin.');
