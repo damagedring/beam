@@ -1,3 +1,4 @@
+import { productIdentityMarkup } from './product-identity.js';
 import { encodeReceiptCode128 } from './code128.js';
 
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -48,13 +49,13 @@ export function renderInspectionReport({rows=[],...context}){
  const header=renderInspectionHeader(context);
  const columns=['Status','Barcode / SKU','Product','Expected','Checked','Difference'];
  const widths=[16,25,35,8,8,8];
- const cells=(tag,values)=>values.map((v,i)=>'<'+tag+(tag==='th'?' scope="col"':'')+
-  (i>=columns.length-3?' class="pr-number"':'')+'>'+escape(v)+'</'+tag+'>').join('');
+ const cells=(tag,values,product=null)=>values.map((v,i)=>'<'+tag+(tag==='th'?' scope="col"':'')+
+  (i>=columns.length-3?' class="pr-number"':'')+'>'+(i===2&&product?productIdentityMarkup(product.name,product.status==='conflict'||product.status==='정보 충돌'?null:product.brand):escape(v))+'</'+tag+'>').join('');
  let expected=0,actual=0;
  const body=rows.map(r=>{
   expected+=r.expected;actual+=r.actual;
   return '<tr>'+cells('td',[(englishStatus.get(r.status)||'Review')+(r.held?' · Held':''),[r.barcode,r.sku].filter(Boolean).join(' / '),r.name,
-   r.expected,r.actual,signed(r.actual-r.expected)])+'</tr>';
+   r.expected,r.actual,signed(r.actual-r.expected)],r)+'</tr>';
  }).join('');
  const totals=['Total','','',expected,actual,signed(actual-expected)];
  const markup='<article class="pr-inspection">'+header.markup+'<section class="pr-section"><table aria-label="Inspection results">'+
@@ -63,4 +64,20 @@ export function renderInspectionReport({rows=[],...context}){
   (body||'<tr><td colspan="'+columns.length+'" class="pr-empty">'+'No inspection items'+'</td></tr>')+
   '</tbody><tfoot><tr>'+cells('td',totals)+'</tr></tfoot></table></section></article>';
  return {...header,markup};
+}
+
+
+// Order-level paperwork is deliberately independent from a carton inspection.
+export function renderOutboundDispatch({orderId,externalId='',stores=[],countries=[],cartons=[],fields}){
+ const title='Outbound Shipment Summary';
+ const enabled=key=>!fields||fields.includes(key);
+ const barcode=enabled('internalId')?orderBarcode(orderId,'Internal Order No.'):{paper:'portrait',markup:''};
+ const destination=values=>values.length?values.map(escape).join(' · '):'Not provided';
+ const values=[['externalId','External Order No.',escape(show(externalId))],['totalCartons','Total Cartons',cartons.length],
+  ['store','Destination Store',destination(stores)],['country','Destination Country',destination(countries)]].filter(([key])=>enabled(key));
+ const markup='<article class="pr-inspection pr-dispatch"><div class="pr-label"><div class="pr-label-head">'+
+  '<p class="pr-brand"><b>BEAM</b></p><h1>'+title+'</h1></div>'+barcode.markup+'</div>'+
+  (values.length?'<section class="pr-section"><dl class="pr-dispatch-fields">'+values.map(([,name,value])=>'<div><dt>'+name+'</dt><dd>'+value+'</dd></div>').join('')+'</dl></section>':'')+
+  (enabled('cartonLabels')?'<section class="pr-section"><h2>Carton Labels</h2><ol class="pr-dispatch-cartons">'+cartons.map(id=>'<li>'+escape(id)+'</li>').join('')+'</ol></section>':'')+'</article>';
+ return {title,paper:barcode.paper,markup};
 }

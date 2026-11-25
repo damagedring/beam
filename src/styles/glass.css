@@ -177,10 +177,10 @@
   #dataDialog .profile-shelf-heading {display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 3px 4px}
   #dataDialog .profile-shelf-heading h3 {font-size:12px;line-height:1.35;margin:0;font-weight:680}
   #dataDialog .profile-shelf-page {font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted)}
-  #dataDialog .profile-shelf-row {display:grid;grid-template-columns:40px minmax(0,1fr) 40px;align-items:center;min-width:0;gap:2px}
+  #dataDialog .profile-shelf-row {display:grid;grid-template-columns:40px minmax(0,1fr) 40px;align-items:center;min-width:0;gap:2px;touch-action:pan-y pinch-zoom}
   #dataDialog .profile-shelf-row[data-count="1"] {grid-template-columns:minmax(0,1fr)}
   #dataDialog .profile-shelf-row [hidden] {display:none!important}
-  #dataDialog .profile-documents {display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:1px;min-width:0;touch-action:pan-y}
+  #dataDialog .profile-documents {display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:1px;min-width:0}
   #dataDialog .profile-document-slot {min-width:0;text-align:center}
   #dataDialog .profile-shelf :is(.profile-document,.profile-shelf-arrow) {
    background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;margin:0;outline:none;color:inherit;border-radius:12px;

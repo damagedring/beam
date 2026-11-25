@@ -1,0 +1,49 @@
+/* Window header ornament stays attached to its inspection sheet. Only the tabs scroll. */
+@media screen{
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace .order-workspace-top{grid-template-columns:minmax(0,1fr);gap:7px}
+ html[data-theme] #inspectionOrderSurface #orderWorkspace #orderTabs{
+  margin-inline:0;padding:4px;gap:4px;min-height:44px;align-items:center;
+  background:color-mix(in srgb,var(--order-face) 66%,transparent);
+  border-radius:14px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;
+  overscroll-behavior-inline:contain;touch-action:pan-x pan-y pinch-zoom;
+ }
+ html[data-theme] body #inspectionOrderSurface #orderTabs .order-tab-link{
+  padding:0 12px;min-height:36px;border-radius:10px!important;gap:5px;
+  max-inline-size:min(65vw,22rem);white-space:nowrap;border:0!important;box-shadow:none!important;backdrop-filter:none;
+ }
+ #inspectionOrderSurface #orderTabs .order-tab-link .order-key{overflow:hidden;text-overflow:ellipsis;min-inline-size:0}
+ html[data-theme] body #inspectionOrderSurface #orderTabs .order-tab-link[aria-current=true]{
+  color:var(--beam-type)!important;background:color-mix(in srgb,var(--beam-type) 11%,transparent)!important;font-weight:780;
+ }
+ html[data-theme] body #inspectionOrderSurface #orderTabs .order-tab-link:focus-visible{text-decoration:underline;text-underline-offset:4px}
+ @media(pointer:coarse){html[data-theme] body #inspectionOrderSurface #orderTabs .order-tab-link{min-height:44px}}
+ @media(forced-colors:active){
+  html[data-theme] body #inspectionOrderSurface #orderTabs .order-tab-link[aria-current=true]{outline:1px solid Highlight}
+ }
+ #inspectionOrderSurface #orderCoverage{
+  display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:5px;min-width:0;
+  margin:8px var(--order-inset) 0;padding:8px 0 0;
+  border-block-start:1px solid color-mix(in srgb,var(--beam-type) 10%,transparent);
+  color:var(--beam-type);
+ }
+ #orderCoverage .beam-coverage-head{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:2px clamp(6px,1.3vw,16px);align-items:baseline}
+ #orderCoverageTitle{font:680 12px/1.2 var(--font-ui)}
+ #orderCoverage #asnCoverageQuantity{font:770 clamp(13px,1.4vw,18px)/1.3 var(--font-terminal)}
+ #orderCoverage #asnCoverage{font:720 12px/1.3 var(--font-terminal)}
+ #orderCoverage #asnCoverageDetails{color:var(--beam-muted);min-height:15px;font:610 11px/1.35 var(--font-ui)}
+ #inspectionOrderSurface #orderCoverage progress{display:block;width:100%;max-width:none;min-width:0;height:7px;border-radius:99px}
+ #orderCoverage[data-phase=progress]{--beam-coverage-ink:var(--shortage-ink)}
+ #orderCoverage[data-phase=warning]{--beam-coverage-ink:var(--warning-ink)}
+ #orderCoverage[data-phase=excess]{--beam-coverage-ink:var(--excess-ink)}
+ #orderCoverage[data-phase=complete]{--beam-coverage-ink:var(--complete-ink)}
+ #orderCoverage #asnProgressBar{color:var(--beam-coverage-ink,var(--beam-type));background:transparent}
+ #orderCoverage #asnProgressBar::-webkit-progress-bar{background:color-mix(in srgb,var(--beam-type) 15%,transparent);border-radius:9px}
+ html[data-theme] body #orderCoverage #asnProgressBar::-webkit-progress-value{background:currentColor!important;border-radius:9px}
+ html[data-theme] body #orderCoverage #asnProgressBar::-moz-progress-bar{background:currentColor!important;border-radius:9px}
+ #beamTerminal .last-scanned-progress-group{display:grid;grid-template-columns:minmax(0,1fr) auto;inline-size:min(270px,100%)}
+ #beamTerminal .last-scanned-progress-group #lastScannedBar{grid-column:1/-1;grid-row:2;height:7px}
+ #beamTerminal #lastScannedRemaining{grid-row:3}
+ #beamTerminal #lastScannedPercent{font:720 12px/1.3 var(--font-terminal);justify-self:end}
+}
+
+@media print{#orderCoverage{display:none!important}}

@@ -7,11 +7,11 @@ const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const source = join(root, 'src');
 const destination = join(root, 'dist');
 const files = Object.freeze([
-  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js', 'domain/inspection-report.js',
+  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'ui/product-label-print.js', 'ui/carton-workspace.js', 'ui/outbound-receipts.js', 'domain/carton-verification.js', 'domain/inspection-report.js',
   'domain/browser-recovery.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
 ]);
-const styles = ['styles/status-colors.css', 'styles/glass.css', 'styles/workspace.css', 'styles/inspection-print.css'];
+const styles = ['styles/status-colors.css', 'styles/glass.css', 'styles/workspace.css', 'styles/inspection-print.css', 'styles/product-labels.css', 'styles/carton-workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'styles/return-receipts.css', 'styles/scan-identity.css', 'styles/outbound-receipts.css'];
 
 async function readSource(relative) {
   const file = join(source, relative);

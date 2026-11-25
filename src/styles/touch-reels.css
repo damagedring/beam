@@ -1,0 +1,26 @@
+/* The home material has its own inset, independent from label typography. */
+@media screen{
+ html[data-theme] body #beamHome .beam-home-word:not([hidden]){
+  position:relative;isolation:isolate;padding:.17em .42em;
+ }
+ #beamHome .beam-home-en{letter-spacing:-.041em;font-weight:820}
+ #beamHome .beam-home-ko{letter-spacing:-.018em;margin-inline-start:.32em;vertical-align:.045em}
+ #beamHome .beam-home-word::before{
+  content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:999px;
+  background:color-mix(in srgb,currentColor 5%,transparent);
+ }
+ #beamHome [data-center=true] .beam-home-word::before{
+  background:color-mix(in srgb,currentColor 12%,transparent);
+ }
+ @media(max-width:720px){
+  html[data-theme] body #beamHome .beam-home-word:not([hidden]){font-size:clamp(31px,9.3vw,62px)!important}
+  #beamHome .beam-home-choices{--home-spacing:clamp(76px,12svh,100px);touch-action:pinch-zoom}
+ }
+ @media(max-width:760px) and (any-pointer:coarse){
+  #beamFolderReceiptDialog[open]{height:min(84dvh,780px);min-height:0;overflow:hidden}
+  #beamFolderReceiptScroll{touch-action:pan-y pinch-zoom;-webkit-overflow-scrolling:touch;scrollbar-gutter:auto;padding-inline-end:0}
+ }
+ @media(forced-colors:active){
+  #beamHome [data-center=true] .beam-home-word::before{outline:1px solid CanvasText}
+ }
+}

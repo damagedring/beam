@@ -1,3 +1,4 @@
+import { mergeProductBrands } from './product-identity.js';
 const key=r=>r.barcode?'B:'+r.barcode:r.sku?'S:'+r.sku:'U:'+r.unresolvedId;
 const units=s=>s.qty??1;
 const eventCode=s=>s.kind==='sku'?s.sku:s.barcode;
@@ -32,7 +33,8 @@ function masterInfo(data,event){
  const skus=new Set(),names=new Set(),keys=event.kind==='code'?new Set():null;
  for(const r of candidates){if(r.sku)skus.add(r.sku);if(r.name)names.add(r.name);if(keys)keys.add(key(r));}
  const conflict=skus.size>1||names.size>1||(keys&&keys.size>1)||false;
- const info={found:!!candidates.length,conflict,sku:!conflict&&skus.size===1?[...skus][0]:'',name:!conflict&&names.size===1?[...names][0]:''};
+ const brand=!conflict&&mergeProductBrands(candidates.map(r=>r.brand));
+ const info={found:!!candidates.length,conflict,...(brand?{brand}:{}),sku:!conflict&&skus.size===1?[...skus][0]:'',name:!conflict&&names.size===1?[...names][0]:''};
  if(ix.masterCache.size===4096)ix.masterCache.delete(ix.masterCache.keys().next().value);
  ix.masterCache.set(cacheKey,info);
  return info;
@@ -40,7 +42,7 @@ function masterInfo(data,event){
 function receiptTemplate(ix,receipt){
  if(ix.templates.has(receipt))return ix.templates.get(receipt);
  const found=new Map(),raw=ix.rawByReceipt.get(receipt)||[];
- for(const [i,r]of raw.entries()){const k=key({...r,unresolvedId:r.unresolvedId||'row-'+i});if(!found.has(k))found.set(k,{...r,key:k,expected:0,actual:0,conflict:!r.barcode&&!r.sku,unresolved:!r.barcode&&!r.sku});const a=found.get(k);a.expected+=r.qty;if(!Number.isSafeInteger(a.expected))throw Error('합산 예정 수량이 너무 큽니다.');if(a.sku&&r.sku&&a.sku!==r.sku)a.conflict=true;if(a.name&&r.name&&a.name!==r.name)a.conflict=true;}
+ for(const [i,r]of raw.entries()){const k=key({...r,unresolvedId:r.unresolvedId||'row-'+i});if(!found.has(k))found.set(k,{...r,key:k,expected:0,actual:0,conflict:!r.barcode&&!r.sku,unresolved:!r.barcode&&!r.sku});const a=found.get(k);a.expected+=r.qty;if(!Number.isSafeInteger(a.expected))throw Error('합산 예정 수량이 너무 큽니다.');if(a.sku&&r.sku&&a.sku!==r.sku)a.conflict=true;if(a.name&&r.name&&a.name!==r.name)a.conflict=true;if(r.brand)a.brand=mergeProductBrands([a.brand,r.brand]);}
  const byBarcode=new Map(),bySku=new Map(),skuOnly=new Map();for(const r of found.values()){addIndex(byBarcode,r.barcode,r);addIndex(bySku,r.sku,r);if(!r.barcode&&r.sku)addIndex(skuOnly,r.sku,r);}
  const template={rows:[...found.values()],byBarcode,bySku,skuOnly};
  // Keep reference-sized templates only for used receipts, bounded for very fragmented imports.
@@ -158,7 +160,7 @@ function reconcile(data,receipt,scans){
  const ix=getIndex(data),template=receiptTemplate(ix,receipt),agg=scanAggregate(data,receipt,scans,ix,template);
  if(agg.rows)return agg.rows;
  const rows=[...template.rows,...agg.outside.values()].map(r=>({...r,actual:agg.counts.get(r.key)||0}));
- return agg.rows=rows.map(r=>{const master=r.unregistered&&!r.conflict?masterInfo(data,{kind:r.inputKind,barcode:r.barcode,sku:r.sku}):{conflict:false,sku:'',name:''},conflict=r.conflict||master.conflict;const locations=[...(ix.locations.get('B:'+r.barcode)||ix.locations.get('S:'+r.sku)||[])];return {...r,name:r.unregistered?(master.name||'상품 정보 없음'):(r.name||'ASN 상품명 없음'),sku:r.unregistered?(r.sku||master.sku):(r.sku||''),locations,location:locations.join(', '),missing:Math.max(0,r.expected-r.actual),excess:Math.max(0,r.actual-r.expected),status:r.unresolved?'식별자 없음':conflict?'정보 충돌':r.unregistered?'예정 외':r.expected===r.actual?'일치':r.actual>r.expected?'초과':'부족'};});
+ return agg.rows=rows.map(r=>{const master=r.unregistered&&!r.conflict?masterInfo(data,{kind:r.inputKind,barcode:r.barcode,sku:r.sku}):{conflict:false,sku:'',name:''},conflict=r.conflict||master.conflict;const locations=[...(ix.locations.get('B:'+r.barcode)||ix.locations.get('S:'+r.sku)||[])];return {...r,...(r.unregistered&&master.brand&&!conflict?{brand:master.brand}:{}),name:r.unregistered?(master.name||'상품 정보 없음'):(r.name||'ASN 상품명 없음'),sku:r.unregistered?(r.sku||master.sku):(r.sku||''),locations,location:locations.join(', '),missing:Math.max(0,r.expected-r.actual),excess:Math.max(0,r.actual-r.expected),status:r.unresolved?'식별자 없음':conflict?'정보 충돌':r.unregistered?'예정 외':r.expected===r.actual?'일치':r.actual>r.expected?'초과':'부족'};});
 }
 function asnProgress(data,receipt,scans,pending=[],currentBatch=''){
  const rows=reconcile(data,receipt,scans),agg=scanAggregate(data,receipt,scans);

@@ -1,0 +1,76 @@
+@media screen {
+ #cartonWorkspace[data-mode=outbound] #cartonFind{max-width:880px}
+ #cartonWorkspace[data-mode=outbound] .carton-action-row,#cartonSearchNote{max-width:620px;margin-inline:auto}
+ #outboundReceiptHost .outbound-reel{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr) minmax(0,1fr);align-items:center;gap:12px;min-height:335px;perspective:1050px;touch-action:pan-y pinch-zoom;padding:16px 0 8px}
+ #cartonWorkspace #outboundReceiptHost .outbound-reel-card{
+  --file-back:#adaca943;--file-front:linear-gradient(155deg,#fff9,#e7e6e34a 56%,#fdfcfbf0);
+  --file-edge:#fff9;--file-paper:#fff;--file-shadow:#25221f22;
+  grid-row:1;grid-column:2;display:grid;gap:10px;align-content:center;min-width:0;width:100%;
+  margin:0;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;
+  position:relative;transform:none;touch-action:pan-y pinch-zoom;
+ }
+ html[data-theme=dark] #cartonWorkspace #outboundReceiptHost .outbound-reel-card{
+  --file-back:#b0aaa844;--file-front:linear-gradient(155deg,#aaa5a35c,#73706c50 56%,#42403fe0);--file-edge:#f5f3ef4f;--file-shadow:#0007
+ }
+ #cartonWorkspace #outboundReceiptHost .outbound-reel-card[data-slot="-1"]{grid-column:1;transform:perspective(850px) rotateY(13deg);opacity:.76}
+ #cartonWorkspace #outboundReceiptHost .outbound-reel-card[data-slot="1"]{grid-column:3;transform:perspective(850px) rotateY(-13deg);opacity:.76}
+ #outboundReceiptHost .beam-file{position:relative;display:block;isolation:isolate;width:100%;height:clamp(151px,25vw,238px);text-align:start}
+ #outboundReceiptHost :is(.beam-file-back,.beam-file-sheet,.beam-file-paper,.beam-file-glass,.beam-file-window){position:absolute;display:block}
+ #outboundReceiptHost .beam-file-back{inset:17% 8% 4%;border-radius:18px 18px 13px 13px;background:var(--file-back);clip-path:polygon(0 0,42% 0,52% 13%,100% 13%,100% 100%,0 100%)}
+ #outboundReceiptHost .beam-file-sheet{inset:16% 22% 13%;border-radius:8px;background:var(--file-paper);box-shadow:0 2px 7px var(--file-shadow)}
+ #outboundReceiptHost .beam-file-sheet-left{transform:translateX(-26%) rotate(-17deg)}
+ #outboundReceiptHost .beam-file-sheet-right{transform:translateX(24%) rotate(15deg)}
+ #outboundReceiptHost .beam-file-window{inset:-3% 11% 5%;overflow:hidden;border-radius:12px;pointer-events:none}
+ #outboundReceiptHost .beam-file-paper{inset:0 0 auto;transform:translateY(38px);transition:transform 450ms cubic-bezier(.28,.08,.22,1)}
+ #outboundReceiptHost .outbound-reel-card:is(:hover,[data-peek=true]) .beam-file-paper{transform:translateY(1px)}
+ #outboundReceiptHost .beam-file-paper .outbound-paper{zoom:.78;filter:drop-shadow(0 3px 9px var(--file-shadow))}
+ #outboundReceiptHost .beam-file-glass{inset:49% 2% 0;background:var(--file-front);border-radius:17px 17px 15px 15px;clip-path:polygon(0 0,45% 0,54% 19%,100% 19%,100% 100%,0 100%);box-shadow:inset 0 1px var(--file-edge);backdrop-filter:blur(14px) saturate(.72);-webkit-backdrop-filter:blur(14px) saturate(.72)}
+ #outboundReceiptHost :is(.beam-file-position,.beam-file-arrow){position:absolute;bottom:10px}
+ #outboundReceiptHost .beam-file-position{inset-inline-start:12px;font:670 11px/1 var(--font-terminal)}
+ #outboundReceiptHost .beam-file-arrow{inset-inline-end:12px;font-size:17px;line-height:1}
+ #outboundReceiptHost .beam-file-caption{display:grid;gap:4px;min-width:0;text-align:center;line-height:1.2}
+ #outboundReceiptHost .beam-file-caption strong{white-space:normal;overflow-wrap:anywhere;text-wrap:balance;font-size:clamp(14px,1.7vw,21px);letter-spacing:-.025em}
+ #outboundReceiptHost [data-center=true] .beam-file-caption strong{font-size:clamp(22px,3vw,34px);font-weight:820;letter-spacing:-.035em}
+ #outboundReceiptHost .beam-file-caption>span{color:var(--muted);font:650 11px/1.3 var(--font-terminal)}
+ .outbound-paper{--stub-stock:#fff;--sheet-stock:#fff;--paper-ink:#181818;--paper-muted:#555;--paper-rule:#8c8c8c;display:flex;flex-direction:column;text-align:start;min-width:0;width:100%;white-space:normal;color:var(--paper-ink);filter:drop-shadow(0 3px 8px #0002)}
+ .outbound-paper .beam-paper-ref{white-space:nowrap}
+ .outbound-paper .beam-paper-body{min-height:0;gap:5px}
+ .outbound-paper-meta{font:620 10px/1.3 var(--font-terminal);color:var(--paper-muted);overflow-wrap:anywhere}
+ .outbound-paper-line{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:baseline;font:550 12px/1.3 var(--font-ui);overflow-wrap:anywhere}
+ .outbound-paper-line>span{min-width:0;overflow-wrap:anywhere}
+ .outbound-paper-line b{font:690 10px/1.2 var(--font-terminal)}
+ .outbound-paper-columns{color:var(--paper-muted);border-bottom:1px solid var(--paper-rule);padding-bottom:4px;font-size:10px}
+ .outbound-reel-tools{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin-block:10px}
+ .outbound-reel-tools button{min-width:44px}
+ .outbound-reel-position{font:670 11px/1 var(--font-terminal);color:var(--muted);white-space:nowrap}
+ #cartonWorkspace .outbound-activate{font-weight:760;background:var(--ink);color:var(--surface-panel)}
+ .outbound-ticket-dialog{box-sizing:border-box;width:min(430px,calc(100% - 24px));max-height:calc(100dvh - 24px);padding:16px;overflow:auto}
+ .outbound-ticket-dialog::backdrop{background:#0005;backdrop-filter:blur(5px)}
+ .outbound-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+ .outbound-dialog-heading button{min-width:44px}
+ .outbound-ticket-scroll{overflow:auto;max-height:58dvh;padding:4px 7px 10px;touch-action:pan-y pinch-zoom;scrollbar-width:thin}
+ .outbound-code128 svg{display:block;max-width:100%;height:46px;width:100%}
+ @media(max-width:680px){
+  #outboundReceiptHost .outbound-reel{grid-template-columns:minmax(0,1fr) minmax(0,250px) minmax(0,1fr);gap:0;min-height:258px}
+  #cartonWorkspace #outboundReceiptHost .outbound-reel-card:not([data-center=true]){display:none}
+  #outboundReceiptHost .beam-file-paper .outbound-paper{zoom:.72}
+ }
+ @media(prefers-reduced-motion:reduce){#outboundReceiptHost .beam-file-paper{transition:none}}
+ @media(prefers-reduced-transparency:reduce){#outboundReceiptHost .beam-file-glass{background:var(--surface-panel);backdrop-filter:none;-webkit-backdrop-filter:none}}
+ @media(forced-colors:active){#outboundReceiptHost .beam-file-glass{background:Canvas;border:1px solid CanvasText}}
+}
+
+/* Paper and its sleeve are the only material on the reel. This layer comes
+   before the generic frosted button styles, including their active states. */
+@layer beam-folder {
+ @media screen {
+  #outboundReceiptHost :is(.outbound-reel-card,.outbound-nav-arrow){
+   background:none!important;border:0!important;box-shadow:none!important;
+   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+   border-radius:0!important;color:var(--ink)!important;
+  }
+  #outboundReceiptHost .outbound-nav-arrow{padding-inline:6px;font-size:20px}
+  #outboundReceiptHost .outbound-nav-arrow:is(:hover,:focus-visible){text-decoration:underline;text-underline-offset:.19em}
+  #outboundReceiptHost .outbound-reel-card::before,#outboundReceiptHost .outbound-reel-card::after{content:none!important}
+ }
+}

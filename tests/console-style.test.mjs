@@ -91,13 +91,14 @@ test('switching inspection orders never regenerates a second action header',asyn
  const state={data:{},orderTabs:['i-1','i-2'],currentBatch:'b',scans:[{batch:'b',receipt:'i-1'}],pending:[],receipt:'i-1'};
  const ctx={$,state,language:'en',lastBarcode:'',selectedWorkStoreKey:()=>'s',Engine:{getIndex:()=>({rawByReceipt:orders})},
   workReceiptGate:()=>id=>orders.has(id),workAllowsReceipt:id=>orders.has(id),isB2C:()=>false,asnStoreKey:()=>'s',
-  uiIndex:()=>({orderSearch:new Map()}),receiptDisplay:id=>'Ext-'+id,completionMark:()=>'',esc:String,changed(){}};
+  uiIndex:()=>({orderSearch:new Map()}),receiptDisplay:id=>'Ext-'+id,completionMark:()=>'',esc:String,changed(){},focusBeamInput:id=>$(id).focus()};
  const api=runInNewContext(workspace+'\nfunction draw(){drawOrderWorkspace()}\n({drawOrderWorkspace,switchOrderTab})',ctx);
  const originalScan=state.scans[0];
  for(const [id,other] of [['i-1','i-2'],['i-2','i-1'],['i-1','i-2']]){
   assert.equal(api.switchOrderTab(id),true);
   assert.equal($('activeOrderInfo').dataset.orderInfo,id);
-  assert.equal(($('orderTabs').innerHTML.match(/<button/g)||[]).length,1);
+  assert.equal(($('orderTabs').innerHTML.match(/<button/g)||[]).length,2);
+  assert.match($('orderTabs').innerHTML,new RegExp('data-order-tab="'+id+'"[^>]*aria-current="true"'));
   assert.match($('orderTabs').innerHTML,new RegExp('data-order-tab="'+other+'"'));
   assert.doesNotMatch($('orderTabs').innerHTML,/data-order-info|data-order-open|data-order-barcode|<svg|type="text"/);
   assert.strictEqual(state.scans[0],originalScan);
@@ -127,4 +128,26 @@ test('the scanner well never paints its containing console in either theme',()=>
  assert.match(styles,/#beamTerminal #scanform \.beam-scan-prompt\{color:var\(--status-info\)\}/);
  assert.ok(contrast('#505050','#f4f4f4')>=4.5);
  assert.ok(contrast('#bdbdbd','#252525')>=4.5);
+});
+
+
+test('overall progress cannot trade extra units of one SKU for missing units of another',async()=>{
+ const app=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
+ const source=app.slice(app.indexOf('function drawAsnProgress()'),app.indexOf('const $=id=>',app.indexOf('function drawAsnProgress()')));
+ const map=new Map(),$=id=>{if(!map.has(id))map.set(id,{dataset:{},setAttribute(k,v){this[k]=v;}});return map.get(id);};
+ const data={expected:6,actual:8,covered:5,percent:116,excess:2,phase:'excess',batch:8,unassigned:0,complete:false};
+ runInNewContext(source+'\ndrawAsnProgress()',{$,state:{receipt:'ORD',scans:[]},language:'ko',tr:x=>x,setUI(){},Engine:{asnProgress:()=>data},isInspectionConfirmed:()=>false});
+ assert.equal($('asnCoverageQuantity').textContent,'5 / 6 EA');
+ assert.equal($('asnCoverage').textContent,'116%');
+ assert.equal($('asnCoverageDetails').textContent,'1개 남음 · 2개 초과');
+ assert.ok($('asnProgressBar').value<100);
+});
+
+test('order progress is a single full-width sibling immediately beneath the order sheet controls',async()=>{
+ const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8');
+ const rail=await readFile(new URL('../src/styles/inspection-rail.css',import.meta.url),'utf8');
+ assert.match(html,/id="orderWorkspaceHint">\s*<\/span>\s*<\/div>\s*<\/section>\s*<section id="orderCoverage"/);
+ assert.match(html,/id="orderCoverage"[\s\S]*?id="asnProgressBar"[\s\S]*?id="beamTerminal"[\s\S]*?id="lastScannedBar"/);
+ assert.equal(html.match(/id="asnProgressBar"/g).length,1);
+ assert.match(rail,/#orderCoverage\{[\s\S]*?margin:8px var\(--order-inset\) 0/);
 });

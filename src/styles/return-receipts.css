@@ -1,0 +1,32 @@
+/* Keep the two paper states on the same visual scale without enlarging the reel's side cards. */
+@media screen {
+ #beamSearch .beam-stage .beam-receipt[data-folder=true]{width:clamp(210px,24.5vw,322px)}
+ #beamSearch .beam-stage .beam-receipt[data-center=true]:not([data-folder=true]){
+  --return-paper-width:clamp(228px,22vw,292px)
+ }
+ #beamSearch .beam-stage .beam-receipt[data-center=true]:not([data-folder=true]){width:var(--return-paper-width)}
+ #beamSearch .beam-file .beam-file-paper .beam-paper-ticket{zoom:.72}
+ #beamSearch .beam-stage .beam-receipt[data-folder=true][data-quick=true]:not([data-long-peek=true]) .beam-file-window{
+  inset:-37px 7% 2%;border-radius:16px
+ }
+ #beamSearch .beam-stage .beam-receipt[data-folder=true][data-quick=true] .beam-file-paper{transform:translateY(0)}
+ #beamSearch .beam-file .beam-file-paper .beam-ticket-quick{zoom:1}
+ #beamSearch .beam-ticket-quick .beam-paper-top{gap:7px}
+ #beamSearch .beam-ticket-quick .beam-ticket-pda-caption b{font-size:12px}
+ #beamSearch .beam-ticket-quick .beam-ticket-code-plate,#beamSearch[data-return-mode=b2c] .beam-receipt[data-center=true]:not([data-folder=true]) .beam-ticket-code-plate{height:64px}
+ #beamSearch .beam-ticket-quick .beam-ticket-code-plate svg,#beamSearch[data-return-mode=b2c] .beam-receipt[data-center=true]:not([data-folder=true]) .beam-ticket-code-plate svg{width:100%;height:64px}
+ #beamFolderActions:not([hidden]){display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 8px}
+ #beamFolderActions .beam-folder-pager{display:none}
+ #beamSearch .beam-stage,#beamSearch .beam-stage[data-browsable] .beam-receipt{touch-action:pan-y pinch-zoom}
+ @media(max-width:760px),(any-pointer:coarse){
+  #beamFolderActions[data-multiple=true] .beam-folder-pager{display:flex;align-items:center;gap:6px}
+  #beamFolderActions .beam-folder-pager button{width:44px;min-height:44px;display:grid;place-items:center;padding:0!important}
+  #beamFolderPage{min-inline-size:3.15em;text-align:center;font:650 11px/1 var(--font-terminal);white-space:nowrap}
+ }
+ @media(max-width:760px){
+  #beamSearch .beam-stage .beam-receipt[data-folder=true]{width:min(260px,70vw)}
+  #beamSearch .beam-stage .beam-receipt[data-center=true]:not([data-folder=true]){--return-paper-width:min(246px,71vw)}
+  #beamSearch .beam-file .beam-file-paper .beam-paper-ticket{zoom:.67}
+  #beamSearch .beam-stage .beam-receipt[data-folder=true][data-quick=true]:not([data-long-peek=true]) .beam-file-window{inset-inline:8%}
+ }
+}
