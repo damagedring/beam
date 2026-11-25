@@ -11,7 +11,7 @@ const dist = new URL('../dist/',import.meta.url);
 const files = ['.nojekyll','LICENSE.txt','app.css','app.js','app/navigation.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2',
   'components/print/barcode.js','components/print/inspection-report.js','components/product-identity/view.js','components/product-labels/view.js',
   'domain/carton-verification.js','domain/code128.js','domain/product-identity.js','domain/product-labels.js',
-  'domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','features/cartons/model.js','features/cartons/outbound-receipts.js','features/cartons/workspace.js','features/returns/quantities.js','features/returns/recovery.js','features/returns/scan-commands.js','import/mapping/profiles.js','import/workbook.js','index.html',
+  'domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','features/cartons/model.js','features/cartons/outbound-receipts.js','features/cartons/workspace.js','features/examples/cry-later-assets.js','features/returns/quantities.js','features/returns/recovery.js','features/returns/scan-commands.js','import/mapping/profiles.js','import/workbook.js','index.html',
   'platform/indexed-recovery.js','platform/inspection-input.js','platform/print.js','platform/reference-fingerprint.js','platform/scan-audio.js',
   'ui/translations.js','vendor/xml-parser.js'];
 const read=(name)=>readFile(new URL(name,dist),'utf8');

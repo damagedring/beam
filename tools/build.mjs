@@ -9,8 +9,9 @@ import { copyBeamLicense } from './copy-license.mjs';
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const source = join(root, 'src');
 const destination = join(root, 'dist');
+const exampleModule = 'features/examples/cry-later-assets.js';
 const files = Object.freeze([
-  'index.html', 'app.js', 'app/navigation.js', 'import/workbook.js', 'import/mapping/profiles.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'features/cartons/workspace.js', 'features/cartons/model.js', 'features/cartons/outbound-receipts.js', 'domain/carton-verification.js',
+  'index.html', 'app.js', exampleModule, 'app/navigation.js', 'import/workbook.js', 'import/mapping/profiles.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'features/cartons/workspace.js', 'features/cartons/model.js', 'features/cartons/outbound-receipts.js', 'domain/carton-verification.js',
   'components/product-identity/view.js', 'components/print/barcode.js', 'components/print/inspection-report.js',
   'features/returns/quantities.js', 'features/returns/recovery.js', 'features/returns/scan-commands.js', 'platform/indexed-recovery.js', 'platform/inspection-input.js', 'platform/print.js', 'platform/scan-audio.js', 'platform/reference-fingerprint.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
@@ -26,7 +27,18 @@ async function readSource(relative) {
   return readFile(file);
 }
 
-const jsSources=new Map(await Promise.all(files.filter(name=>name.endsWith('.js')).map(async name=>[name,await readSource(name)])));
+// Bundle the exact example files as a lazy script so the default CSP can keep connections disabled.
+const [exampleWorkbook, exampleProfile] = await Promise.all([
+  readSource('features/examples/cry-later-demo.xlsx'),
+  readSource('features/examples/cry-later-profile.json'),
+]);
+const exampleBytes = Buffer.from(
+  'export const workbookBase64 = ' + JSON.stringify(exampleWorkbook.toString('base64')) + ';\n' +
+  'export const profileText = ' + JSON.stringify(exampleProfile.toString('utf8')) + ';\n',
+);
+const jsSources=new Map(await Promise.all(files.filter(name=>name.endsWith('.js')).map(async name=>[
+  name, name===exampleModule ? exampleBytes : await readSource(name),
+])));
 const moduleDigest=createHash('sha256');
 for(const [name,bytes] of jsSources){
   moduleDigest.update(JSON.stringify([name,bytes.length])).update(bytes);

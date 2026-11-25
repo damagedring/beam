@@ -379,6 +379,24 @@ const MappingUI=(()=>{
    out.profiles[id]=dest;
   }if(!Object.hasOwn(out.profiles,out.active))throw Error('Invalid active profile');return out;
  }
+ function exampleConnection(profileText){
+  const saved=validateStore(JSON.parse(profileText)),profile=saved.profiles[saved.active];
+  return {
+   locationRules:profile.locationRules,
+   hooks:{
+    selectSheets({sheets}){
+     const {reused,confirmKinds}=resolveSavedSheets(sheets,kinds,profile.file);
+     if(!profile.file.raw||confirmKinds.length)throw Error('The example workbook does not match its profile');
+     return reused;
+    },
+    selectColumns({kind,rows}){
+     const result=MappingCore.reconnectRows(profile.file[kind],rows);
+     if(!result.ok)throw Error(result.reason);
+     return result.mapping;
+    },
+   },
+  };
+ }
  function refresh(){for(const fn of localizers)fn();for(const n of statusNodes)n.textContent=storageNote;}
  function persist(next,successNote){
   // Commit to the current window first. Browser storage is optional and never decides which mapping this window uses.
@@ -849,7 +867,7 @@ const MappingUI=(()=>{
   });
   refresh();
  }
- return {begin,init,refresh,importProfile,editConnection,forgetSources,locationRules,labelPapers,dispatchProfile,saveDispatchMapping,rememberWorkbook,offerWorkbookRetry,waitForProfileImport,isBusy:()=>busy};
+ return {begin,init,refresh,importProfile,exampleConnection,editConnection,forgetSources,locationRules,labelPapers,dispatchProfile,saveDispatchMapping,rememberWorkbook,offerWorkbookRetry,waitForProfileImport,isBusy:()=>busy};
 })();
 
 
@@ -1648,7 +1666,77 @@ inspectionInput.bindCartons(cartonWorkspace.input);
 const navigation = createNavigation(document, cartonWorkspace);
 $('productLabelTrigger').onclick=e=>productLabels.open(e.currentTarget);
 
-$('demo').onclick=()=>{if(dirty&&!uiConfirm('예제 데이터로 현재 작업을 바꿀까요? 실제 작업은 먼저 저장해 주세요.'))return;state={version:1,data:{raw:[{receipt:'DEMO-001',barcode:'0012345678901',sku:'SKU-A',name:'예제 · 긴 이름의 반품 제품 / 차콜 M 사이즈',qty:3,seller:'가상 거래처',external:'EX-01',returnTracking:'1111-2222-3333',returnChannel:'b2b'},{receipt:'DEMO-001',barcode:'0012345678902',sku:'SKU-B',name:'예제 · 코튼 셔츠 화이트',qty:2,seller:'가상 거래처',external:'EX-01',returnChannel:'b2b'},{receipt:'DEMO-002',barcode:'0012345678901',sku:'SKU-A',name:'예제 · 다른 ASN',qty:1,seller:'가상 거래처',external:'EX-02',returnChannel:'b2b'},{receipt:'DEMO-C01',barcode:'0012345678903',sku:'SKU-C',name:'예제 · 고객 반품',qty:2,seller:'가상 거래처',external:'EX-C01',returnTracking:'9999-2222-3333',returnChannel:'b2c'}],sku:[{barcode:'0099999999999',sku:'SKU-X',name:'예제 · 예정에 없는 상품'}],loc:[{barcode:'0012345678901',loc:'A-01-02'}]},scans:[],receipt:'DEMO-001',customerNames:{'DEMO-C01':['가상 고객']},sources:{}};changed();draw();$('dataPanel').open=false;notice('가상 예제입니다. 실제 업무 데이터가 아닙니다.');setUI('feedback','예제 바코드 0012345678901',false,true);focusBeamInput('barcode');beam.mode='b2b';beamNewSearch(true);};
+const exampleWorkbookName='Cry-Later-Demo.xlsx';
+const exampleProfileName='Cry-Later-Profile.json';
+const exampleWorkbookType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const exampleLocationRules=new WeakMap();
+const loadExampleAssets=()=>import('./features/examples/cry-later-assets.js');
+const exampleWorkbookBytes=base64=>Uint8Array.from(atob(base64),character=>character.charCodeAt(0));
+
+function showExampleStatus(ko,en){
+ const status=$('demoStatus');
+ status.hidden=false;
+ status.dataset.ko=ko;
+ status.dataset.en=en;
+ status.textContent=language==='en'?en:ko;
+}
+
+for(const [id,name,type,content] of [
+ ['downloadDemoWorkbook',exampleWorkbookName,exampleWorkbookType,assets=>exampleWorkbookBytes(assets.workbookBase64)],
+ ['downloadDemoProfile',exampleProfileName,'application/json',assets=>assets.profileText],
+]){
+ $(id).onclick=async()=>{
+  try{download(name,content(await loadExampleAssets()),type);}
+  catch{showExampleStatus('Cry Later 파일을 다운로드하지 못했습니다.','Could not download the Cry Later file.');}
+ };
+}
+
+$('demo').onclick=async()=>{
+ const button=$('demo'),dialog=$('helpDialog'),original=state;
+ if(button.disabled||dataImportBusy||MappingUI.isBusy())return;
+ if(dirty&&!uiConfirm(beamL('예제 데이터로 현재 작업을 바꿀까요? 실제 작업은 먼저 저장해 주세요.','Replace the current work with example data? Save any real work first.')))return;
+ let cancelled=false,prepared;
+ const cancel=()=>{cancelled=true;};
+ dialog.addEventListener('close',cancel,{once:true});
+ button.disabled=true;
+ showExampleStatus('Cry Later 예제를 불러오는 중…','Loading the Cry Later example…');
+ try{
+  const {workbookBase64,profileText}=await loadExampleAssets();
+  const {hooks,locationRules}=MappingUI.exampleConnection(profileText);
+  const workbook=new File([exampleWorkbookBytes(workbookBase64)],exampleWorkbookName,{type:exampleWorkbookType});
+  const parsed=await readWorkbook(workbook,null,null,hooks);
+  const {raw,sku,loc}=parsed;
+  const phones=await prepareReferencePhones(parsed);
+  const data={raw,sku,loc};
+  const customerNames=MappingCore.checkedCustomerNames(raw.customerNames,raw);
+  const sources={raw:workbook.name,sku:workbook.name,loc:workbook.name};
+  const next=normalizedActiveWork(Engine.validateSession({version:1,data,scans:[],customerNames,sources}));
+  delete raw.customerNames;
+  delete raw.phoneRecords;
+  prepared={next,phones,locationRules};
+ }catch{
+  if(!cancelled&&dialog.open)showExampleStatus('Cry Later 예제를 불러오지 못했습니다. 현재 작업은 유지됩니다.','Could not load the Cry Later example. Your current work is unchanged.');
+ }finally{
+  dialog.removeEventListener('close',cancel);
+  button.disabled=false;
+  if(cancelled||!dialog.open)$('demoStatus').hidden=true;
+ }
+ if(!prepared||cancelled||!dialog.open||state!==original||dataImportBusy||MappingUI.isBusy())return;
+ const {next,phones,locationRules}=prepared;
+ if(locationRules)exampleLocationRules.set(next.data.raw,locationRules);
+ PhoneOrderUI.clear();
+ state=next;
+ lastBarcode='';
+ PhoneOrderUI.commitPrepared(phones);
+ changed();
+ draw();
+ $('dataPanel').open=false;
+ notice('');
+ beam.mode='b2b';
+ beamNewSearch(true);
+ showExampleStatus('Cry Later 예제를 불러왔습니다.','Cry Later example loaded.');
+};
+
 const updateMobileQuantities = attachMobileQuantities({
  element: $,
  hasReceipt: () => Boolean(state.receipt),
@@ -2167,7 +2255,7 @@ function pickingLocationData(item){
  const barcode=item.barcode||'',related=[...new Set([...(ix.locBySku.get(item.sku)||[]),...(barcode?ix.locByBarcode.get(barcode)||[]:[])])];
  if(related.some(r=>barcode&&r.barcode===barcode&&r.sku&&r.sku!==item.sku))return {reason:'SKU·Barcode 위치 정보 충돌',groups:[]};
  if(related.some(r=>barcode&&r.barcode===barcode&&!r.sku))return {reason:'위치 자료의 SKU 확인 필요',groups:[]};
- const rules=MappingUI.locationRules(),eligible=new Set(rules.eligibleTypes);
+ const rules=exampleLocationRules.get(state.data.raw)??MappingUI.locationRules(),eligible=new Set(rules.eligibleTypes);
  if(!eligible.size)return {reason:language==='en'?'Set eligible types in Location display rules':'위치 표시 규칙에서 피킹 유형을 지정하세요',groups:[]};
  const typeOf=r=>locationTypeKey(r.locationType),missingType=related.some(r=>!typeOf(r)),picking=related.filter(r=>eligible.has(typeOf(r))&&r.sku===item.sku);
  if(picking.some(r=>!String(r.loc||'').trim()))return {reason:language==='en'?'Picking location needs verification':'피킹 위치 정보 확인 필요',groups:[]};
@@ -2415,10 +2503,15 @@ async function applyLiveChannelProfile(source,profile){
  }
  return true;
 }
-async function applyMappedResult(parsed,source,headerOnlyKinds=[]){
- const prepared={},capture={data:state.data,batch:state.currentBatch};
+async function prepareReferencePhones(parsed){
+ const prepared={};
  if(parsed.raw?.phoneRecords?.length)prepared.returns=await PhoneOrderCore.build('returns',parsed.raw.phoneRecords,new Set(parsed.raw.map(r=>r.receipt)));
  if(parsed.phoneOrders?.length)prepared.orders=await PhoneOrderCore.build('orders',parsed.phoneOrders);
+ return prepared;
+}
+async function applyMappedResult(parsed,source,headerOnlyKinds=[]){
+ const capture={data:state.data,batch:state.currentBatch};
+ const prepared=await prepareReferencePhones(parsed);
  if(state.data!==capture.data||state.currentBatch!==capture.batch)throw Error('작업이 변경되었습니다. 다시 연결하세요.');
  const next={};let count=0;
  for(const k of ['raw','sku','loc'])if(Object.hasOwn(parsed,k)){
