@@ -4,8 +4,9 @@ import {test} from 'node:test';
 import {runInNewContext} from 'node:vm';
 
 const css=await readFile(new URL('../src/styles/workspace.css',import.meta.url),'utf8');
+const consoleCss=await readFile(new URL('../src/features/returns/console.css',import.meta.url),'utf8');
 const palette=await readFile(new URL('../src/styles/tokens/status.css',import.meta.url),'utf8');
-const styles=css.slice(css.indexOf('/* Inspection glass: neutral outer material'));
+const styles=consoleCss.slice(consoleCss.indexOf('/* Inspection glass: neutral outer material'));
 const readToken=name=>styles.match(new RegExp('--'+name+':(#[0-9a-f]{6})(?:;|\\s)'))?.[1];
 const luminance=hex=>hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255)
  .map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4).reduce((sum,x,i)=>sum+x*[.2126,.7152,.0722][i],0);
@@ -29,7 +30,7 @@ test('scanner and ledger keep legible status and text over their neutral dark su
 });
 test('screen information colors are sourced from the shared palette, including the order popover',async()=>{
  const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
- const live=css+'\n'+glass;
+ const live=css+'\n'+glass+'\n'+consoleCss;
  for(const role of ['match','short','over','info']){
   assert.equal([...palette.matchAll(new RegExp('--status-'+role+':','g'))].length,1);
   assert.doesNotMatch(live,new RegExp(readSwatch(role),'i'));
@@ -53,7 +54,7 @@ test('last scan shows a visible quantity, with shortage, equality or surplus spe
 
 test('normal displays do not paint focus glows while forced contrast and selected cards stay supported',async()=>{
  const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
- const joined=css+'\n'+glass;
+ const joined=css+'\n'+glass+'\n'+consoleCss;
  assert.doesNotMatch(joined,/:focus(?:-visible|-within)?[^{}]*\{[^{}]*(?:box-shadow|filter):\s*(?!none)[^{}]*drop-shadow/);
  assert.match(css,/\(forced-colors:none\)\{\s*html\[data-theme\] body :focus\{outline:none!important/);
  assert.match(css,/\(forced-colors:active\)[^\n]*Highlight/);
@@ -124,7 +125,7 @@ test('folder and paper positions use the same eased transition after keyboard in
 test('the scanner well never paints its containing console in either theme',()=>{
  const well=styles.match(/([^{}]+)\{\s*background:var\(--scan-well\)!important/)?.[1]?.trim();
  assert.equal(well,'html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode');
- assert.match(css,/#beamTerminal #overviewStatus \.scan\{[^}]*background:transparent!important/);
+ assert.match(consoleCss,/#beamTerminal #overviewStatus \.scan\{[^}]*background:transparent!important/);
  assert.match(styles,/#beamTerminal #scanform \.beam-scan-prompt\{color:var\(--status-info\)\}/);
  assert.ok(contrast('#505050','#f4f4f4')>=4.5);
  assert.ok(contrast('#bdbdbd','#252525')>=4.5);

@@ -15,7 +15,7 @@ const files = Object.freeze([
   'features/returns/quantities.js', 'features/returns/recovery.js', 'features/returns/scan-commands.js', 'platform/indexed-recovery.js', 'platform/inspection-input.js', 'platform/print.js', 'platform/scan-audio.js', 'platform/reference-fingerprint.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
 ]);
-const styles = ['styles/layers.css', 'styles/tokens/status.css', 'styles/tokens/typography.css', 'styles/tokens/controls.css', 'styles/glass.css', 'styles/workspace.css', 'styles/receipt-paper.css', 'features/returns/quantities.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'features/cartons/workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'features/returns/receipts.css', 'components/product-identity/view.css', 'features/cartons/outbound-receipts.css'];
+const styles = ['styles/layers.css', 'styles/tokens/status.css', 'styles/tokens/typography.css', 'styles/tokens/controls.css', 'styles/glass.css', 'styles/workspace.css', 'features/returns/console.css', 'styles/receipt-paper.css', 'features/returns/quantities.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'features/cartons/workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'features/returns/receipts.css', 'components/product-identity/view.css', 'features/cartons/outbound-receipts.css'];
 
 async function readSource(relative) {
   const file = join(source, relative);

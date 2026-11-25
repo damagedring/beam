@@ -13,7 +13,10 @@ The carton table and ledger keep the established neutral marks for matching or u
 | Inspection and shipment print documents | `components/print/inspection-report.css` |
 | Carton workspace and outbound receipts | `features/cartons/workspace.css` and `features/cartons/outbound-receipts.css` |
 | Returns receipt variants and mobile quantity sheet | `features/returns/receipts.css` and `features/returns/quantities.css` |
+| Returns scanner, last scan and inspection tables | `features/returns/console.css` |
 
-`styles/workspace.css` still owns the existing Returns console, settings, navigation chrome and older search layout. Inspect the winning rule before moving any part of that cascade. `styles/glass.css` uses CSS layers whose precedence differs for important declarations. Keep focus and media-query behavior in scope when making a component change, and retain IDs used by labels or accessibility attributes.
+`styles/layers.css` declares the existing layer order before the build emits any style rules. Important declarations use the reverse layer order. The build places the Returns console after the shared workspace styles and before the inspection rail, which supplies the order tabs and final progress layout.
+
+`styles/workspace.css` owns settings, navigation chrome, older search layout and shared selector groups. The shared control finish and action shapes stay there. The older hidden scan summary keeps its title and status defaults beside their shared headings and status labels, and the legacy activity panel keeps its radius fallback. Inspect winning rules across themes, widths and accessibility states when changing these styles. Retain IDs used by labels or accessibility attributes.
 
 Run `node tools/inspect-layout.mjs [source-directory]` for a source inventory. Counts are raw lines, comment-stripped `!important` and hex tokens, and distinct width values in media queries. The definition inventory is lexical. Verify computed values and states in the browser. The build checks custom property references in migrated owners, with an explicit exception for label geometry written by the print view. The reel and home layout also write geometry properties for their respective views.
