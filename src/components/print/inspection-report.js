@@ -1,5 +1,5 @@
-import { productIdentityMarkup } from './product-identity.js';
-import { encodeReceiptCode128 } from './code128.js';
+import { productIdentityMarkup } from '../product-identity/view.js';
+import { encodeReceiptCode128 } from '../../domain/code128.js';
 
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const isBlank=value=>value==null||value==='';

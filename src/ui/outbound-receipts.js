@@ -1,7 +1,7 @@
-import { productIdentityMarkup } from '../domain/product-identity.js';
+import { productIdentityMarkup } from '../components/product-identity/view.js';
 import { outboundFolders, wrapOutboundIndex } from '../domain/carton-verification.js';
 import { encodeReceiptCode128 } from '../domain/code128.js';
-import { productBarcodeSvg } from '../domain/product-labels.js';
+import { productBarcodeSvg } from '../components/print/barcode.js';
 
 export function createOutboundReceipts(host,{l,onChoose}){
  const make=(tag,cls='',text='')=>{const x=document.createElement(tag);if(cls)x.className=cls;if(text)x.textContent=text;return x;};

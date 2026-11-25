@@ -1,5 +1,6 @@
 import { createOutboundReceipts } from './outbound-receipts.js';
-import { productIdentityMarkup, scannedProductLabel } from '../domain/product-identity.js';
+import { productIdentityMarkup } from '../components/product-identity/view.js';
+import { scannedProductLabel } from '../domain/product-identity.js';
 import { cartonAdapter, cartonRows, cartonSearch, codeKey, createCartonIndex, fields, aliases, matchCartonScan, outboundCandidates, outboundDispatch } from '../domain/carton-verification.js';
 import { createScannerBurst } from '../domain/scanner-input.js';
 

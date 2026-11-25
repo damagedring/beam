@@ -1,6 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
 const html=fs.readFileSync(__dirname+'/../dist/index.html','utf8').replace(/>\s+</g,'><'),js=fs.readFileSync(__dirname+'/../dist/app.js','utf8');
-const {productIdentityMarkup,mergeProductBrands}=require('../dist/domain/product-identity.js');
+const {mergeProductBrands}=require('../dist/domain/product-identity.js');
+const {productIdentityMarkup}=require('../dist/components/product-identity/view.js');
 const searchKeys=fs.readFileSync(__dirname+'/../dist/domain/search-keys.js','utf8').replace(/^export /gm,'');
 function slice(a,b){let at=js.indexOf(a),end=js.indexOf(b,at+1);assert.ok(at>=0&&end>at,[a,b]);return js.slice(at,end);}
 const active={element:null};

@@ -1,4 +1,5 @@
-import { A4_LABEL_PAPER, LABEL_BATCH, planProductLabels, labelPageLayout, labelsInRange, fitsBarcode, productBarcodeSvg } from '../domain/product-labels.js';
+import { A4_LABEL_PAPER, LABEL_BATCH, planProductLabels, labelPageLayout, labelsInRange, fitsBarcode } from '../../domain/product-labels.js';
+import { productBarcodeSvg } from '../print/barcode.js';
 
 // The preview has one card per product in the active batch; printing still uses every copy.
 export function labelPreviewItems(copies){

@@ -1,7 +1,8 @@
-import { mergeProductBrands, optionalBrandColumn, productIdentityMarkup, scannedProductLabel } from "./domain/product-identity.js";
+import { mergeProductBrands, optionalBrandColumn, scannedProductLabel } from "./domain/product-identity.js";
+import { productIdentityMarkup } from "./components/product-identity/view.js";
 import { attachCartonWorkspace } from "./ui/carton-workspace.js";
 import { validateLabelPapers } from "./domain/product-labels.js";
-import { attachProductLabels } from "./ui/product-label-print.js";
+import { attachProductLabels } from "./components/product-labels/view.js";
 import { latestScanEvent, recentScanEvents, scanHistoryPage } from "./domain/scan-history.js";
 import { BrowserRecovery } from "./domain/browser-recovery.js";
 import { createScannerBurst } from "./domain/scanner-input.js";
@@ -9,7 +10,7 @@ import { key, units, eventCode, matches, getIndex, invalidate, masterInfo, recon
 import { readWorkbook as readSpreadsheet } from "./import/workbook.js";
 import { encodeReceiptCode128 } from "./domain/code128.js";
 import { dispatchFields, validateDispatchProfile } from './domain/carton-verification.js';
-import { renderInspectionHeader, renderInspectionReport, renderOutboundDispatch } from "./domain/inspection-report.js";
+import { renderInspectionHeader, renderInspectionReport, renderOutboundDispatch } from "./components/print/inspection-report.js";
 import { trackingExactKey, trackingKey, trackingNumericCore, looksLikeTracking, beamInitialKey } from "./domain/search-keys.js";
 import { translations } from "./ui/translations.js";
 

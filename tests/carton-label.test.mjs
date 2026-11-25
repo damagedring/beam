@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {A4_LABEL_PAPER, planProductLabels, labelPageLayout, fitsBarcode, labelsInRange, validateLabelPapers, productBarcodeSvg} from '../dist/domain/product-labels.js';
+import {A4_LABEL_PAPER, planProductLabels, labelPageLayout, fitsBarcode, labelsInRange, validateLabelPapers} from '../dist/domain/product-labels.js';
+import { productBarcodeSvg } from '../dist/components/print/barcode.js';
 import {cartonAdapter, cartonLocation, createCartonIndex, cartonRows, cartonSearch, matchCartonScan, outboundCandidates, outboundFolders, wrapOutboundIndex, outboundDispatch, validateDispatchProfile} from '../dist/domain/carton-verification.js';
 
 const first={group:'ORDER',box:'BOX 01',external:'EXT-001',sku:'SKU-01',barcode:'0012345678901',name:'Test product',qty:3};
@@ -85,7 +86,7 @@ test('shipment summary profile roundtrips flags and header names without importe
 });
 
 test('preview shows one card per product, including split batches, without changing print copies',async()=>{
- const {labelPreviewItems}=await import('../dist/ui/product-label-print.js');
+ const {labelPreviewItems}=await import('../dist/components/product-labels/view.js');
  const a={count:4,sku:'A'},b={count:3,sku:'B'};
  const copies=labelsInRange([a,b],2,4);
  assert.deepEqual(labelPreviewItems(copies),[{item:a,count:2},{item:b,count:2}]);
@@ -122,8 +123,8 @@ test('outbound store folders keep destination boundaries and wrap without losing
 });
 
 test('inspection PDFs and product views share the square badge and do not repeat a known brand',async()=>{
- const {productIdentityMarkup}=await import('../dist/domain/product-identity.js');
- const {renderInspectionReport}=await import('../dist/domain/inspection-report.js');
+ const {productIdentityMarkup}=await import('../dist/components/product-identity/view.js');
+ const {renderInspectionReport}=await import('../dist/components/print/inspection-report.js');
  const mark=productIdentityMarkup('House · <Shirt>', 'House');
  assert.match(mark,/>House<.*>&lt;Shirt&gt;</);
  assert.doesNotMatch(mark,/House ·/);

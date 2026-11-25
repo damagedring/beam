@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {encodeReceiptCode128} from '../src/domain/code128.js';
-import {renderInspectionHeader,renderInspectionReport,renderOutboundDispatch} from '../src/domain/inspection-report.js';
+import {renderInspectionHeader,renderInspectionReport,renderOutboundDispatch} from '../src/components/print/inspection-report.js';
 
 const css=await readFile(new URL('../dist/app.css',import.meta.url),'utf8');
 const src=await readFile(new URL('../src/app.js',import.meta.url),'utf8');

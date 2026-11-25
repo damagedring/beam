@@ -1,17 +1,19 @@
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, posix, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { versionModule } from './module-graph.mjs';
 
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const source = join(root, 'src');
 const destination = join(root, 'dist');
 const files = Object.freeze([
-  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'ui/product-label-print.js', 'ui/carton-workspace.js', 'ui/outbound-receipts.js', 'domain/carton-verification.js', 'domain/inspection-report.js',
+  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'ui/carton-workspace.js', 'ui/outbound-receipts.js', 'domain/carton-verification.js',
+  'components/product-identity/view.js', 'components/print/barcode.js', 'components/print/inspection-report.js',
   'domain/browser-recovery.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
 ]);
-const styles = ['styles/status-colors.css', 'styles/glass.css', 'styles/workspace.css', 'styles/inspection-print.css', 'styles/product-labels.css', 'styles/carton-workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'styles/return-receipts.css', 'styles/scan-identity.css', 'styles/outbound-receipts.css'];
+const styles = ['styles/status-colors.css', 'styles/glass.css', 'styles/workspace.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'styles/carton-workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'styles/return-receipts.css', 'components/product-identity/view.css', 'styles/outbound-receipts.css'];
 
 async function readSource(relative) {
   const file = join(source, relative);
@@ -29,23 +31,14 @@ for(const [name,bytes] of jsSources){
 }
 const moduleRevision=moduleDigest.digest('hex').slice(0,12);
 
-function versionModule(relative,bytes){
-  return bytes.toString('utf8').replace(/^(import[^\r\n]+ from ["'])(\.\.?\/[^"'?#]+)(["'];?)/gm,
-    (_,before,specifier,after)=>{
-      // Module specifiers and the manifest use URL slash semantics on every OS.
-      const target=posix.normalize(posix.join(posix.dirname(relative),specifier));
-      if(!jsSources.has(target))throw Error('Missing local module: '+specifier);
-      return before+specifier+'?v='+moduleRevision+after;
-    });
-}
-
 const stage = await mkdtemp(join(root, '.beam-dist-'));
 try {
   for (const relative of files) {
     if (relative === 'index.html') continue;
     const file = join(stage, relative);
     await mkdir(dirname(file), { recursive: true });
-    await writeFile(file, jsSources.has(relative) ? versionModule(relative,jsSources.get(relative)) : await readSource(relative));
+    const modules = jsSources.get(relative);
+    await writeFile(file, modules ? versionModule(relative, modules.toString('utf8'), jsSources, moduleRevision) : await readSource(relative));
   }
   const css = await Promise.all(styles.map(readSource));
   const stylesheet = Buffer.concat(css.flatMap((data) => [data, Buffer.from('\n')]));
