@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "data": {
+    "raw": [
+      {
+        "receipt": "DEMO-001",
+        "barcode": "0012345678901",
+        "sku": "SKU-A",
+        "name": "예제 · 긴 이름의 반품 제품 / 차콜 M 사이즈",
+        "qty": 3,
+        "seller": "가상 거래처",
+        "external": "EX-01",
+        "returnTracking": "1111-2222-3333",
+        "returnChannel": "b2b"
+      },
+      {
+        "receipt": "DEMO-001",
+        "barcode": "0012345678902",
+        "sku": "SKU-B",
+        "name": "예제 · 코튼 셔츠 화이트",
+        "qty": 2,
+        "seller": "가상 거래처",
+        "external": "EX-01",
+        "returnChannel": "b2b"
+      },
+      {
+        "receipt": "DEMO-002",
+        "barcode": "0012345678901",
+        "sku": "SKU-A",
+        "name": "예제 · 다른 ASN",
+        "qty": 1,
+        "seller": "가상 거래처",
+        "external": "EX-02",
+        "returnChannel": "b2b"
+      },
+      {
+        "receipt": "DEMO-C01",
+        "barcode": "0012345678903",
+        "sku": "SKU-C",
+        "name": "예제 · 고객 반품",
+        "qty": 2,
+        "seller": "가상 거래처",
+        "external": "EX-C01",
+        "returnTracking": "9999-2222-3333",
+        "returnChannel": "b2c"
+      }
+    ],
+    "sku": [{ "barcode": "0099999999999", "sku": "SKU-X", "name": "예제 · 예정에 없는 상품" }],
+    "loc": [{ "barcode": "0012345678901", "loc": "A-01-02" }]
+  },
+  "scans": [],
+  "customerNames": { "DEMO-C01": ["가상 고객"] }
+}

@@ -17,11 +17,9 @@ export const test = base.extend({
   },
 });
 
-export async function loadDemo(page) {
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.locator('#helpLauncher').click();
-  await page.locator('#demo').click();
-  await page.locator('#helpClose').click();
+export async function loadReturnsFixture(page) {
+  const path = fileURLToPath(new URL('../fixtures/returns-inspection.json', import.meta.url));
+  await page.locator('#backup').setInputFiles(path);
   await expect(page.locator('#beamQuery')).toBeVisible();
 }
 
@@ -33,8 +31,12 @@ export async function returnsInspection(page, { singleOrder = false } = {}) {
       buffer: Buffer.from(JSON.stringify({ version: 1, data: { raw, sku: [], loc: [] }, scans: [] })) });
     await expect(page.locator('#beamQuery')).toBeVisible();
   } else {
-    await loadDemo(page);
+    await loadReturnsFixture(page);
   }
+  await openReturnsFixtureOrder(page);
+}
+
+export async function openReturnsFixtureOrder(page) {
   const query = page.locator('#beamQuery');
   await query.fill('1111-2222-3333');
   await query.press('Enter');

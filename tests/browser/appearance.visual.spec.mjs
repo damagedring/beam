@@ -1,5 +1,15 @@
 import { expect } from '@playwright/test';
-import { chooseCarton, enterScan, loadCartons, loadDemo, returnsInspection, test } from './beam-fixture.mjs';
+import { chooseCarton, enterScan, loadCartons, loadReturnsFixture, openReturnsFixtureOrder, test } from './beam-fixture.mjs';
+
+async function loadReturnsAppearance(page) {
+  await loadReturnsFixture(page);
+  // Open Returns from Home with unsaved work, matching the recorded view.
+  const availability = page.locator('#availabilityToggle');
+  await availability.press('Space');
+  await availability.press('Space');
+  await page.locator('#beamHomeBack').press('Space');
+  await page.getByRole('button', { name: /Returns/ }).press('Space');
+}
 
 test('UX-28/30 desktop home and settings', async ({ beam: page }) => {
   await page.evaluate(() => document.fonts.ready);
@@ -9,8 +19,10 @@ test('UX-28/30 desktop home and settings', async ({ beam: page }) => {
 });
 
 test('UX-22/28 Returns inspection in both themes', async ({ beam: page }) => {
-  await returnsInspection(page);
+  await loadReturnsAppearance(page);
+  await openReturnsFixtureOrder(page);
   await enterScan(page.locator('#barcode'), '0012345678901');
+  await page.locator('#beamWorkName').hover();
   await page.evaluate(() => document.fonts.ready);
   await expect(page).toHaveScreenshot('returns-light.png');
   await page.locator('#theme').click();
@@ -42,12 +54,7 @@ test.describe('1280 × 720 viewport', () => {
   test.use({ viewport: { width: 1280, height: 720 } });
 
   test('UX-24/25 Returns paper and folder presentation at working width', async ({ beam: page }) => {
-    await Promise.all([
-      page.locator('#helpDialog').evaluate(dialog => new Promise(resolve => {
-        dialog.addEventListener('close', () => resolve(), { once: true });
-      })),
-      loadDemo(page),
-    ]);
+    await loadReturnsAppearance(page);
     const query = page.locator('#beamQuery');
     await query.fill('가상 거래처');
     await expect(query).toBeFocused();

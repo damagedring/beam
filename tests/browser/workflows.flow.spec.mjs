@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { chooseCarton, enterScan, loadCartons, loadDemo, openCartons, returnsInspection, test } from './beam-fixture.mjs';
+import { chooseCarton, enterScan, loadCartons, loadReturnsFixture, openCartons, returnsInspection, test } from './beam-fixture.mjs';
 
 test('UX-05/06/08/09/10/11 Returns tracking, scanner routing, frozen verdicts and undo', async ({ beam: page }) => {
   await returnsInspection(page, { singleOrder: true });
@@ -28,7 +28,7 @@ test('UX-15/16 Returning to matching reference data after reload restores an act
   await page.reload();
   await expect(page.locator('#beamRecoveryStatus')).toContainText('기준 자료를 먼저');
   await expect(page.locator('#beamRecoverDraft')).toBeHidden();
-  await loadDemo(page);
+  await loadReturnsFixture(page);
   await expect(page.locator('#beamRecoverDraft')).toBeVisible();
   page.once('dialog', dialog => dialog.accept());
   await page.locator('#beamRecoverDraft').click();
