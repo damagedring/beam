@@ -2,11 +2,10 @@ import { createOutboundReceipts } from './outbound-receipts.js';
 import { productIdentityMarkup } from '../components/product-identity/view.js';
 import { scannedProductLabel } from '../domain/product-identity.js';
 import { cartonAdapter, cartonRows, cartonSearch, codeKey, createCartonIndex, fields, aliases, matchCartonScan, outboundCandidates, outboundDispatch } from '../domain/carton-verification.js';
-import { createScannerBurst } from '../domain/scanner-input.js';
 
-export function attachCartonWorkspace({readWorkbook,engine,isEnglish,openLabels,openReport,openDispatch,dispatchProfile,saveDispatchMapping,showHome,notice}){
+export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglish,openLabels,openReport,openDispatch,dispatchProfile,saveDispatchMapping,showHome,notice}){
  const $=id=>document.getElementById(id), root=$('cartonWorkspace'), l=(ko,en)=>isEnglish()?en:ko;
- const sources=new Map(),burst=createScannerBurst();
+ const sources=new Map();
  const receiptPicker=createOutboundReceipts($('outboundReceiptHost'),{l,onChoose:select});
  let mode=null,group=null,box=null,loading=false,page=0,stage='search';
  const view=()=>sources.get(mode), work=()=>view()?.work.get(group?.id);
@@ -121,7 +120,7 @@ export function attachCartonWorkspace({readWorkbook,engine,isEnglish,openLabels,
   $(id)?.focus({preventScroll:true});
  }
  function showStage(next){
-  stage=next;page=0;warn('');burst.clear();$('cartonScan').value='';render();window.scrollTo(0,0);
+  stage=next;page=0;warn('');clearScanner();$('cartonScan').value='';render();window.scrollTo(0,0);
   if(next==='search'){focusStage(matchMedia('(pointer:fine)').matches?'cartonQuery':'cartonTitle');return;}
   if(next==='pick'){
    $('cartonScopes').querySelector('[aria-pressed=true]')?.focus({preventScroll:true});
@@ -320,15 +319,14 @@ export function attachCartonWorkspace({readWorkbook,engine,isEnglish,openLabels,
  $('cartonPrev').onclick=()=>{page--;render();};$('cartonNext').onclick=()=>{page++;render();};
  $('cartonReport').onclick=()=>{if(mode==='outbound'&&inspectionActive())openReport(inspectionContext());};
  $('cartonLabelTrigger').onclick=e=>openLabels(e.currentTarget);
- document.addEventListener('keydown',e=>{
-  if(root.hidden||document.querySelector('dialog[open]')||e.defaultPrevented||e.isComposing)return;
-  if(e.key==='Escape'&&!loading){e.preventDefault();back();return;}
-  if(!inspectionActive()||e.target?.matches('input,select,textarea')||e.ctrlKey||e.altKey||e.metaKey||e.repeat||$('cartonScan').disabled){burst.clear();return;}
-  const value=burst.consume(e.key,performance.now());if(value){e.preventDefault();add(value);}
- });
- root.addEventListener('focusin',()=>burst.clear());
  window.addEventListener('beforeunload',e=>{if([...sources.values()].some(s=>[...s.work.values()].some(w=>w.events.length))){e.preventDefault();e.returnValue='';}});
  return {
+  input:{
+   root,visible:()=>!root.hidden,
+   canScan:()=>inspectionActive()&&!$('cartonScan').disabled,
+   back:()=>{if(loading)return false;back();return true;},
+   scan:add,
+  },
   open(newMode){mode=newMode;group=null;box=null;page=0;stage='search';warn('');$('cartonQuery').value='';if(newMode==='outbound')receiptPicker.update(view()?.index,'',null,{reset:true});root.hidden=false;root.inert=false;render();root.focus({preventScroll:true});},
   hide(){root.hidden=true;root.inert=true;},
   refresh(){if(!root.hidden)render();},

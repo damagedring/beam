@@ -4,8 +4,11 @@ import { attachCartonWorkspace } from "./ui/carton-workspace.js";
 import { validateLabelPapers } from "./domain/product-labels.js";
 import { attachProductLabels } from "./components/product-labels/view.js";
 import { latestScanEvent, recentScanEvents, scanHistoryPage } from "./domain/scan-history.js";
-import { BrowserRecovery } from "./domain/browser-recovery.js";
-import { createScannerBurst } from "./domain/scanner-input.js";
+import { createBrowserRecovery } from "./features/returns/recovery.js";
+import { createIndexedRecoveryStore } from "./platform/indexed-recovery.js";
+import { createReferenceFingerprint } from "./platform/reference-fingerprint.js";
+import { createInspectionInput } from "./platform/inspection-input.js";
+import { createScanAudio } from "./platform/scan-audio.js";
 import { key, units, eventCode, matches, getIndex, invalidate, masterInfo, reconcile, asnProgress, storeMatches, inspectEntry, entryOutcome, candidateReceipts, readScanIndex, excessEntrySet } from "./domain/reconcile.js";
 import { readWorkbook as readSpreadsheet } from "./import/workbook.js";
 import { encodeReceiptCode128 } from "./domain/code128.js";
@@ -17,56 +20,12 @@ import { translations } from "./ui/translations.js";
 'use strict';
 Object.assign(translations,{'OneDrive에 검수 기록 저장':'Save inspection records to OneDrive','OneDrive 저장':'OneDrive export'});
 Object.assign(translations,{'바코드 / SKU':'Barcode / SKU','바코드 또는 SKU 입력':'Enter a barcode or SKU','최근 스캔 상품 검수 진행률':'Last scanned item progress','피킹 위치 안내':'Picking location information','검수 시작':'Start inspection'});
-/* v1.10 local content fingerprints. WebCrypto only; no authentication/signing claim.
-   Format: reference-sha256-chunks-v1; maximum 256 rows per role-array chunk.
-   Data is immutable by Engine's existing contract; same-length edits MUST call
-   Engine.invalidate(data). Customer lookup metadata is outside state.data. */
-const ReferenceFingerprint=(()=>{
- let revision=0,current=null;
- const domain='reference-sha256-chunks-v1',chunkRows=256;
- const isCurrent=record=>current===record&&record.revision===revision&&state.data===record.data&&Engine.getIndex(state.data)===record.core;
- async function digest(value){
-  if(!globalThis.crypto?.subtle||typeof globalThis.crypto.subtle.digest!=='function'||typeof TextEncoder!=='function')throw Error('WebCrypto SHA-256 is unavailable');
-  const encoded=new TextEncoder().encode(JSON.stringify(value));
-  const result=await globalThis.crypto.subtle.digest('SHA-256',encoded);
-  if(Object.prototype.toString.call(result)!=='[object ArrayBuffer]'||result.byteLength!==32)throw Error('WebCrypto returned an invalid SHA-256 result');
-  return Array.from(new Uint8Array(result),x=>x.toString(16).padStart(2,'0')).join('');
- }
- async function build(record){
-  const entries=[];
-  for(const key of Object.keys(record.data)){
-   const rows=record.data[key];
-   if(Array.isArray(rows)){
-    const chunks=[];
-    for(let offset=0;offset<rows.length;offset+=chunkRows){chunks.push(await digest(['reference-chunk-v1',key,offset,rows.slice(offset,offset+chunkRows)]));if(!isCurrent(record))throw Error('Reference data changed');}
-    entries.push([key,'array',rows.length,chunks]);
-   }else{
-    // Preserve unknown legacy JSON properties in the content boundary, rather
-    // than silently leaving them out of reference-change invalidation.
-    entries.push([key,'value',await digest(['reference-value-v1',key,rows])]);if(!isCurrent(record))throw Error('Reference data changed');
-   }
-  }
-  const root=await digest([domain,chunkRows,entries]);if(!isCurrent(record))throw Error('Reference data changed');return root;
- }
- function refresh(){
-  // Do not redraw the whole workspace: an async completion must not close
-  // dialogs, overwrite a receipt-search draft or move scanner/input focus.
-  if(typeof invalidateConfirmations==='function')invalidateConfirmations();
-  if(typeof updateConfirmButton==='function')updateConfirmButton();
- }
- function request(){
-  const core=Engine.getIndex(state.data);
-  if(current&&current.core===core&&current.data===state.data)return current;
-  const record={revision:++revision,core,data:state.data,status:'pending',root:'',error:'',promise:null};current=record;
-  record.promise=build(record).then(root=>{if(!isCurrent(record)){record.status='superseded';return record;}record.root=root;record.status='ready';refresh();return record;},error=>{if(!isCurrent(record)){record.status='superseded';return record;}record.status='error';record.error=error?.message||'Reference fingerprint failed';refresh();return record;});
-  return record;
- }
- async function wait(){const record=request();await record.promise;if(!isCurrent(record)||record.status!=='ready')throw Error(record.error||'Reference fingerprint is not ready');return record.root;}
- // Explicit invalidation is available for callers that intentionally revise data.
- // It does not mutate inspection records or silently grant confirmation.
- function invalidate(){revision++;current=null;}
- return {request,wait,invalidate,domain,chunkRows};
-})();
+const ReferenceFingerprint = createReferenceFingerprint({
+ currentData: () => state.data,
+ getIndex,
+ // Refresh confirmation state without replacing drafts or moving focus.
+ refresh: () => { invalidateConfirmations(); updateConfirmButton(); },
+});
 
 // Exact legacy JSON token comparison uses bounded tokens, not JSON.parse of the
 // old full-data signature and not a second whole reference JSON allocation.
@@ -1387,26 +1346,7 @@ $('newreceipt').onclick=()=>{
 // Clearing unassigned entries is intentionally not exposed; use undo, allocation or New work.
 
 $('barcode').onkeydown=e=>{if(e.key==='Enter'&&(e.repeat||e.isComposing))e.preventDefault();};
-var scanAudio;
-function scanSoundEnabled(){try{return localStorage.getItem('beam.scanSound')!=='off';}catch{return true;}}
-function playScanFeedback(outcome){
- if(!scanSoundEnabled())return;
- try{
-  const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
-  scanAudio??=new Audio();
-  const play=()=>{
-   const notes=outcome==='accepted'?[900]:outcome==='excess'?[540,330]:[480,670];
-   for(const [i,pitch] of notes.entries()){
-    const at=scanAudio.currentTime+i*.09,osc=scanAudio.createOscillator(),gain=scanAudio.createGain();
-    osc.frequency.value=pitch;gain.gain.setValueAtTime(.001,at);
-    gain.gain.exponentialRampToValueAtTime(.085,at+.01);gain.gain.exponentialRampToValueAtTime(.001,at+.075);
-    osc.connect(gain);gain.connect(scanAudio.destination);osc.start(at);osc.stop(at+.08);
-    osc.onended=()=>{osc.disconnect();gain.disconnect();};
-   }
-  };
-  if(scanAudio.state==='running')play();else void scanAudio.resume().then(play,()=>{});
- }catch{/* Audio is optional; the scan has already been recorded. */}
-}
+const scanAudio = createScanAudio(window, () => localStorage);
 function register(input){
  if(!state.receipt&&(isB2C()||!selectedWorkStoreKey())){
   notice(isB2C()?(language==='en'?'Select an order before scanning.':'오더를 선택한 뒤 스캔해 주세요.')
@@ -1457,7 +1397,7 @@ function register(input){
   setUI('feedback',value+' · '+event.qty+'개 등록 · '+status+
    (moved?' · 검수 ASN 변경 '+(receiptDisplay(state.receipt)||state.receipt):''),false,true);
  }
- playScanFeedback(outcome);notice('');return true;
+ scanAudio.play(outcome);notice('');return true;
 }
 $('scanform').onsubmit=e=>{e.preventDefault();const barcode=$('barcode').value.trim();if(!barcode)return;if(register({barcode,kind:'code',qty:1,inputSource:'unified'})){$('barcode').value='';focusBeamInput('barcode');}};
 $('undo').onclick=()=>undoSheetEvent();
@@ -1722,11 +1662,13 @@ function openCartonPrint(target,orderId,kind){
  const finish=()=>{if(printDocumentKind!==kind)return;try{window.print();}catch(error){resetPrintDocument();notice(error.message,'error');}};
  if(document.fonts?.ready)document.fonts.ready.then(finish,finish);else finish();
 }
-const cartonWorkspace=attachCartonWorkspace({readWorkbook:readSpreadsheet,engine:Engine,isEnglish:()=>language==='en',openLabels:source=>productLabels.open(source),
+const inspectionInput = createInspectionInput(document, window);
+const cartonWorkspace=attachCartonWorkspace({clearScanner:inspectionInput.clearCartons,readWorkbook:readSpreadsheet,engine:Engine,isEnglish:()=>language==='en',openLabels:source=>productLabels.open(source),
  openReport:context=>openCartonPrint(renderInspectionReport(context),context.orderId,'outbound-comparison'),
  openDispatch:context=>openCartonPrint(renderOutboundDispatch(context),context.orderId,'outbound-dispatch'),
  dispatchProfile:MappingUI.dispatchProfile,saveDispatchMapping:MappingUI.saveDispatchMapping,
  showHome:()=>beamShowHome(),notice});
+inspectionInput.bindCartons(cartonWorkspace.input);
 $('productLabelTrigger').onclick=e=>productLabels.open(e.currentTarget);
 $('print').onclick=()=>openPrintDocument('comparison');
 $('evidence').onclick=()=>openPrintDocument('history');
@@ -3340,24 +3282,15 @@ function beamInspectionEscape(e){
  beamNewSearch();
 }
 document.addEventListener('keydown',beamInspectionEscape,true);
-const scanBurst=createScannerBurst();
-document.addEventListener('keydown',e=>{
- const editable=e.composedPath().some(el=>el.matches?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role=textbox]'));
- if(beam.visible||dataImportBusy||!state.receipt||$('barcode').disabled||$('barcode').value||editable||
-    e.isComposing||e.keyCode===229||e.ctrlKey||e.altKey||e.metaKey||e.repeat||
-    document.querySelector('dialog[open]')||!$('fileMenuPanel').hidden){
-  scanBurst.clear();return;
- }
- const value=scanBurst.consume(e.key,performance.now());
- if(!value)return;
- e.preventDefault();e.stopImmediatePropagation();
- const field=$('barcode');field.value=value;field.focus({preventScroll:true});
- $('scanform').requestSubmit();
-},true);
-document.addEventListener('focusin',()=>scanBurst.clear());
-window.addEventListener('blur',()=>scanBurst.clear());
-$('scanSound').checked=scanSoundEnabled();
-$('scanSound').onchange=()=>{try{localStorage.setItem('beam.scanSound',$('scanSound').checked?'on':'off');}catch{}if($('scanSound').checked)playScanFeedback('accepted');};
+inspectionInput.bindReturns({
+ canScan:()=>!beam.visible&&!dataImportBusy&&!!state.receipt&&!$('barcode').disabled&&!$('barcode').value&&$('fileMenuPanel').hidden,
+ scan:value=>{
+  const field=$('barcode');field.value=value;field.focus({preventScroll:true});
+  $('scanform').requestSubmit();
+ },
+});
+$('scanSound').checked=scanAudio.enabled();
+$('scanSound').onchange=()=>scanAudio.setEnabled($('scanSound').checked);
 $('beamConnect').onclick=()=>$('dataLauncher').click();
 function beamEnter(){
  const id=beam.candidate,mode=beam.mode,rows=rawRows(id);
@@ -3477,8 +3410,8 @@ function paintBrowserRecovery({kind,draft}){
  const announce=kind==='saved'?beamL('이 브라우저에 검수 기록 자동 저장됨','Inspection records autosaved in this browser.'):kind==='restored'?text:'';
  if(saved.textContent!==announce)saved.textContent=announce;
 }
-browserRecovery=BrowserRecovery.create({
- store:BrowserRecovery.indexedStore(),
+browserRecovery=createBrowserRecovery({
+ store:createIndexedRecoveryStore(),
  context:()=>state.data.raw.length?{reference:ReferenceFingerprint.request(),names:state.customerNames}:null,
  reference:WorkDelta.recoveryReference,
  hasWork:hasBrowserRecoveryWork,

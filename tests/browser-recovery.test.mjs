@@ -1,4 +1,5 @@
-import { BrowserRecovery } from '../src/domain/browser-recovery.js';
+import { createBrowserRecovery } from '../src/features/returns/recovery.js';
+import { createReferenceFingerprint } from '../src/platform/reference-fingerprint.js';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,6 @@ import vm from 'node:vm';
 
 const app=readFileSync(new URL('../dist/app.js',import.meta.url),'utf8');
 const source=(from,to)=>app.slice(app.indexOf(from),app.indexOf(to,app.indexOf(from)+from.length));
-const fingerprint=source('const ReferenceFingerprint=(()=>{','// Exact legacy JSON token comparison');
 const delta=source('const WorkDelta=(()=>{',"\n$('save').onclick");
 const normal=(id='EX-A')=>({
  version:1,data:{raw:[{receipt:id,sku:'ITEM-A',qty:2}],sku:[],loc:[]},scans:[],pending:[],audit:[],
@@ -20,10 +20,11 @@ function setup(store,start){
   Engine:{getIndex(data){if(!cache.has(data))cache.set(data,{});return cache.get(data);},validateSession(){}},
   MappingCore:{checkedCustomerNames:names=>names||{}},workFields:[],checkedWorkJSONSize(){},
  });
- vm.runInContext(fingerprint+delta+`
+ c.ReferenceFingerprint=createReferenceFingerprint({currentData:()=>c.state.data,getIndex:c.Engine.getIndex,refresh(){}});
+ vm.runInContext(delta+`
   function awaitReferenceFingerprint(){return ReferenceFingerprint.wait();}
   globalThis.f=ReferenceFingerprint;globalThis.delta=WorkDelta;`,c);
- const recovery=BrowserRecovery.create({
+ const recovery=createBrowserRecovery({
   context:()=>value.data.raw.length?{reference:c.f.request(),names:value.customerNames}:null,
   reference:c.delta.recoveryReference,prepare:()=>c.delta.prepareSave({compact:true}),
   hasWork:()=>work,store,paint:x=>{painted=x},id:()=>String(++ids)+'@'+tag,now:()=>entry.at,

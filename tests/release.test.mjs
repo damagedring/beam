@@ -10,8 +10,9 @@ import { checkDependency, localModuleTarget, moduleReferences, versionModule } f
 const dist = new URL('../dist/',import.meta.url);
 const files = ['.nojekyll','app.css','app.js','assets/OFL-Pretendard.txt','assets/pretendard-variable.woff2',
   'components/print/barcode.js','components/print/inspection-report.js','components/product-identity/view.js','components/product-labels/view.js',
-  'domain/browser-recovery.js','domain/carton-verification.js','domain/code128.js','domain/product-identity.js','domain/product-labels.js',
-  'domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','import/workbook.js','index.html',
+  'domain/carton-verification.js','domain/code128.js','domain/product-identity.js','domain/product-labels.js',
+  'domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','features/returns/recovery.js','import/workbook.js','index.html',
+  'platform/indexed-recovery.js','platform/inspection-input.js','platform/reference-fingerprint.js','platform/scan-audio.js',
   'ui/carton-workspace.js','ui/outbound-receipts.js','ui/translations.js','vendor/xml-parser.js'];
 const read=(name)=>readFile(new URL(name,dist),'utf8');
 
