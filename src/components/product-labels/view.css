@@ -14,7 +14,7 @@
 .product-label-paper-row label{min-width:0;font-size:.83rem}
 .product-label-paper-row input{width:100%;box-sizing:border-box}
 .product-label-dialog-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
-.product-label{display:flex;flex-direction:column;box-sizing:border-box;width:var(--label-w);height:var(--label-h);padding:3mm 4mm;gap:1mm;border:.18mm solid #b4b4b4;color:#000;background:#fff;font:8pt/1.15 Pretendard,Arial,sans-serif;overflow-wrap:anywhere;justify-content:flex-start}
+.product-label{display:flex;flex-direction:column;box-sizing:border-box;width:var(--label-w);height:var(--label-h);padding:3mm 4mm;gap:1mm;border:.18mm solid #b4b4b4;color:#000;background:#fff;font:8pt/1.15 var(--font-print);overflow-wrap:anywhere;justify-content:flex-start}
 .product-label-brand{align-self:flex-start;flex:none;--brand-badge-size:6.5pt;--brand-badge-padding:.28mm 1mm;--brand-badge-border:.16mm solid #777;--brand-badge-bg:#fff}
 .product-label:has(.product-label-brand){row-gap:.7mm}
 .product-label-name{font-size:var(--label-name-size,13pt);font-weight:850;line-height:1.13;letter-spacing:-.02em;margin-bottom:.7mm}

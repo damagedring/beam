@@ -5,6 +5,9 @@
  --status-short:#f7fca1;
  --status-over:#fca1a1;
  --status-info:#a0f0fc;
+ --inspection-notice-caution:#f1ff55;
+ --inspection-notice-danger:#ff3939;
+ --inspection-notice-ink:#131313;
 }
 
 @media screen {

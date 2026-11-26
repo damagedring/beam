@@ -8,11 +8,11 @@ import { execFileSync } from 'node:child_process';
 import { checkDependency, localModuleTarget, moduleReferences, versionModule } from '../tools/module-graph.mjs';
 
 const dist = new URL('../dist/',import.meta.url);
-const files = ['.nojekyll','LICENSE.txt','app.css','app.js','app/navigation.js','assets/OFL-Geist.txt','assets/OFL-IBMPlexSansKR.txt','assets/OFL-Pretendard.txt','assets/OFL-SourceCodePro.txt',
-  'assets/geist-variable.woff2','assets/ibm-plex-sans-kr-bold.woff2','assets/pretendard-variable.woff2','assets/source-code-pro.woff2',
-  'components/print/barcode.js','components/print/inspection-report.js','components/product-identity/view.js','components/product-labels/view.js',
-  'domain/carton-verification.js','domain/code128.js','domain/expected-inventory-status.js','domain/product-identity.js','domain/product-labels.js',
-  'domain/reconcile.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','features/cartons/model.js','features/cartons/outbound-cartons.js','features/cartons/outbound-receipts.js','features/cartons/reference.js','features/cartons/workspace.js','features/examples/cry-later-assets.js','features/returns/quantities.js','features/returns/recovery.js','features/returns/scan-commands.js','import/mapping/profiles.js','import/workbook.js','index.html',
+const files = ['.nojekyll','LICENSE.txt','app.css','app.js','app/navigation.js','assets/OFL-Geist.txt','assets/OFL-Pretendard.txt','assets/OFL-SourceCodePro.txt',
+  'assets/geist-variable.woff2','assets/pretendard-variable.woff2','assets/source-code-pro.woff2',
+  'components/folder-reel/view.js','components/inspection-progress/view.js','components/print/barcode.js','components/print/inspection-report.js','components/product-identity/view.js','components/product-labels/view.js',
+  'domain/carton-verification.js','domain/code128.js','domain/expected-inventory-status.js','domain/original-order-lookup.js','domain/product-identity.js','domain/product-labels.js',
+  'domain/reconcile.js','domain/return-report.js','domain/scan-history.js','domain/scanner-input.js','domain/search-keys.js','features/cartons/model.js','features/cartons/outbound-cartons.js','features/cartons/outbound-receipts.js','features/cartons/reference.js','features/cartons/workspace.js','features/examples/cry-later-assets.js','features/returns/quantities.js','features/returns/recovery.js','features/returns/scan-commands.js','import/mapping/profiles.js','import/workbook.js','index.html',
   'platform/indexed-recovery.js','platform/inspection-input.js','platform/print.js','platform/reference-fingerprint.js','platform/scan-audio.js',
   'ui/notice-strip.js','ui/translations.js','vendor/xml-parser.js'];
 const read=(name)=>readFile(new URL(name,dist),'utf8');

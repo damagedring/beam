@@ -3,6 +3,7 @@ const html=fs.readFileSync(__dirname+'/../dist/index.html','utf8').replace(/>\s+
 const {summarizeExpectedInventoryStatus}=require('../dist/domain/expected-inventory-status.js');
 const {mergeProductBrands}=require('../dist/domain/product-identity.js');
 const {productIdentityMarkup}=require('../dist/components/product-identity/view.js');
+const {folderShellMarkup,placeFolderOnRibbon}=require('../dist/components/folder-reel/view.js');
 const searchKeys=fs.readFileSync(__dirname+'/../dist/domain/search-keys.js','utf8').replace(/^export /gm,'');
 function slice(a,b){let at=js.indexOf(a),end=js.indexOf(b,at+1);assert.ok(at>=0&&end>at,[a,b]);return js.slice(at,end);}
 const active={element:null};
@@ -29,13 +30,14 @@ const modes=new El(),orderRows=new Map([
 ]);
 const entries=new Map([...orderRows].map(([id,[r]])=>[id,{expected:r.qty,nameKeys:id==='C1'?['가상 고객']:[],names:id==='C1'?['가상 고객']:[]}]));
 const b2b=['A1','B1','A2'],b2c=['C1'];
-const ix={modeIds:{b2b,b2c},modeSets:{b2b:new Set(b2b),b2c:new Set(b2c)},orderSearch:entries,core:{rawByReceipt:orderRows},stores:new Map([['a',{name:'가상 성수점',row:orderRows.get('A1')[0],receipts:['A1','A2']}],['b',{name:'가상 성수북점',row:orderRows.get('B1')[0],receipts:['B1']}]])};
+const ix={modeIds:{b2b,b2c},modeSets:{b2b:new Set(b2b),b2c:new Set(b2c)},orderSearch:entries,external:new Map([['A1',['00001234','EXT/007']],['B1',['EXT/007']],['A2',['EXT-009']],['C1',['00001234','B2C.0009']]]),core:{rawByReceipt:orderRows},stores:new Map([['a',{name:'가상 성수점',row:orderRows.get('A1')[0],receipts:['A1','A2']}],['b',{name:'가상 성수북점',row:orderRows.get('B1')[0],receipts:['B1']}]])};
 const entered=[],deferred={},turns=[]; let reduced=true;
 let inspecting=false;
 const navigation={isInspection:()=>inspecting};
 El.prototype.firstElementChild={animate(frames,options){turns.push({frames,options});return {cancel(){}};}};
-const c=vm.createContext({$,navigation,productIdentityMarkup,mergeProductBrands,summarizeExpectedInventoryStatus,document:{querySelector:()=>modes,querySelectorAll:()=>[],createElement:()=>new El()},window:{matchMedia:()=>({matches:reduced})},uiIndex:()=>ix,isB2C:()=>false,asnStoreKey:id=>({A1:'a',A2:'a',B1:'b'})[id]||'',rawRows:id=>orderRows.get(id)||[],receiptDisplay:id=>'Ext-'+id,receiptBarcodeValue:id=>id,encodeReceiptCode128:()=>({runs:[2,1,2],modules:25}),esc:x=>String(x??'').replace(/[&<>"']/g,'X'),customerLookupKey:v=>v.trim().toLowerCase(),trackingMatches:(q,filter)=>[...orderRows.keys()].filter(id=>filter(id)&&q.replaceAll('-','')===orderRows.get(id)[0].returnTracking?.replaceAll('-','')),looksLikeTracking:q=>/^[0-9-]{10,}$/.test(q),Engine:{masterInfo:()=>({})},state:{data:{raw:[...orderRows.values()].flat()}},language:'ko',dataImportBusy:false,entered,performance,printL:(a)=>a});
+const c=vm.createContext({$,navigation,returnProgressMarkers:{dismiss:()=>false},folderShellMarkup,placeFolderOnRibbon,productIdentityMarkup,mergeProductBrands,summarizeExpectedInventoryStatus,document:{addEventListener(){},querySelector:()=>modes,querySelectorAll:()=>[],createElement:()=>new El()},window:{matchMedia:()=>({matches:reduced})},uiIndex:()=>ix,isB2C:()=>false,asnStoreKey:id=>({A1:'a',A2:'a',B1:'b'})[id]||'',rawRows:id=>orderRows.get(id)||[],receiptDisplay:id=>'Ext-'+id,receiptBarcodeValue:id=>id,encodeReceiptCode128:()=>({runs:[2,1,2],modules:25}),esc:x=>String(x??'').replace(/[&<>"']/g,'X'),customerLookupKey:v=>v.trim().toLowerCase(),trackingMatches:(q,filter)=>[...orderRows.keys()].filter(id=>filter(id)&&q.replaceAll('-','')===orderRows.get(id)[0].returnTracking?.replaceAll('-','')),looksLikeTracking:q=>/^[0-9-]{10,}$/.test(q),Engine:{masterInfo:()=>({})},state:{data:{raw:[...orderRows.values()].flat()}},language:'ko',dataImportBusy:false,entered,performance,printL:(a)=>a});
 vm.runInContext(searchKeys+'\n'+slice('function beamPhoneUI()', 'function audit(')+'\n'+slice('const beam={mode:', 'function beamView(')+`\nfunction beamEnter(){entered.push(beam.candidate);} \$('beamStart').onclick=beamAdvance; globalThis.R={beam,beamRender,beamFolderItems,beamOpenFolderReceipt,beamTicketFace};`,c);
+c.PhoneOrderUI={launchAt(){}};
 const beam=c.R.beam;
 function ev(key,target,more={}){return {key,target,preventDefault(){this.defaultPrevented=true},stopPropagation(){},...more};}
 const key=(name,more={})=>$('beamSearch').events.keydown(ev(name,active.element,more));
@@ -48,6 +50,14 @@ assert.equal(beam.nodes.get('A1').dataset.center,'true');
 assert.equal(beam.nodes.get('B1').dataset.center,'false');
 assert.match(beam.nodes.get('A1').innerHTML,/beam-file-caption.*가상 성수점.*주문 2건/);
 assert.match(beam.nodes.get('A1').innerHTML,/beam-file-paper.*beam-paper-top.*beam-paper-tear.*Code 128 · A1/);
+assert.match($('beamQuery').placeholder,/외부 주문 ID/);
+type('beamQuery',' ００００１２３４ ');assert.equal(beam.candidate,'A1');assert.equal(beam.lookup.base.length,1);
+type('beamQuery','ext/007');assert.equal(beam.lookup.base.join(','),'A1,B1');
+type('beamQuery','EXT007');assert.equal(beam.lookup.base.length,0);
+beam.mode='b2c';type('beamQuery','00001234');assert.equal(beam.candidate,'C1');assert.equal(beam.lookup.base.length,1);
+type('beamQuery','b2c.0009');assert.equal(beam.candidate,'C1');
+type('beamQuery','EXT-009');assert.equal(beam.lookup.base.length,0);
+beam.mode='b2b';type('beamQuery','');
 assert.equal($('beamStart').disabled,true);inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');
 reduced=false;
 type('beamQuery','성수');assert.ok(turns.some(t=>/rotateY\(32deg\)/.test(t.frames[0].transform)));
@@ -85,6 +95,23 @@ key('ArrowRight');assert.equal(active.element.dataset.id,'B1');assert.equal($('b
 key('ArrowLeft');key('Enter');assert.equal(beam.phase,'asn');assert.equal($('beamPage').textContent,'1 / 2');assert.equal(active.element.dataset.id,'A1');
 assert.equal($('beamPrev').disabled,false);key('ArrowLeft');assert.equal(beam.candidate,'A2');
 assert.equal($('beamNext').disabled,false);key('ArrowRight');assert.equal(beam.candidate,'A1');
+reduced=false;
+const beforeReceiptTurns=turns.length;
+key('ArrowRight');assert.equal(beam.candidate,'A2');
+key('ArrowLeft');assert.equal(beam.candidate,'A1');
+assert.equal(turns.length,beforeReceiptTurns); // no second animation on the centered receipt
+const readPose=axis=>{
+ const folder=new El();
+ placeFolderOnRibbon(folder,1,0,axis);
+ const paper=beam.nodes.get('A2');
+ for(const k of ['--ribbon-x','--ribbon-lift','--ribbon-z','--ribbon-zoom'])assert.equal(paper.style[k],folder.style[k]);
+ for(const k of ['--ribbon-pitch','--ribbon-yaw','--ribbon-roll']){
+  const tilt=v=>Math.abs(Number.parseFloat(v));
+  assert.ok(tilt(paper.style[k])>0&&tilt(paper.style[k])<tilt(folder.style[k]),k);
+ }
+};
+readPose('x');
+reduced=true;
 key('ArrowDown');assert.equal(active.element.dataset.id,'A2');
 const reel=$('beamStage'),gesture=(kind,x,y)=>reel.events[kind]({isPrimary:true,button:0,pointerId:10,clientX:x,clientY:y});
 assert.equal(reel.dataset.axis,'y');
@@ -175,7 +202,7 @@ assert.ok(folder.innerHTML.includes(c.R.beamTicketFace('A2','b2b')));
 key('Enter');assert.equal(beam.phase,'asn');assert.equal(beam.candidate,'A2');assert.doesNotMatch(beam.nodes.get('A2').innerHTML,/beam-file-glass/);
 assert.equal(beam.nodes.get('A2').innerHTML,c.R.beamTicketFace('A2','b2b'));
 $('beamEditSearch').onclick();assert.equal(beam.phase,'search');
-type('beamQuery','000000000000');inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');assert.match($('beamSearchStatus').textContent,/찾지 못했어요/);
+type('beamQuery','000000000000');inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');assert.match($('beamSearchStatus').textContent,/일치하는 번호가 없어요/);
 type('beamQuery','성수');c.dataImportBusy=true;inputKey('beamQuery','Enter');assert.equal(beam.phase,'search');c.dataImportBusy=false;
 type('beamQuery','성수');
 assert.match(beam.nodes.get('A1').innerHTML,/beam-file-caption/);
@@ -203,12 +230,13 @@ c.document.querySelector=()=>({open:true});c.escInspection(ev('Escape',$('barcod
 c.document.querySelector=()=>null;c.escInspection(ev('Escape',$('barcode'),{isComposing:true}));assert.equal(returned.length,0);
 c.escInspection(ev('Escape',$('barcode')));assert.deepEqual(returned,[{search:true,animate:true}]);assert.equal(beam.query,'성수');
 inspecting=false;c.escInspection(ev('Escape',$('beamQuery')));assert.equal(returned.length,1);
-c.noticeStrips={show(){}};
+const importNotices=[];c.noticeStrips={show(text,options){importNotices.push([text,options.key,options.tone]);}};
 vm.runInContext(slice('let beamRawProgressAt=', 'async function runCombinedWorkbook(')+`\nglobalThis.status=beamRawStatus;`,c);
 c.status('read','Loading');assert.equal($('beamRawStatus').hidden,false);assert.equal($('beamRawProgress').hidden,false);
-c.status('review','Review',false);assert.equal($('beamRawStatus').hidden,false);assert.equal($('beamRawProgress').hidden,true);
+c.status('review','Review',false);assert.equal($('beamRawStatus').hidden,true);assert.equal($('beamRawProgress').hidden,true);
 c.status('done','Loaded');assert.equal($('beamRawStatus').hidden,true);assert.equal($('beamRawProgress').hidden,true);assert.equal($('beamRawAnnounce').textContent,'Loaded');
-c.status('error','Error',false);assert.equal($('beamRawStatus').hidden,false);
+c.status('error','Error',false);assert.equal($('beamRawStatus').hidden,true);
+assert.deepEqual(importNotices,[['Loading','reference-import','info'],['Review','reference-import','info'],['Loaded','reference-import','info'],['Error','reference-import','error']]);
 console.log('Beam state/DOM harness: focus, Tab, IME, repeated Enter, store arrows, scoped ASN arrows, Esc, SKU/tracking, loading guards, hidden success bar, recoverable errors pass.');
 
 const appMobile=js.slice(js.indexOf('function beamPhoneUI()'),js.indexOf('const makeId=',js.indexOf('function beamPhoneUI()')));

@@ -144,3 +144,20 @@ test('inspection PDFs and product views share the square badge and do not repeat
  const r=renderInspectionReport({mode:'outbound',orderId:'1',rows:[{name:'House · Shirt',brand:'House',expected:1,actual:0,status:'short'}]});
  assert.match(r.markup,/scan-brand-badge product-brand-inline">House<.*product-name-inline">Shirt</);
 });
+
+test('outbound progress never applies an extra unit in one box to another box’s shortage',()=>{
+ const extra={...first,sku:'SKU-02',barcode:'0002',name:'Another product',qty:1};
+ const index=createCartonIndex([first,second,extra]),order=index.groups.get('ORDER');
+ const work=createCartonWork(()=>1700000000000);work.connect('outbound','fixture',index);
+ for(const code of [first.barcode,first.barcode,first.barcode,'unknown',first.barcode])work.scan('outbound',order,'BOX 01',code);
+ const markers=work.outboundOverages(order,'BOX 01');
+ assert.deepEqual(markers.map(({position,covered,actual,expected,delta})=>({position,covered,actual,expected,delta})),[{position:5,covered:3,actual:4,expected:3,delta:1}]);
+ work.scan('outbound',order,'BOX 01',extra.barcode);
+ work.scan('outbound',order,'BOX 02',second.barcode);
+ assert.deepEqual(work.outboundOrderProgress(order),{covered:5,excess:1,unverified:1});
+ assert.equal(markers[0].covered,3);
+ assert.deepEqual(work.outboundOverages(order,'BOX 02'),[]);
+ work.undo('outbound',order,'BOX 01');work.undo('outbound',order,'BOX 01');
+ assert.deepEqual(work.outboundOrderProgress(order),{covered:4,excess:0,unverified:1});
+ assert.equal(markers.length,0);
+});

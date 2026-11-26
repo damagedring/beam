@@ -1,0 +1,20 @@
+@media screen{
+ .return-original-link:not([hidden]){
+  min-height:var(--touch-target-size);max-inline-size:min(100%,22rem);padding:5px 12px;
+  overflow-wrap:anywhere;white-space:normal;font-size:.8rem;
+ }
+ #returnOriginalDialog{width:min(530px,calc(100% - 24px));max-height:calc(100dvh - 36px);overflow:auto}
+ #returnOriginalForm label{display:block;margin:8px 0;font-weight:680}
+ #returnOriginalForm>div{display:flex;align-items:stretch;gap:8px}
+ #returnOriginalExtra{margin-block-start:9px}
+ #returnOriginalExtra input{width:100%;min-width:0;font-size:1rem}
+ #returnOriginalTracking{flex:1;min-width:0;font-size:1rem}
+ #returnOriginalForm button,#phoneOrderResults button,#returnOriginalUnlink{min-height:var(--touch-target-size)}
+ #returnOriginalLinked:empty{display:none}
+ #returnOriginalLinked:not(:empty){margin-block:12px 6px;font-weight:700;overflow-wrap:anywhere}
+ #phoneOrderResults{margin-block-start:16px;overflow-wrap:anywhere}
+ #phoneOrderResults .phone-order-candidates{list-style:none;padding:0}
+ #phoneOrderResults li>div{display:flex;align-items:center;justify-content:space-between;gap:10px}
+ #phoneOrderResults li>div strong{min-width:0}
+ #phoneOrderResults li>div button{flex:none}
+}

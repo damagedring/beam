@@ -25,7 +25,7 @@
    --glass-scrim:#0000001d;
   }
   @supports (backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)){
-   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
+   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab,#beamHomeBack,#beamFolderReceiptOpen,#beamRecoverDraft,#beamKeepDraft,#beamDiscardDraft,#beamRecoveryConnect),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
     background:var(--glass-rest,var(--glass-control))!important;
     color:var(--glass-ink)!important;
     border-color:transparent!important;
@@ -105,7 +105,7 @@
    --signature-edge:#c6bfb7!important;--signature:#bfb9b1!important;--term-focus:#c4bdb6!important;
   }
   /* No solid brand tint on any action. Receipts remain paper; quantities remain readouts. */
-  body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab),input[type=button],input[type=submit]):not([hidden]){
+  body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab,#beamHomeBack,#beamFolderReceiptOpen),input[type=button],input[type=submit]):not([hidden]){
    background:var(--frost-surface-grain) var(--control-frost,var(--frost-control))!important;
    color:var(--frost-ink)!important;
    border-color:var(--frost-control-edge)!important;
@@ -113,21 +113,21 @@
    backdrop-filter:blur(16px) saturate(.73)!important;
    box-shadow:inset 0 1px 0 var(--frost-hilite),inset 0 0 0 1px var(--frost-control-edge),0 2px 8px var(--frost-depth)!important;
   }
-  body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab),input[type=button],input[type=submit]):not(:disabled):hover{
+  body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab,#beamHomeBack,#beamFolderReceiptOpen),input[type=button],input[type=submit]):not(:disabled):hover{
    --control-frost:var(--frost-hover);
   }
   body button:is(.primary,#beamStart,#beamConnect,#confirmInspection,#confirmDifferenceAccept,#print,#openWorkbook):not(:disabled){
    --control-frost:var(--frost-primary);font-weight:720;
   }
-  body button:is([aria-pressed=true],[aria-checked=true],[aria-current=true],.active,.selected):not(.beam-receipt,.metric,#workSidebarToggle,.inspection-sheet-tab):not(:disabled){
+  body button:is([aria-pressed=true],[aria-checked=true],[aria-current=true],.active,.selected):not(.beam-receipt,.metric,#workSidebarToggle,#beamHomeBack,.inspection-sheet-tab):not(:disabled){
    --control-frost:var(--frost-selected);
    box-shadow:inset 0 1px 4px var(--frost-depth),inset 0 0 0 1px var(--frost-control-edge)!important;
   }
   body button:is(.order-switch-tab,.receipt-option,.store-option,.beam-job-btn):is([aria-selected=true],[aria-current=true],[aria-current=page]){
    --control-frost:var(--frost-selected);
   }
-  body button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab):not(:disabled):active{--control-frost:var(--frost-selected)}
-  body button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab):disabled{opacity:.53!important}
+  body button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab,#beamHomeBack,#beamFolderReceiptOpen):not(:disabled):active{--control-frost:var(--frost-selected)}
+  body button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab,#beamHomeBack,#beamFolderReceiptOpen):disabled{opacity:.53!important}
   body :is(#beamQuery,#beamSku){
    background:var(--frost-surface-grain) var(--frost-control)!important;
    backdrop-filter:blur(20px) saturate(.8)!important;
@@ -136,9 +136,9 @@
 
   body #workSidebarToggle{color:#666!important}
   body #workSidebarToggle svg>path{fill:currentColor!important}
-  body :is(progress,[role=progressbar]){accent-color:var(--beam-selection)!important}
-  body :is(#beamRawProgress,#asnProgressBar)::-webkit-progress-value{background:var(--info-ink)!important}
-  body :is(#beamRawProgress,#asnProgressBar)::-moz-progress-bar{background:var(--info-ink)!important}
+  body :is(progress:not(.beam-coverage-meter),[role=progressbar]){accent-color:var(--beam-selection)!important}
+  body #beamRawProgress::-webkit-progress-value{background:var(--info-ink)!important}
+  body #beamRawProgress::-moz-progress-bar{background:var(--info-ink)!important}
   /* Strong blur belongs to the physical pane. The surrounding scene is only dimmed,
      so silhouettes can be seen visibly diffusing at the panel's edge. */
   body dialog::backdrop{background:var(--frost-scrim)!important;backdrop-filter:none!important}
@@ -682,7 +682,6 @@ html[data-theme] .count-summary #actual{margin:0!important;font-size:22px!import
 .mixture-row label{margin:0;overflow-wrap:anywhere}.mixture-row small{display:block;color:var(--muted)}.mixture-row select{min-width:0;min-height:var(--ui-target)}
 #mixtureDialog{max-height:90vh;overflow:auto}#mixtureError{overflow-wrap:anywhere}
 @media(max-width:480px){.mixture-row{grid-template-columns:minmax(0,1fr)}}
-#allocationNotice{padding:var(--ui-space-2);color:var(--warning-ink);background:var(--warning-bg)}
 .assign-entry{min-width:var(--ui-target);min-height:var(--ui-target);margin-inline-start:var(--ui-space-1)}
 #allocationCandidates{display:grid;gap:var(--ui-space-2)}#allocationCandidates button{white-space:normal;overflow-wrap:anywhere;text-align:left;min-height:var(--ui-target)}#allocationCandidates small{display:block;color:var(--muted)}#allocationDialog{max-height:90vh;overflow:auto}
 .asn-navigation{display:flex;align-items:center;flex-wrap:wrap;gap:var(--ui-space-2);margin-bottom:var(--ui-space-2)}.asn-navigation button{min-width:var(--ui-target);min-height:var(--ui-target)}.asn-navigation small{flex:1 1 18ch;min-width:0;color:var(--muted);overflow-wrap:anywhere}#asnPosition{font-size:var(--ui-text-label);font-variant-numeric:tabular-nums}
@@ -714,9 +713,6 @@ html[data-theme] .count-summary #actual{margin:0!important;font-size:22px!import
  html[data-theme] .work-overview .count-exceptions .metric-unit{
   font-size:var(--ui-text-meta)!important;line-height:var(--ui-line);color:var(--muted)!important;white-space:nowrap;
  }
- #allocationNotice{margin-block:var(--ui-space-2);padding:var(--ui-space-2) var(--ui-space-3);border-radius:var(--radius-sm,6px);min-width:0}
- #allocationHint{margin:0;font-size:var(--ui-text-label);line-height:var(--ui-line);overflow-wrap:anywhere}
- @media(forced-colors:active){#allocationNotice{background:Canvas;color:CanvasText;border:1px solid CanvasText}}
 }
 
 /* Choose, browse and lock one target within the same overview group. */
@@ -879,9 +875,6 @@ html[data-theme] .count-summary #actual{margin:0!important;font-size:22px!import
 @media screen{
  .receipt-entry{display:grid;grid-template-columns:minmax(0,1fr) var(--ui-target);align-items:stretch;background:var(--surface-raised);border-radius:var(--ui-space-2)}
  .receipt-entry::after{content:none}
- #receiptToggle{display:flex;align-items:center;justify-content:center;width:var(--ui-target);min-width:var(--ui-target);min-height:var(--ui-target);height:auto;padding:0;margin:0;background:transparent;color:var(--muted);border-radius:0 var(--ui-space-2) var(--ui-space-2) 0}
- #receiptToggle svg{display:block;width:16px;height:16px;flex:none}
- #receiptToggle[aria-expanded="true"] svg{transform:rotate(180deg)}
 }
 
 /* Figma 2:2 and 2:67: native responsive layout, shared controls/data, no fixed canvas. */
@@ -900,7 +893,6 @@ html[data-theme] .count-summary #actual{margin:0!important;font-size:22px!import
  .work-overview{display:block!important;padding:0!important;border:0!important;background:transparent!important}
  .overview-context{display:block!important;padding:0!important}
  #receiptToggle img,.overview-arrow img{display:block;width:16px;height:16px;flex:none}
- #receiptToggle[aria-expanded="true"] img{transform:rotate(180deg)}
  .target-details{margin:12px 44px;color:var(--muted)}
  .target-details:has(#candidates:empty):has(#meta:empty):has(#assignment:empty){display:none}
  .target-details #targetPanel{padding:8px 0!important}
@@ -1158,7 +1150,7 @@ header .header-availability #availabilityNote{position:absolute;width:1px;height
 
 
 /* v1.11: framed terminal workbench, based on inspected terminal references.
-   Pretendard remains the reading face; code/count/time alone use monospace. */
+   The reading face stays proportional; codes, counts and times use monospace. */
 @media screen{
  #fileMenuPanel{width:244px;padding:10px!important;border-radius:6px}
  #fileMenuPanel>button{width:100%;text-align:left;min-height:37px;border:0!important;background:transparent!important;box-shadow:none!important;color:var(--ink)!important}
@@ -1381,10 +1373,10 @@ body>header>.toolbar{position:static;grid-area:1/3;justify-self:end;gap:5px!impo
 .beam-receipt[data-center="true"]{z-index:2;--corners:5px;background:var(--beam-paper)!important;width:clamp(184px,19vw,254px);height:316px;box-shadow:0 11px 45px #17171419;opacity:1!important}
 .beam-receipt:not([data-center="true"]):hover{opacity:1!important;box-shadow:0 9px 28px #1717142b}
 
-.beam-receipt .beam-stamp{font:650 10px/1.1 ui-monospace,monospace;letter-spacing:.11em;display:flex;justify-content:space-between;gap:8px;color:#514e45}
+.beam-receipt .beam-stamp{font:650 10px/1.1 var(--font-terminal);letter-spacing:.11em;display:flex;justify-content:space-between;gap:8px;color:#514e45}
 .beam-receipt strong,.beam-receipt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
 .beam-receipt strong{font-size:16px;line-height:1.15}
-.beam-receipt .beam-id{font:700 13px/1.1 ui-monospace,monospace}
+.beam-receipt .beam-id{font:700 13px/1.1 var(--font-terminal)}
 .beam-receipt .beam-rule{border-top:1px dashed #a5a296;margin:2px 0}
 .beam-line,.beam-receipt .beam-totals{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:start;font-size:12px}
 .beam-receipt .beam-line>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1396,7 +1388,7 @@ body>header>.toolbar{position:static;grid-area:1/3;justify-self:end;gap:5px!impo
 #beamStart{display:flex;align-items:center;justify-content:space-between;gap:45px;min-width:168px;min-height:42px;border:1px solid transparent!important;background:var(--beam-action)!important;color:var(--beam-action-ink)!important;border-radius:999px!important;padding:7px 15px!important}
 #beamStart svg{width:18px;height:18px}
 #beamStart:disabled{opacity:.42}
-#beamBrowse{display:flex;align-items:center;gap:14px;font:12px/1.2 ui-monospace,monospace;color:var(--beam-muted)}
+#beamBrowse{display:flex;align-items:center;gap:14px;font:12px/1.2 var(--font-terminal);color:var(--beam-muted)}
 #beamBrowse button{border-radius:999px!important;background:transparent;min-width:36px;min-height:34px;border:1px solid var(--beam-rule)!important}
 .beam-empty{display:grid;justify-items:center;gap:12px;text-align:center;margin:auto;max-width:280px;padding:25px 16px 65px}
 .beam-empty i{display:block;width:94px;height:54px;border:1px dashed var(--beam-rule);border-radius:3px;transform:rotate(-6deg);background:var(--beam-canvas)}
@@ -1416,7 +1408,7 @@ body>header>.toolbar{position:static;grid-area:1/3;justify-self:end;gap:5px!impo
 .beam-job{display:grid;gap:4px;border-bottom:1px solid var(--beam-rule);padding-bottom:8px}
 .beam-job button{border:1px solid transparent!important;background:transparent;text-align:left;overflow-wrap:anywhere;min-height:35px}
 .beam-job button[aria-current="true"]{border-color:var(--beam-rule)!important;background:var(--beam-canvas)}
-.beam-job .beam-job-asn{font:12px ui-monospace,monospace;margin-left:12px;padding-left:12px;border-left:1px solid var(--beam-rule)!important}
+.beam-job .beam-job-asn{font:12px var(--font-terminal);margin-left:12px;padding-left:12px;border-left:1px solid var(--beam-rule)!important}
 #currentAsnActions #asnShare{padding:0!important;display:inline-grid;place-items:center;min-width:33px;height:31px}
 #asnShare svg{width:16px;height:16px}
 #asnShareDialog{max-width:min(340px,calc(100% - 24px));padding:16px}
@@ -1489,7 +1481,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
    max-block-size:var(--beam-icon-size)!important;
    padding:0!important;display:inline-grid!important;place-items:center;
   }
-  #undo{--beam-icon-size:44px}
+  #undo,#receiptToggle{--beam-icon-size:44px}
   #fileMenuButton,#workSidebarToggle{--beam-icon-size:36px}
   #workSidebarToggle{box-sizing:border-box;border-radius:8px!important}
   #workSidebarToggle svg{border-radius:3px}
@@ -1746,7 +1738,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
  :root{--beam-face:#f2f2f2;--beam-level:#eaeaea;--beam-row:#f1f1f1;--beam-field:#f0f0f0;--beam-field-active:#d7feff;--beam-section-ease:cubic-bezier(.2,.75,.22,1)}
  html[data-theme="dark"]{--beam-face:#242424;--beam-level:#343434;--beam-row:#252525;--beam-field:#282828;--beam-field-active:#515151;--beam-stock:#292929}
  body>header .beam-identity{grid-area:1/1;display:flex;align-items:center;justify-self:start;min-width:0;gap:clamp(4px,1.1vw,15px)}
- body>header .beam-identity>.beam-mark{flex:none;border:0!important;background:transparent!important;width:42px!important;height:38px!important;padding:0!important;border-radius:4px!important}
+ body>header .beam-header-nav>.beam-mark{flex:none;border:0!important;background:transparent!important;width:42px!important;height:38px!important;padding:0!important;border-radius:4px!important}
  #workSidebarToggle svg{display:block;width:100%;height:100%;filter:none!important;border:0!important}
  #workSidebarToggle svg>path:first-child{fill:transparent}
  #workSidebarToggle svg>path:last-child{fill:var(--beam-type)}
@@ -1791,7 +1783,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
   #beamSearch:has(#beamNarrow:not([hidden])) .beam-find{width:min(100%,660px);grid-template-columns:minmax(0,450px) minmax(0,198px)}
  }
  @media(max-width:650px){
-  body>header .beam-identity>.beam-mark{width:34px!important;height:35px!important}
+  body>header .beam-header-nav>.beam-mark{width:34px!important;height:35px!important}
   body>header .beam-identity>#beamBack{min-width:36px;min-height:36px;padding:0 7px!important}
   #beamBack span{display:inline;font-size:11px}
   body>header .beam-modes{gap:0;padding:2px}
@@ -1811,7 +1803,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
  @media(max-width:360px){
   body>header .beam-identity{gap:2px}
   #beamBack span{display:none}
-  body>header .beam-identity>.beam-mark{width:29px!important}
+  body>header .beam-header-nav>.beam-mark{width:29px!important}
   body>header .beam-modes button{min-width:28px;padding-inline:3px!important}
  }
  @media(prefers-reduced-motion:reduce){
@@ -1893,9 +1885,11 @@ body>header{padding-inline:9px!important;gap:4px!important}
   #beamSaveHint[hidden],#beamSidebar[hidden]{display:none!important}
   body{--beam-rail-width:232px}
   body[data-beam-rail-open="true"]{display:grid!important;grid-template-columns:var(--beam-rail-width) minmax(0,1fr);align-content:start}
-  body[data-beam-rail-open="true"]>header{grid-area:1/1/2/-1}
-  body[data-beam-rail-open="true"]>:is(#beamSearch,#sheetWorkspace){grid-area:2/2;min-width:0}
-  body[data-beam-rail-open="true"]>#beamSidebar{grid-area:2/1}
+  body[data-beam-rail-open="true"]{grid-template-rows:auto}
+  body[data-beam-rail-open="true"]>#beamNoticeSlot{grid-area:1/1/2/-1}
+  body[data-beam-rail-open="true"]>header{grid-area:2/1/3/-1}
+  body[data-beam-rail-open="true"]>:is(#beamSearch,#sheetWorkspace){grid-area:3/2;min-width:0}
+  body[data-beam-rail-open="true"]>#beamSidebar{grid-area:3/1}
   #beamSidebar{
     align-self:start;position:sticky;top:0;z-index:4;width:auto;max-width:none;height:auto;
     max-height:100dvh;min-height:calc(100svh - 62px);overflow:auto;overscroll-behavior:contain;
@@ -1970,8 +1964,8 @@ body>header{padding-inline:9px!important;gap:4px!important}
   @media(max-width:760px){
     body{--beam-rail-width:auto}
     body[data-beam-rail-open="true"]{grid-template-columns:minmax(0,1fr)}
-    body[data-beam-rail-open="true"]>#beamSidebar{grid-area:2/1;position:static;min-height:0;max-height:min(36svh,235px);padding:10px 12px;border-inline-end:0;border-bottom:1px solid var(--beam-rule)}
-    body[data-beam-rail-open="true"]>:is(#beamSearch,#sheetWorkspace){grid-area:3/1}
+    body[data-beam-rail-open="true"]>#beamSidebar{grid-area:3/1;position:static;min-height:0;max-height:min(36svh,235px);padding:10px 12px;border-inline-end:0;border-bottom:1px solid var(--beam-rule)}
+    body[data-beam-rail-open="true"]>:is(#beamSearch,#sheetWorkspace){grid-area:4/1}
     .beam-drawer-head{margin:0 0 6px}
     #beamNewWork{width:auto;margin-bottom:4px}
     #beamSidebar:not([hidden])~#beamSearch .beam-stage{--beam-step:clamp(120px,36vw,171px)}
@@ -2004,7 +1998,6 @@ body>header{padding-inline:9px!important;gap:4px!important}
 @media (prefers-reduced-transparency:reduce){#beamSearch .beam-stage::after,html[data-theme] body dialog[open],.beam-empty{backdrop-filter:none!important}html[data-theme] body dialog[open]{background:var(--beam-paper)!important}}
 @media print{#beamSidebar,.beam-inspect-identity{display:none!important}body[data-beam-rail-open="true"]{display:block!important}}
 @media screen {
-  body[data-beam-rail-open="true"]>footer{grid-column:1/-1}
   #receiptBarcodeDialog{inset:0;margin:auto;height:max-content}
   #receiptBarcodeDialog .barcode-dialog-head,#receiptBarcodeTicket{flex:0 0 auto}
   #receiptBarcodeTicket .beam-ticket{height:auto}
@@ -2346,7 +2339,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
   --action-edge:#ffffff22;--action-sheen:#ffffff1c;--action-depth:#0004;
  }
  /* The brand mark stays the source blue in both themes. */
- html[data-theme] body>header .beam-identity>button#workSidebarToggle{
+ html[data-theme] body>header .beam-header-nav>button#workSidebarToggle{
   display:inline-grid;place-items:center;color:var(--brand-blue)!important;
   background:transparent!important;border:0!important;box-shadow:none;
   border-radius:999px!important;
@@ -2355,14 +2348,14 @@ body>header{padding-inline:9px!important;gap:4px!important}
  html[data-theme] #workSidebarToggle svg>path{fill:currentColor}
  @media(max-width:420px){#workSidebarToggle svg{width:21px;height:23px}}
  /* Neutral frosted controls. Metric buttons are interactive readouts, not actions. */
- html[data-theme] body button:not(:is(.beam-receipt,.metric,#workSidebarToggle,.order-switch-tab,.inspection-sheet-tab,.receipt-option,.store-option,.beam-job-btn,[data-beam-mode])):not([hidden]){
+ html[data-theme] body button:not(:is(.beam-receipt,.metric,#workSidebarToggle,#beamHomeBack,.order-switch-tab,.inspection-sheet-tab,.receipt-option,.store-option,.beam-job-btn,[data-beam-mode])):not([hidden]){
   --button-finish:var(--action-glass);--button-ink:var(--beam-type);
   background:var(--button-finish)!important;color:var(--button-ink)!important;
   border-color:var(--action-edge)!important;
   box-shadow:inset 0 1px 0 var(--action-sheen),0 1px 4px var(--action-depth);
   backdrop-filter:blur(12px);
  }
- html[data-theme] body button:not(:is(.beam-receipt,.metric,#workSidebarToggle,.order-switch-tab,.inspection-sheet-tab,.receipt-option,.store-option,.beam-job-btn,[data-beam-mode])):not([hidden]):hover:not(:disabled){
+ html[data-theme] body button:not(:is(.beam-receipt,.metric,#workSidebarToggle,#beamHomeBack,.order-switch-tab,.inspection-sheet-tab,.receipt-option,.store-option,.beam-job-btn,[data-beam-mode])):not([hidden]):hover:not(:disabled){
   --button-finish:var(--action-glass-on);
  }
  html[data-theme] body button:is(.primary,#beamStart,#beamConnect,#confirmInspection,#confirmDifferenceAccept,#copyConfirmation,#asnShareDialog #print):not(:disabled),
@@ -2397,7 +2390,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
  }
  html[data-theme] #orderWorkspace .asn-tab-mark[data-outcome=difference]{background:var(--lemon-fill);color:var(--lemon-ink)}
  html[data-theme] body :is(progress,[role=progressbar]){accent-color:var(--info-ink)}
- html[data-theme] body :is(#beamRawProgress,#asnProgressBar)::-webkit-progress-value{background:var(--info-ink)}
+ html[data-theme] body #beamRawProgress::-webkit-progress-value{background:var(--info-ink)}
  @media(prefers-reduced-transparency:reduce){
   html[data-theme=light]{--action-glass:#f6f5f3;--action-glass-on:#fff}
   html[data-theme=dark]{--action-glass:#282828;--action-glass-on:#353535}
@@ -2434,8 +2427,8 @@ body>header{padding-inline:9px!important;gap:4px!important}
 
 /* Work rail: matte panel, flat rows, and an edge marker instead of circular controls. */
 @media screen {
- html[data-theme] body>header .beam-identity>button#workSidebarToggle{border-radius:8px!important}
- html[data-theme] body>header .beam-identity>button#workSidebarToggle svg>path{fill:none!important}
+ html[data-theme] body>header .beam-header-nav>button#workSidebarToggle{border-radius:8px!important}
+ html[data-theme] body>header .beam-header-nav>button#workSidebarToggle svg>path{fill:none!important}
  body[data-beam-rail-open=true]{--beam-rail-width:252px}
  html[data-theme] body>#beamSidebar{
   --work-paper:#f4f3f0;--work-glass:#f4f3f0d7;--work-ink:#252421;--work-muted:#5d5a56;
@@ -2488,63 +2481,51 @@ body>header{padding-inline:9px!important;gap:4px!important}
  @media(forced-colors:active){#beamSidebar #beamJobs .beam-job button[aria-current=true]::after{background:Highlight;forced-color-adjust:none}}
 }
 
-/* Search and party selection show frosted files. The order reel remains paper. */
+/* Shared folder material; each workflow still owns sleeve and paper heights. */
 @media screen {
- #beamSearch .beam-stage .beam-receipt[data-folder=true]{
+ :is(#beamSearch,#outboundReceiptHost) .beam-file{
   --file-back:#adaca943;--file-front:linear-gradient(155deg,#fff9,#e7e6e34a 56%,#fdfcfbf0);
-  --file-edge:#fff9;--file-paper:#fff;--file-ink:#181818;--file-muted:#555;
-  --file-shadow:#25221f22;
-  display:grid;justify-items:center;align-content:center;gap:12px;
-  width:clamp(172px,19vw,250px);height:auto;
-  color:var(--beam-type)!important;overflow:visible;
+  --file-edge:#fff9;--file-paper:#fff;--file-shadow:#25221f22;
+  position:relative;display:block;isolation:isolate;width:100%;text-align:start;cursor:pointer;
  }
- html[data-theme=dark] #beamSearch .beam-stage .beam-receipt[data-folder=true]{
+ html[data-theme=dark] :is(#beamSearch,#outboundReceiptHost) .beam-file{
   --file-back:#b0aaa844;--file-front:linear-gradient(155deg,#aaa5a35c,#73706c50 56%,#42403fe0);
-  --file-edge:#f5f3ef4f;--file-paper:#fff;--file-ink:#181818;--file-muted:#555;
-  --file-shadow:#0007;
+  --file-edge:#f5f3ef4f;--file-shadow:#0007;
  }
- #beamSearch .beam-file{
-  display:block;position:relative;isolation:isolate;width:100%;height:clamp(154px,19vw,215px);
-  cursor:pointer;text-align:start;
+ :is(#beamSearch,#outboundReceiptHost) :is(.beam-file-back,.beam-file-sheet,.beam-file-paper,.beam-file-glass,.beam-file-window){position:absolute;display:block}
+ :is(#beamSearch,#outboundReceiptHost) .beam-file-back{
+  inset:var(--file-back-top,17%) 8% 4%;border-radius:18px 18px 13px 13px;background:var(--file-back);
+  clip-path:polygon(0 0,42% 0,52% 13%,100% 13%,100% 100%,0 100%)
  }
- #beamSearch .beam-file-back,#beamSearch .beam-file-sheet,#beamSearch .beam-file-paper,#beamSearch .beam-file-glass{
-  display:block;position:absolute;
+ :is(#beamSearch,#outboundReceiptHost) .beam-file-sheet{
+  inset:var(--file-sheet-top,16%) 22% 13%;border-radius:8px;background:var(--file-paper);box-shadow:0 2px 7px var(--file-shadow)
  }
- #beamSearch .beam-file-back{
-  inset:19% 8% 4%;border-radius:18px 18px 13px 13px;
-  background:var(--file-back);clip-path:polygon(0 0,42% 0,52% 13%,100% 13%,100% 100%,0 100%);
- }
- #beamSearch .beam-file-sheet{
-  inset:17% 22% 13%;border-radius:8px;background:var(--file-paper);
-  box-shadow:0 2px 7px var(--file-shadow);
- }
- #beamSearch .beam-file-sheet-left{transform:translateX(-26%) rotate(-17deg)}
- #beamSearch .beam-file-sheet-right{transform:translateX(24%) rotate(15deg)}
- #beamSearch .beam-file-window{
-  display:block;position:absolute;inset:0 12% 2%;overflow:hidden;border-radius:14px;
- }
- #beamSearch .beam-file-paper{
-  display:block;position:absolute;inset:0 0 auto;background:none;
-  transform:translateY(47px);transition:transform 260ms cubic-bezier(.18,.72,.28,1);
- }
- #beamSearch .beam-file .beam-file-paper .beam-paper-ticket{
-  display:flex;zoom:.65;filter:drop-shadow(0 3px 9px var(--file-shadow));
- }
- #beamSearch .beam-file-glass{
-  inset:50% 2% 0;background:var(--file-front);
+ :is(#beamSearch,#outboundReceiptHost) .beam-file-sheet-left{transform:translateX(-26%) rotate(-17deg)}
+ :is(#beamSearch,#outboundReceiptHost) .beam-file-sheet-right{transform:translateX(24%) rotate(15deg)}
+ :is(#beamSearch,#outboundReceiptHost) .beam-file-window{overflow:hidden;pointer-events:none;border-radius:12px}
+ :is(#beamSearch,#outboundReceiptHost) .beam-file-paper{inset:0 0 auto;filter:drop-shadow(0 3px 9px var(--file-shadow))}
+ :is(#beamSearch,#outboundReceiptHost) .beam-file-glass{
+  inset:var(--file-front-top,49%) 2% 0;background:var(--file-front);color:var(--beam-type);
   border-radius:17px 17px 15px 15px;clip-path:polygon(0 0,45% 0,54% 19%,100% 19%,100% 100%,0 100%);
-  box-shadow:inset 0 1px var(--file-edge),inset 0 -1px var(--file-edge);
-  -webkit-backdrop-filter:blur(14px) saturate(.72);backdrop-filter:blur(14px) saturate(.72);
-  color:var(--beam-type);
+  box-shadow:inset 0 1px var(--file-edge);
+  -webkit-backdrop-filter:blur(14px) saturate(.72);backdrop-filter:blur(14px) saturate(.72)
  }
- #beamSearch .beam-file-position,#beamSearch .beam-file-arrow{position:absolute;inset-block-end:9px}
- #beamSearch .beam-file-position{inset-inline-start:12px;font:650 10px/1 var(--font-terminal);font-variant-numeric:tabular-nums}
- #beamSearch .beam-file-arrow{inset-inline-end:12px;font-size:20px;line-height:1}
+ :is(#beamSearch,#outboundReceiptHost) :is(.beam-file-position,.beam-file-arrow){position:absolute;inset-block-end:10px}
+ :is(#beamSearch,#outboundReceiptHost) .beam-file-position{inset-inline-start:12px;font:670 11px/1 var(--font-terminal);font-variant-numeric:tabular-nums}
+ :is(#beamSearch,#outboundReceiptHost) .beam-file-arrow{inset-inline-end:12px;font-size:17px;line-height:1}
+ #beamSearch .beam-stage .beam-receipt[data-folder=true]{
+  display:grid;justify-items:center;align-content:center;gap:12px;
+  width:clamp(172px,19vw,250px);height:auto;color:var(--beam-type)!important;overflow:visible
+ }
+ #beamSearch .beam-file{height:clamp(154px,19vw,215px);--file-back-top:19%;--file-sheet-top:17%;--file-front-top:80%}
+ #beamSearch .beam-file-window{inset:0 12% 2%;border-radius:14px}
+ #beamSearch .beam-file-paper{transform:translateY(47px);transition:transform 260ms cubic-bezier(.18,.72,.28,1)}
+ #beamSearch .beam-file .beam-file-paper .beam-paper-ticket{display:flex;zoom:.65}
  #beamSearch .beam-receipt[data-folder=true]:not([data-distance="0"],[data-distance="1"]) .beam-file-caption{visibility:hidden}
  #beamSearch .beam-file-caption{display:grid;justify-items:center;gap:5px;width:100%;min-width:0;text-align:center}
  #beamSearch .beam-file-caption>strong{
   max-width:100%;min-width:0;font:760 clamp(14px,1.6vw,21px)/1.15 var(--font-text);
-  white-space:normal;word-break:keep-all;overflow-wrap:anywhere;text-wrap:balance;letter-spacing:-.02em;
+  white-space:normal;word-break:keep-all;overflow-wrap:anywhere;text-wrap:balance;letter-spacing:-.02em
  }
  #beamSearch .beam-receipt[data-folder=true][data-center=true] .beam-file-caption>strong{
   font-size:clamp(24px,3.2vw,38px);font-weight:820;letter-spacing:-.035em
@@ -2577,7 +2558,6 @@ body>header{padding-inline:9px!important;gap:4px!important}
 .beam-ui-icon{width:18px;height:18px;flex:none;vertical-align:middle;display:inline-block;pointer-events:none}
 #theme .beam-ui-icon{width:18px;height:18px}
 #theme[aria-pressed=true] .beam-theme-night,#theme:not([aria-pressed=true]) .beam-theme-day{display:none}
-#receiptToggle[aria-expanded=true] .beam-ui-icon{transform:rotate(180deg)}
 .profile-shelf-arrow .beam-ui-icon,#beamSidebar .beam-job-asn .beam-ui-icon,.asn-tab-mark .beam-ui-icon{width:15px;height:15px}
 #beamSidebar .beam-job-asn .beam-ui-icon{margin-inline-start:auto}
 #newWorkTab .beam-ui-icon,#beamSidebar #beamNewWork .beam-ui-icon{width:16px;height:16px}
@@ -2589,9 +2569,6 @@ body>header{padding-inline:9px!important;gap:4px!important}
 @media screen{
  #beamSearch .beam-stage .beam-receipt[data-folder=true]{width:clamp(196px,23vw,292px)}
  #beamSearch .beam-file{height:clamp(204px,23vw,258px)}
- #beamSearch .beam-file-glass{inset-block-start:80%}
- #beamFolderReceiptOpen:not([hidden]){display:inline-flex;align-items:center;justify-content:center;gap:7px;width:max-content;padding-inline:14px}
- #beamFolderReceiptOpen svg{width:15px;height:15px}
  #beamFolderReceiptDialog[open]{
   width:min(420px,calc(100% - 24px));max-height:min(84dvh,780px);padding:20px min(5vw,26px) 15px;
   display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;
@@ -2647,17 +2624,6 @@ body>header{padding-inline:9px!important;gap:4px!important}
 @media screen {
  #beamSearch #beamEmpty:not([hidden]){gap:9px;padding-block:20px!important;max-width:min(330px,100%)}
 }
-/* Only actionable recovery notices sit outside the workbench. */
-@media screen {
- #beamRecoveryPanel[hidden],#beamRecoveryPanel button[hidden]{display:none!important}
- #beamRecoveryPanel{
-  display:flex;flex-wrap:wrap;align-items:center;gap:6px 9px;
-  width:min(calc(100% - 24px),760px);min-width:0;margin:7px auto 4px;
-  padding:6px 9px;border-radius:8px;background:var(--beam-field,var(--surface-input));color:var(--beam-type,var(--ink));
- }
- #beamRecoveryStatus{font-size:12px;line-height:1.4;min-width:0;flex:1 1 16rem;margin:0;overflow-wrap:anywhere}
- #beamRecoveryPanel button{font-size:12px;min-height:34px}
-}
 @media print{#beamRecoveryPanel,#beamRecoverySaved{display:none!important}}
 
 @media screen{
@@ -2679,11 +2645,11 @@ body>header{padding-inline:9px!important;gap:4px!important}
  html[data-theme] body[data-beam-view=home]>header{background:none!important}
  body:is([data-beam-view=home],[data-beam-view=carton])>header .beam-modes{display:none}
  #beamHome{
-  width:min(100%,1540px);margin-inline:auto;padding:clamp(28px,8vh,108px) clamp(18px,3vw,48px) 40px;
+  width:min(100%,1540px);margin-inline:auto;padding:clamp(12px,2.5vh,30px) clamp(18px,3vw,48px) 40px;
   outline:0;color:var(--beam-type);box-sizing:border-box
  }
  #beamHome .beam-home-choices{
-  position:relative;list-style:none;margin:0;padding:0;min-height:clamp(300px,54svh,560px);
+  position:relative;list-style:none;margin:0;padding:0;min-height:clamp(265px,39svh,400px);
   perspective:1100px;touch-action:pan-y;
   overflow:clip;
  }
@@ -2704,13 +2670,15 @@ body>header{padding-inline:9px!important;gap:4px!important}
   display:inline-block;margin:0;padding:.08em .10em;min-width:0;min-height:44px;width:auto;height:auto;
   color:inherit!important;background:none!important;border:0!important;border-radius:0!important;
   box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;text-align:center;white-space:nowrap;
-  font:820 clamp(37px,5.35vw,90px)/1.05 var(--font-display)!important;letter-spacing:-.055em;
+  font:820 clamp(37px,5.35vw,90px)/1.05 var(--font-display)!important;letter-spacing:-.022em;
  }
  html[data-theme] body #beamHome .beam-home-word:hover{
   background:none!important;box-shadow:none!important;text-decoration:underline;
   text-decoration-thickness:.03em;text-underline-offset:.13em;
  }
- #beamHome .beam-home-ko{font-family:var(--font-display-ko);font-size:.35em;font-weight:700;letter-spacing:-.035em;margin-inline-start:.18em}
+ #beamHome :is(.beam-home-en,.beam-home-ko){display:inline-block}
+ #beamHome .beam-home-en{transform:scaleY(var(--beam-display-compression));transform-origin:center}
+ #beamHome .beam-home-ko{font-family:var(--font-display-ko);font-size:.35em;font-weight:700;letter-spacing:-.02em;margin-inline-start:.18em}
  html[lang=en] #beamHome .beam-home-ko{display:none}
  @media(max-width:720px){
   #beamHome{padding:20px 14px 35px}
@@ -2730,7 +2698,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
  html[data-theme] body>header .beam-identity{
   flex-wrap:wrap;column-gap:clamp(7px,1vw,13px);row-gap:5px;
  }
- html[data-theme] body>header .beam-identity>button:is(#beamHomeBack,#beamBack):not([hidden]),
+ html[data-theme] body>header .beam-identity>button#beamBack:not([hidden]),
  html[data-theme] body>header .beam-identity #beamSaveHint:not([hidden]){
   display:inline-flex;align-items:center;justify-content:center;flex:none;gap:7px;
   inline-size:auto;block-size:auto;min-inline-size:0;min-block-size:38px;margin:0;
@@ -2746,13 +2714,13 @@ body>header{padding-inline:9px!important;gap:4px!important}
   transform:translateY(-50%) rotate(45deg);pointer-events:none;
  }
  @media(max-width:560px){
-  html[data-theme] body>header .beam-identity>button:is(#beamHomeBack,#beamBack):not([hidden]),
+  html[data-theme] body>header .beam-identity>button#beamBack:not([hidden]),
   html[data-theme] body>header .beam-identity #beamSaveHint:not([hidden]){
    gap:5px;padding-inline:9px!important;font-size:.6875rem!important;
   }
  }
  @media(pointer:coarse){
-  html[data-theme] body>header .beam-identity>button:is(#beamHomeBack,#beamBack):not([hidden]),
+  html[data-theme] body>header .beam-identity>button#beamBack:not([hidden]),
   html[data-theme] body>header .beam-identity #beamSaveHint:not([hidden]){min-block-size:44px}
  }
 }
@@ -2856,76 +2824,277 @@ body>header{padding-inline:9px!important;gap:4px!important}
   grid-template-rows:auto auto!important;column-gap:5px;row-gap:2px!important;
  }
  html[data-theme] body[data-beam-view=inspection]>header :is(.beam-identity,.beam-save-wrap){display:contents}
- html[data-theme] body[data-beam-view=inspection]>header #workSidebarToggle{grid-area:1/1;min-inline-size:44px;min-block-size:44px}
+ html[data-theme] body[data-beam-view=inspection]>header .beam-header-nav{grid-area:1/1}
+ html[data-theme] body[data-beam-view=inspection]>header #workSidebarToggle{min-inline-size:44px;min-block-size:44px}
  html[data-theme] body[data-beam-view=inspection]>header #beamSaveHint:not([hidden]){grid-area:1/2;min-block-size:44px}
  html[data-theme] body[data-beam-view=inspection]>header>.toolbar{grid-area:1/3!important;justify-self:end;min-inline-size:0}
  html[data-theme] body[data-beam-view=inspection]>header :is(#theme,#fileMenuButton){
   --beam-icon-size:44px;
  }
  html[data-theme] body[data-beam-view=inspection]>header #availabilityToggle{min-block-size:44px}
- html[data-theme] body[data-beam-view=inspection]>header #beamBack:not([hidden]){grid-area:2/1/3/3;justify-self:start}
- html[data-theme] body[data-beam-view=inspection]>header #beamHomeBack:not([hidden]){grid-area:2/3;justify-self:end}
- html[data-theme] body[data-beam-view=inspection]>header .beam-identity>button:is(#beamBack,#beamHomeBack):not([hidden]){min-height:44px}
+ html[data-theme] body[data-beam-view=inspection]>header #beamBack:not([hidden]){grid-area:2/1/3/-1;justify-self:start}
+ html[data-theme] body[data-beam-view=inspection]>header .beam-identity>button#beamBack:not([hidden]){min-height:44px}
 }
-@media screen and (max-width:360px){
- html[data-theme] body[data-beam-view=inspection]>header #beamSaveHint:not([hidden]){min-width:44px}
- html[data-theme] body[data-beam-view=inspection]>header #beamSaveHint .beam-save-full{display:none}
+@media screen and (max-width:480px){
+ html[data-theme] body>header #beamSaveHint:not([hidden]){min-width:44px}
+ html[data-theme] body>header #beamSaveHint .beam-save-full{display:none}
 }
 
-/* The full-width announcement rail; action controls remain in their own surface. */
+/* The long edge is the hinge: adjacent printed faces move together. */
 @media screen {
  .beam-notice-strip[hidden]{display:none!important}
  .beam-notice-strip{
-  --notice-height:28px;--notice-duration:10s;
-  position:relative;block-size:var(--notice-height);inline-size:100%;overflow:hidden;contain:inline-size;
-  color:var(--beam-type);background:var(--beam-stock);transform-origin:top;pointer-events:none;
+  --notice-hold:6800ms;--notice-depth:16px;--notice-turn:560ms;--notice-exit:560ms;
+  --notice-surface:#000;--notice-ink:#fff;
+  --notice-leave:calc(var(--notice-turn) + var(--notice-hold));
+  position:relative;inline-size:100%;clip-path:inset(-18px 0);perspective:650px;
+  color:var(--notice-ink);pointer-events:none;
  }
- .beam-notice-strip.is-running{animation:beamNoticeFold 260ms var(--notice-duration) ease-in both}
- .beam-notice-strip[data-tone=warning]{background:var(--warning-bg);color:var(--warning-ink)}
- .beam-notice-strip[data-tone=error]{background:var(--excess-bg);color:var(--excess-ink)}
- .beam-notice-strip>p{
-  position:relative;margin:0;inline-size:max-content;line-height:var(--notice-height);
-  transform:translateX(var(--notice-start,100vw));
-  font-size:13px;font-weight:650;white-space:nowrap;
+ html[data-theme=dark] .beam-notice-strip{--notice-surface:#fff;--notice-ink:#000}
+ @media(forced-colors:none){
+  html[data-theme] .beam-notice-strip[data-scope=inspection]{
+   --notice-surface:var(--inspection-notice-caution);--notice-ink:var(--inspection-notice-ink);
+  }
+  html[data-theme] .beam-notice-strip[data-scope=inspection][data-tone=error]{--notice-surface:var(--inspection-notice-danger)}
  }
- .beam-notice-strip.is-running>p{animation:beamNoticeTravel var(--notice-duration) linear both}
- @keyframes beamNoticeTravel{to{transform:translateX(-100%)}}
- @keyframes beamNoticeFold{from{block-size:var(--notice-height);opacity:1}to{block-size:0;opacity:0}}
+
+ .beam-notice-prism{position:relative;transform-style:preserve-3d;transform:translateZ(calc(var(--notice-depth) * -1))}
+ .beam-notice-face{
+  position:relative;min-block-size:32px;box-sizing:border-box;margin:0;padding:6px 16px;
+  display:grid;place-content:center;text-align:center;white-space:normal;overflow-wrap:anywhere;
+  background:var(--notice-surface);color:inherit;backface-visibility:hidden;transform:translateZ(var(--notice-depth));
+  font:650 .8125rem/1.45 var(--font-ui);letter-spacing:.012em;
+ }
+ .beam-notice-face::after{
+  content:"";position:absolute;right:13px;top:50%;translate:0 -50%;
+  width:6px;height:6px;border:1px solid currentColor;border-radius:50%;
+ }
+ html[data-theme] .beam-notice-face{color:var(--notice-ink);padding-inline:29px}
+ .beam-notice-next{position:absolute;inset:0;transform:rotateX(-90deg) translateZ(var(--notice-depth))}
+ .beam-notice-next::after{background:currentColor}
+ .beam-notice-strip.is-running .beam-notice-prism{
+  animation:beamNoticeFaceTurn var(--notice-turn) cubic-bezier(.35,.02,.24,1) both,
+   beamNoticeContact var(--notice-exit) var(--notice-leave) forwards;
+ }
+ .beam-notice-strip.is-running{animation:beamNoticeVerticalShutter var(--notice-exit) var(--notice-leave) linear forwards}
+ @keyframes beamNoticeFaceTurn{
+  from{transform:translateZ(calc(var(--notice-depth) * -1)) rotateX(0deg)}
+  to{transform:translateZ(calc(var(--notice-depth) * -1)) rotateX(90deg)}
+ }
+ /* Continue the roll around the upper rail. The closing wall enters
+    from that rail before contact, so the silhouette never reopens. */
+ .beam-notice-strip.is-running::after{
+  content:"";position:absolute;inset:calc(var(--notice-depth) * -2) 0 auto;
+  block-size:calc(var(--notice-depth) * 2);transform-origin:50% 100%;
+  background:color-mix(in srgb,var(--notice-surface) 91%,var(--notice-ink));
+  opacity:0;animation:beamNoticeUpperWall var(--notice-exit) var(--notice-leave) linear forwards;
+ }
+ @keyframes beamNoticeContact{
+  from{
+   transform:translateY(calc(var(--notice-depth) * -1)) rotateX(0deg) translateY(var(--notice-depth)) translateZ(calc(var(--notice-depth) * -1)) rotateX(90deg);
+   animation-timing-function:cubic-bezier(.4,0,.2,1);
+  }
+  58%,to{transform:translateY(calc(var(--notice-depth) * -1)) rotateX(90deg) translateY(var(--notice-depth)) translateZ(calc(var(--notice-depth) * -1)) rotateX(90deg)}
+ }
+ @keyframes beamNoticeUpperWall{
+  0%,36%{transform:rotateX(90deg);opacity:0}
+  56%{transform:rotateX(102deg);opacity:1}
+  76%{transform:rotateX(111deg);opacity:1}
+  to{transform:rotateX(114deg);opacity:0}
+ }
+ @keyframes beamNoticeVerticalShutter{
+  0%,32%{clip-path:inset(0);block-size:calc(var(--notice-depth) * 2)}
+  56%{
+   clip-path:inset(0 0 81% 0);block-size:calc(var(--notice-depth) * 2);
+   animation-timing-function:cubic-bezier(.2,0,.2,1);
+  }
+  76%{
+   clip-path:inset(0 0 92% 0);block-size:var(--notice-depth);
+   animation-timing-function:cubic-bezier(.2,0,.2,1);
+  }
+  to{clip-path:inset(0 0 100% 0);block-size:0}
+ }
  .beam-notice-source{
   position:absolute!important;inline-size:1px!important;block-size:1px!important;
   margin:-1px!important;padding:0!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important;
  }
  @media(prefers-reduced-motion:reduce){
-  .beam-notice-strip{block-size:auto;min-block-size:var(--notice-height)}
-  .beam-notice-strip.is-running{animation:beamNoticeHide 1ms 8s both}
-  .beam-notice-strip.is-running>p{position:static;inline-size:auto;padding:5px 12px;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.35;transform:none;animation:none}
+  .beam-notice-strip.is-running{animation:beamNoticeHide 1ms var(--notice-hold) both}
+  .beam-notice-strip.is-running .beam-notice-prism{animation:none;transform:none}
+  .beam-notice-strip.is-running::after{content:none;animation:none}
+  .beam-notice-face{transform:none}
+  .beam-notice-next{display:none}
  }
  @keyframes beamNoticeHide{to{visibility:hidden}}
 }
 @media print{.beam-notice-strip{display:none!important}}
 
 
-/* An editorial end mark, not a persistent utility strip. */
+/* The home wordmark sits behind the controls, outside normal layout flow. */
+.beam-masthead-mark{display:none}
 @media screen{
- html[data-theme] body>#beamFooter{
-  box-sizing:border-box;position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;
-  align-items:end;gap:clamp(10px,4vw,60px);overflow:clip;
-  margin:clamp(72px,16vh,190px) clamp(12px,3vw,48px) clamp(12px,3vw,48px);height:auto;
-  padding:clamp(22px,4vw,76px) clamp(17px,3vw,54px) clamp(18px,3vw,48px);
-  background:transparent;color:var(--beam-type,var(--ink));text-align:start;
+ body>#beamNoticeSlot{position:relative;z-index:21;min-inline-size:0}
+ body[data-beam-view=home]>header{isolation:isolate}
+ body[data-beam-view=home]>header>.beam-masthead-mark{
+  display:block;position:absolute;z-index:-1;pointer-events:none;user-select:none;
+  inset-block-start:-9px;inset-inline:0;margin-inline:auto;
+  inline-size:min(92%,860px);block-size:clamp(68px,31vw,286px);
+  container-type:inline-size;overflow:clip;--beam-mark-ink:#000;color:var(--beam-mark-ink);
  }
- body[data-beam-view=inspection]>#beamFooter,
- body[data-beam-view=carton]:not(:has(#cartonWorkspace[data-stage=search]))>#beamFooter{display:none!important}
- #beamFooter .beam-footer-kicker{
-  font:520 clamp(11px,1.1vw,15px)/1.35 var(--font-display);
-  text-transform:uppercase;letter-spacing:.12em;padding-block-end:.2em
+ html[data-theme=dark] body[data-beam-view=home]>header>.beam-masthead-mark{--beam-mark-ink:#fff}
+ .beam-masthead-word{
+  position:relative;display:inline-block;isolation:isolate;white-space:nowrap;
+  font:860 clamp(3rem,33vw,19.6rem)/.88 var(--font-display);
+  font-size:clamp(3rem,36.5cqi,19.6rem);
+  letter-spacing:var(--beam-editorial-tracking);
+  transform:scaleY(var(--beam-display-compression));transform-origin:0 0;
  }
- #beamFooter .beam-footer-word{
-  position:relative;justify-self:start;
-  font:860 clamp(47px,15vw,245px)/.80 var(--font-display);letter-spacing:-.057em;
-  white-space:nowrap
+ #beamHome{padding-block-start:clamp(118px,21vw,205px)}
+ @media(max-width:720px){
+  body[data-beam-view=home]>header>.beam-masthead-mark{
+   inset-block-start:9px;inset-inline:clamp(43px,12vw,64px) clamp(146px,42vw,186px);
+   inline-size:auto;block-size:clamp(64px,27vw,150px);
+  }
+  .beam-masthead-word{font-size:clamp(1.8rem,36.5cqi,10rem)}
+  #beamHome{padding-block-start:clamp(21px,11vw,78px)}
+ }
+ @supports (mask-image: linear-gradient(#000, transparent)){
+  .beam-masthead-word{color:transparent}
+  .beam-masthead-word::before,.beam-masthead-word::after{
+   content:attr(data-word) / "";position:absolute;inset:0;color:var(--beam-mark-ink);
+  }
+  .beam-masthead-word::before{
+   mask-image:linear-gradient(to bottom,#000 0 29%,rgb(0 0 0/.91) 42%,transparent 83%);
+  }
+  .beam-masthead-word::after{
+   filter:blur(.042em);
+   mask-image:linear-gradient(to bottom,transparent 28%,rgb(0 0 0/.54) 54%,transparent 94%);
+  }
  }
 }
-@media (forced-colors:active){
- #beamFooter{background:Canvas!important;color:CanvasText!important}
+@media screen and (forced-colors:active){
+ body[data-beam-view=home]>header>.beam-masthead-mark{display:none}
+}
+
+/* Workspace wordmark: the letters turn through depth, independently of the home hit area. */
+@media screen {
+ body>header .beam-header-nav{display:inline-flex;flex:none;align-items:center;gap:3px}
+ html[data-theme] body>header #beamHomeBack:not([hidden]){
+  display:inline-grid;place-items:center;flex:none;min-inline-size:50px;min-block-size:44px;
+  padding:0 3px!important;margin:0;border:0!important;background:none!important;
+  box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  color:var(--beam-type)!important;
+ }
+ .beam-home-spin{
+  --drum-radius:1.6em;--drum-word-width:2.95em;--drum-slice-width:calc(var(--drum-word-width) / 16);
+  position:relative;display:grid;place-items:center;inline-size:3.2em;block-size:1.2em;
+  perspective:165px;white-space:nowrap;
+  font:860 clamp(1.125rem,2vw,1.65rem)/1.2 var(--font-display);
+  letter-spacing:var(--beam-editorial-tracking);
+  transform:scaleY(var(--beam-display-compression));
+ }
+ .beam-home-word-static{display:block;transform:scaleX(1.13)}
+ .beam-home-drum{position:absolute;inset:0;transform-style:preserve-3d}
+ .beam-home-drum[hidden]{display:none}
+ .beam-home-drum-slice{
+  position:absolute;inset-block:0;left:50%;inline-size:calc(var(--drum-slice-width) + .2px);
+  transform:translateX(-50%) rotateY(var(--drum-angle)) translateZ(var(--drum-radius));
+  overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+ }
+ .beam-home-drum-slice>span{
+  position:absolute;left:calc(-1 * var(--drum-offset) * var(--drum-slice-width));
+  inline-size:var(--drum-word-width);text-align:center;
+ }
+ @media (prefers-reduced-motion:no-preference){
+  .beam-home-spin:has(.beam-home-drum:not([hidden])) .beam-home-word-static{visibility:hidden}
+  .beam-home-drum:not([hidden]){animation:beamDrumTurn 9s linear infinite}
+ }
+ @media (prefers-reduced-motion:reduce){.beam-home-drum{display:none}}
+ @keyframes beamDrumTurn{
+  from{transform:translateZ(calc(-1 * var(--drum-radius))) rotateY(0deg)}
+  to{transform:translateZ(calc(-1 * var(--drum-radius))) rotateY(-360deg)}
+ }
+}
+
+/* A separate native button floats over the centered paper, never inside a folder button. */
+@media screen{
+ html[data-theme] body #beamStage #beamFolderReceiptOpen:not([hidden]){
+  position:absolute;z-index:15;top:var(--receipt-action-y,70%);left:var(--receipt-action-x,50%);
+  transform:translate(-50%,-50%);display:grid;place-items:center;
+  inline-size:44px;block-size:44px;min-inline-size:44px;min-block-size:44px;margin:0;padding:0!important;
+  background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;
+  color:#252525!important;opacity:0;pointer-events:none;transition:opacity .16s ease-out;
+ }
+ #beamStage #beamFolderReceiptOpen .beam-ui-icon{
+  box-sizing:content-box;width:13px;height:13px;padding:5px;border-radius:7px;
+  background:#fffffff0;box-shadow:0 1px 6px #0002;
+ }
+ html[data-theme] body #beamStage:has(.beam-receipt[data-center=true][data-folder=true]:focus-visible) #beamFolderReceiptOpen:not([hidden]),
+ html[data-theme] body #beamStage #beamFolderReceiptOpen:not([hidden]):focus-visible{
+  opacity:1;pointer-events:auto;
+ }
+ @media (hover:hover) and (pointer:fine){
+  html[data-theme] body #beamStage:has(.beam-receipt[data-center=true][data-folder=true]:hover) #beamFolderReceiptOpen:not([hidden]),
+  html[data-theme] body #beamStage #beamFolderReceiptOpen:not([hidden]):hover{opacity:1;pointer-events:auto}
+ }
+ @media (hover:none), (pointer:coarse){
+  html[data-theme] body #beamStage #beamFolderReceiptOpen:not([hidden]){opacity:1;pointer-events:auto}
+ }
+ html[data-theme] body #beamStage[data-dragging=true] #beamFolderReceiptOpen:not([hidden]){opacity:0;pointer-events:none}
+ @media (prefers-reduced-motion:reduce){html[data-theme] body #beamStage #beamFolderReceiptOpen:not([hidden]){transition:none}}
+ @media (forced-colors:active){#beamStage #beamFolderReceiptOpen .beam-ui-icon{color:ButtonText;background:ButtonFace;border:1px solid ButtonText}}
+}
+
+/* Actionable notices roll into view, then stay put until resolved. */
+@media screen{
+ #beamRecoveryPanel{pointer-events:auto}
+ #beamRecoveryPanel .beam-notice-prism{
+  display:grid;animation:beamNoticeFaceTurn var(--notice-turn) cubic-bezier(.35,.02,.24,1) both;
+ }
+ #beamRecoveryPanel .beam-notice-face{grid-area:1/1;min-block-size:42px}
+ #beamRecoveryPanel .beam-notice-face::after{display:none}
+ #beamRecoveryPanel .beam-notice-next{
+  position:relative;display:grid;grid-template-columns:minmax(0,1fr);
+  align-items:center;justify-content:stretch;gap:5px 12px;text-align:center;
+ }
+ html[data-theme] #beamRecoveryStatus{color:var(--notice-ink)!important;opacity:1;min-inline-size:0;margin:0;overflow-wrap:anywhere}
+ .beam-recovery-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:5px 7px;align-items:center}
+ @media(min-width:960px){
+  #beamRecoveryPanel .beam-notice-next{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr)}
+  #beamRecoveryStatus{grid-column:2}
+  .beam-recovery-actions{grid-column:3;justify-content:flex-end}
+ }
+ #beamRecoveryPanel button[hidden]{display:none!important}
+ @media(max-width:600px){html[data-theme] #beamRecoveryPanel .beam-notice-face{padding-inline:12px}}
+ @media(prefers-reduced-motion:reduce){
+  #beamRecoveryPanel .beam-notice-prism{animation:none;transform:none}
+  #beamRecoveryPanel .beam-notice-face[aria-hidden=true]{display:none}
+  #beamRecoveryPanel .beam-notice-next{transform:none}
+ }
+}
+
+/* Inverted notice actions own their contrast; do not inherit frosted control ink. */
+@layer beam-notice-controls{
+ @media screen{
+  html[data-theme] #beamRecoveryPanel button:not([hidden]){
+   display:inline-grid;place-items:center;min-block-size:34px;margin:0;padding:4px 11px!important;
+   color:var(--notice-ink)!important;background:var(--notice-surface)!important;
+   border:1px solid var(--notice-ink)!important;border-radius:999px!important;
+   box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+   font:720 .8125rem/1.25 var(--font-ui);text-align:center;
+  }
+  html[data-theme] #beamRecoveryPanel :is(#beamRecoverDraft,#beamRecoveryConnect):not([hidden]){
+   color:var(--notice-surface)!important;background:var(--notice-ink)!important;
+  }
+  #beamRecoveryPanel button:is(:hover,:focus-visible){text-decoration:underline;text-underline-offset:.18em}
+  @media(pointer:coarse){html[data-theme] #beamRecoveryPanel button:not([hidden]){min-block-size:44px}}
+ }
+}
+
+
+@media screen{
+ #beamDiscardRecoveryDialog{width:min(420px,calc(100% - 32px));box-sizing:border-box}
+ #beamDiscardRecoveryDescription{margin:8px 0 0;font-size:14px;line-height:1.55}
+ .beam-recovery-dialog-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:16px}
+ .beam-recovery-dialog-actions button{min-height:44px;padding-inline:16px}
 }

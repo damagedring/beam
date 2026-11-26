@@ -51,7 +51,7 @@ test('UX-17/18/19/21/22 Outbound tracks each carton and uses mapped identity for
     const target=document.activeElement;
     for(const key of [...'0001234567890','Enter'])target.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
   });
-  await expect(page.locator('#cartonCount')).toContainText('1 / 3');
+  await expect(page.locator('#cartonCount')).toContainText('정상 1 / 전체 예정 3');
   await expect(page.locator('#cartonHistory [data-result]')).toHaveCount(1);
   await expect(page.locator('#cartonLastBrand')).toHaveText('ACME');
   await expect(page.locator('#cartonLast')).toHaveText('Field jacket');
@@ -62,11 +62,11 @@ test('UX-17/18/19/21/22 Outbound tracks each carton and uses mapped identity for
   await page.locator('#cartonBack').click();
   await expect(page.locator('.outbound-carton[title="BOX-1"]').first()).toBeFocused();
   await chooseCarton(page, 'BOX-2');
-  await expect(page.locator('#cartonCount')).toContainText('0 / 2');
+  await expect(page.locator('#cartonCount')).toContainText('정상 0 / 전체 예정 2');
   await page.locator('#beamHomeBack').click();
   await openCartons(page, 'Outbound');
   await chooseOutboundCarton(page,'OUT-1','BOX-1');
-  await expect(page.locator('#cartonCount')).toContainText('1 / 3');
+  await expect(page.locator('#cartonCount')).toContainText('정상 1 / 전체 예정 3');
 });
 
 test('UX-20 Inventory disallows a second counting method until its first scan is undone', async ({ beam: page }) => {

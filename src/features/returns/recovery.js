@@ -14,7 +14,7 @@ export function createBrowserRecovery(api){
   if(!still(context))return null;
   current={context,key,revision:draft?.revision??null,draft:draft||null};
   savedVersion=-1;
-  if(draft)tell(validity(draft)?'offer':'invalid',validity(draft)?draft:null);
+  if(draft)tell(validity(draft)?'offer':'invalid',draft);
   else if(await api.store.hasDraft()&&still(context))tell('other');
   else if(still(context))tell('hidden');
   return current;
@@ -40,7 +40,12 @@ export function createBrowserRecovery(api){
  async function run(){
   const context=api.context();
   try{
-   if(!context){current=null;tell(await api.store.hasDraft()&&!api.context()?'needs-raw':'hidden');return;}
+   if(!context){
+    current=null;
+    const {exists,entry}=await api.store.inspectDrafts();
+    if(!api.context())tell(exists?'needs-raw':'hidden',entry);
+    return;
+   }
    const active=await load(context);if(!active||!still(context))return;
    if(active.draft)api.paint(display);
    await save(active);
@@ -85,5 +90,25 @@ export function createBrowserRecovery(api){
   catch(error){if(still(active.context))tell('restore-error',validity(active.draft)?active.draft:null);return false;}
   finally{acting=false;if(rerun){rerun=false;void flush();}}
  }
- return {schedule,flush,recover,replace,refresh:()=>api.paint(display),stop(){stopped=true;clearTimeout(timer);}};
+ async function discard(){
+  const active=current,offered=display.draft;
+  const key=active?.draft===offered?active?.key:['needs-raw','discard-error'].includes(display.kind)&&!api.context()?offered?.key:null;
+  if(inflight||acting||!key||!offered||typeof offered.revision!=='string')return false;
+  const context=api.context();
+  acting=true;
+  try{
+   if(!await api.confirmDiscard()||stopped||!still(context))return false;
+   const removed=await api.store.discard(key,offered.revision);
+   if(!removed){current=null;await run();if(display.kind==='hidden')tell('conflict');return false;}
+   if(active&&current===active){active.draft=null;active.revision=null;}
+   tell('discarded');
+   if(api.context()&&api.hasWork())rerun=true;
+   else if(!api.context()&&await api.store.hasDraft())rerun=true;
+   return true;
+  }catch{
+   tell('discard-error',offered);
+   return false;
+  }finally{acting=false;if(rerun){rerun=false;void flush();}}
+ }
+ return {schedule,flush,recover,replace,discard,refresh:()=>api.paint(display),stop(){stopped=true;clearTimeout(timer);}};
 }

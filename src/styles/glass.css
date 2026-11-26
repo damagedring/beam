@@ -97,7 +97,7 @@
      the search field. This ordering is also needed in Safari's compositor. */
   #beamSearch .beam-input>svg{z-index:1}
   @supports (backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)){
-   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.inspection-sheet-tab),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
+   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.inspection-sheet-tab,#beamHomeBack,#beamFolderReceiptOpen,#beamRecoverDraft,#beamKeepDraft,#beamDiscardDraft,#beamRecoveryConnect),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
     background:radial-gradient(ellipse 86% 115% at 30% -10%,var(--satin-polish),transparent 92%),var(--satin-state,var(--satin-body))!important;
     border-color:transparent!important;
     -webkit-backdrop-filter:blur(10px) saturate(.45)!important;
@@ -145,7 +145,7 @@
     /* Drop only the satin material; the earlier opaque accessibility
        colours and keyboard focus treatments remain in the cascade. */
     html[data-theme] body :is(
-     button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.inspection-sheet-tab),input[type=button],input[type=submit],
+     button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.inspection-sheet-tab,#beamHomeBack,#beamFolderReceiptOpen,#beamRecoverDraft,#beamKeepDraft,#beamDiscardDraft,#beamRecoveryConnect),input[type=button],input[type=submit],
      #beamQuery,#beamSku,dialog[open],#fileMenuPanel,#receiptList,#storeList,#beamSidebar,
      #discrepancyPopover,#orderInfoPopover,#questPeek,#availabilityNote,.beam-empty,
      #fileMenuPanel>button,dialog[open] :is(select,input:not([type]),input[type=text],input[type=search],input[type=number],textarea)
@@ -254,7 +254,7 @@
 /* The work rail owns its material and flat list. Other glass controls retain their pills. */
 @layer beam-workrail {
  @media screen {
-  html[data-theme] body>header .beam-identity>button#workSidebarToggle{border-radius:8px!important}
+  html[data-theme] body>header .beam-header-nav>button#workSidebarToggle{border-radius:8px!important}
   html[data-theme] body #beamSidebar button{border-radius:8px!important}
  }
  @media screen and (forced-colors:none){
@@ -276,7 +276,11 @@
 
 @layer beam-folder {
  @media screen {
-  #beamSearch .beam-receipt[data-folder=true]{box-shadow:none!important}
+  #beamSearch .beam-receipt[data-folder=true]{
+   background:none!important;border:0!important;box-shadow:none!important;
+   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;border-radius:0!important;
+  }
+  #beamSearch .beam-receipt[data-folder=true]::before,#beamSearch .beam-receipt[data-folder=true]::after{content:none!important}
   #beamSearch .beam-file-caption>strong{font-family:inherit!important;font-weight:760!important;font-size:clamp(16px,1.6vw,21px)!important;line-height:1.15!important}
   #beamSearch .beam-receipt[data-folder=true][data-center=true] .beam-file-caption>strong{font-size:clamp(24px,3.2vw,38px)!important;font-weight:820!important}
 

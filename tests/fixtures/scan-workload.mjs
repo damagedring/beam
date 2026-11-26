@@ -20,7 +20,7 @@ export function returnWorkload() {
   })) };
 }
 
-function zip(entries) {
+export function zip(entries) {
   const files = [], directory = [];
   let offset = 0;
   for (const [name, data] of Object.entries(entries)) {

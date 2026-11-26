@@ -95,7 +95,7 @@ function scanAggregate(data,receipt,scans,ix=getIndex(data),template=receiptTemp
  const events=index.byReceipt.get(receipt)||[];
  let agg=receipts.get(receipt);
  if(agg?.length===events.length)return agg;
- if(!agg)agg={length:0,total:0,rows:null,byBatch:new Map(),counts:new Map(),outside:new Map()};
+ if(!agg)agg={length:0,total:0,rows:null,byBatch:new Map(),counts:new Map(),outside:new Map(),covered:0,expected:template.rows.reduce((sum,row)=>sum+row.expected,0),overages:[]};
  for(;agg.length<events.length;agg.length++){
   const event=events[agg.length],qty=units(event),possible=lookupEntry(ix,template,data,event);
   const product=possible.length===1?possible[0]:null;
@@ -106,6 +106,11 @@ function scanAggregate(data,receipt,scans,ix=getIndex(data),template=receiptTemp
   const n=(agg.counts.get(id)||0)+qty;
   if(!Number.isSafeInteger(n))throw Error('합산 실물 수량이 너무 큽니다.');
   agg.counts.set(id,n);
+  const verified=product&&!product.conflict&&!product.unresolved;
+  if(verified)agg.covered+=Math.min(n,product.expected)-Math.min(n-qty,product.expected);
+  if(verified&&n>product.expected&&(!event.scanOutcome||event.scanOutcome==='excess')){
+   agg.overages.push({covered:agg.covered,position:agg.length+1,at:event.at,name:product.name,brand:product.brand,code:product.sku||product.barcode||eventCode(event),actual:n,expected:product.expected,delta:n-product.expected});
+  }
   agg.total+=qty;
   agg.byBatch.set(event.batch,(agg.byBatch.get(event.batch)||0)+qty);
  }
@@ -189,7 +194,11 @@ function asnProgress(data,receipt,scans,pending=[],currentBatch=''){
  const {expected,covered,excess,complete,percent,phase}=inspectionCoverage(rows,{known,unassigned});
  return {expected,actual:agg.total,batch,unassigned,complete,covered,percent,excess,phase};
 }
+function inspectionOverages(data,receipt,scans){
+ const agg=scanAggregate(data,receipt,scans);
+ return {expected:agg.expected,events:agg.overages};
+}
 function storeMatches(r,query){const normalize=x=>String(x||'').toLowerCase().replace(/\s+/g,'');const hay=normalize([r.seller,r.company,r.address].filter(Boolean).join(' '));return String(query||'').trim().split(/\s+/).filter(Boolean).every(token=>hay.includes(normalize(token)));}
 
 
-export { key, units, eventCode, matches, getIndex, invalidate, masterInfo, reconcile, asnProgress, storeMatches, inspectEntry, entryOutcome, candidateReceipts, readScanIndex, excessEntrySet };
+export { key, units, eventCode, matches, getIndex, invalidate, masterInfo, reconcile, asnProgress, storeMatches, inspectEntry, entryOutcome, candidateReceipts, readScanIndex, excessEntrySet, inspectionOverages };

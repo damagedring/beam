@@ -1,3 +1,3 @@
 /* Keep the established order. Important declarations use the reverse order. */
-@layer beam-folder, beam-console, beam-workrail, beam-profile-shelf, beam-data-entry,
+@layer beam-progress-markers, beam-notice-controls, beam-folder, beam-console, beam-workrail, beam-profile-shelf, beam-data-entry,
        beam-scrollbar, beam-satin, beam-clear-frost, beam-matte, beam-action-shape;

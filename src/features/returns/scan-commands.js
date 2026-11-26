@@ -39,8 +39,9 @@ export function createReturnsScanCommands({ current, identity, routing, effects 
       effects.audit(event.kind === 'sku' ? '수동 입력' : '스캔', [event], origin);
       effects.lastEvent(event);
       let moved = false;
-      if (work.searchMode !== 'b2c' && (outcome === 'unknown' || outcome === 'excess')) {
-        if (outcome === 'unknown') routing.stageOutside(event);
+      // A quantity overage is evidence for the current ASN, not proof of a mix-up.
+      if (work.searchMode !== 'b2c' && outcome === 'unknown') {
+        routing.stageOutside(event);
         moved = routing.moveUnique(event.id);
         const final = routing.event(event.id);
         outcome = final?.receipt ? final.scanOutcome : 'held';

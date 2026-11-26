@@ -1,7 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {asnProgress, candidateReceipts, entryOutcome, excessEntrySet, inspectEntry, reconcile, readScanIndex} from '../src/domain/reconcile.js';
+import {asnProgress, candidateReceipts, entryOutcome, excessEntrySet, inspectEntry, inspectionOverages, reconcile, readScanIndex} from '../src/domain/reconcile.js';
+import {createReturnsScanCommands} from '../src/features/returns/scan-commands.js';
 import {createScannerBurst} from '../src/domain/scanner-input.js';
+
+import {groupOverageMarkers} from '../src/components/inspection-progress/view.js';
 
 const row=(receipt,barcode,sku,qty,name=sku)=>({receipt,barcode,sku,qty,name,seller:'Test',company:'',address:''});
 const data={raw:[row('A','000001','S1',3),row('A','000002','S2',7),row('B','000003','S3',2),row('C','','S4',4)],sku:[{sku:'S4',barcode:'000004',name:'S4'}],loc:[]};
@@ -116,4 +119,53 @@ test('indexed excess budgets exactly preserve selection for mixed batches, whole
   }
   assert.deepEqual([...excessEntrySet(data,scans,'now',()=>true)],[...previous]);
  }
+});
+
+test('selected Returns ASN keeps overage even when another ASN could take it',()=>{
+ const refs={raw:[row('A','000001','S1',4),row('B','000001','S1',1),row('B','000002','S2',1)],sku:[],loc:[]};
+ const work={data:refs,scans:[],pending:[],receipt:'A',currentBatch:'test',searchMode:'b2b'};
+ let n=0,staged=0,routed=0;const feedback=[];
+ const commands=createReturnsScanCommands({
+  current:()=>work,identity:{id:()=>String(++n),now:()=>new Date(0).toISOString()},
+  routing:{canRegister:()=>true,stageOutside:()=>staged++,moveUnique:()=>{routed++;return false;},event:id=>work.scans.find(e=>e.id===id)},
+  effects:{audit(){},lastEvent(){},changed(){},draw(){},assignedFeedback:info=>feedback.push(info.outcome),audio(){},notice(){}},
+ });
+ for(let i=0;i<5;i++)assert.equal(commands.register({kind:'code',barcode:'000001',qty:1}),true);
+ assert.deepEqual(feedback,['accepted','accepted','accepted','accepted','excess']);
+ assert.equal(work.receipt,'A');assert.equal(routed,0);assert.equal(staged,0);
+ assert.equal(reconcile(refs,'A',work.scans)[0].actual,5);
+ assert.equal(reconcile(refs,'B',work.scans)[0].actual,0);
+ assert.deepEqual([...excessEntrySet(refs,work.scans,'test',()=>true)],['5']);
+ const {actual}=inspectEntry(refs,'B',work.scans,work.scans[4]);assert.equal(actual,0);
+ assert.equal(commands.register({kind:'code',barcode:'000002',qty:1}),true);
+ assert.equal(routed,1,'outside-ASN workflow remains distinct');assert.equal(staged,1);
+ const mixed=[event(1),event(2),event(3),event(4,'000001',2)];
+ assert.equal(reconcile(refs,'A',mixed)[0].excess,1);
+ assert.equal(excessEntrySet(refs,mixed,'test',()=>true).size,0,'a mixed quantity event cannot move accepted units');
+});
+
+test('overage markers retain the exact scan position and at-scan quantity across further scans and undo',()=>{
+ const refs={raw:[row('A','000001','S1',1),row('A','000002','S2',3)],sku:[],loc:[]};
+ const t='2026-11-26T15:00:00Z',scans=[
+  {...event(1),at:t,scanOutcome:'accepted'},
+  {...event(2),at:t,scanOutcome:'excess'},
+  {...event(3,'999999'),at:t,scanOutcome:'unknown'},
+  {...event(4,'000002'),at:t,scanOutcome:'accepted'},
+ ];
+ const first=inspectionOverages(refs,'A',scans);
+ assert.deepEqual(first,{expected:4,events:[{covered:1,position:2,at:t,name:'S1',brand:undefined,code:'S1',actual:2,expected:1,delta:1}]});
+ scans.push({...event(5),at:t,scanOutcome:'excess'});
+ const after=inspectionOverages(refs,'A',scans);assert.deepEqual(after.events.map(x=>[x.position,x.actual,x.delta]),[[2,2,1],[5,3,2]]);
+ assert.equal(inspectionOverages(refs,'A',scans.slice(0,-1)).events.length,1);
+ assert.equal(inspectionOverages(refs,'OTHER',scans).events.length,0);
+ assert.deepEqual(groupOverageMarkers(after.events,4,400).map(g=>g.x),[100,200]);
+ const screenshotCase=[scans[0],scans[1],scans[3]];
+ const progress=asnProgress(refs,'A',screenshotCase),pinned=inspectionOverages(refs,'A',screenshotCase);
+ assert.equal(progress.percent,50);assert.equal(progress.actual,3);
+ assert.deepEqual(groupOverageMarkers(pinned.events,pinned.expected,400).map(g=>g.x),[100]);
+ assert.deepEqual(groupOverageMarkers(first.events,first.expected,800).map(g=>g.x/800),[.25,.5]);
+ const dense=Array.from({length:85},(_,i)=>({covered:i+10}));
+ const groups=groupOverageMarkers(dense,94,320);
+ assert.ok(groups.length<10);assert.equal(groups.flatMap(g=>g.events).length,85);
+ assert.ok(groups.every(g=>g.x>=0&&g.x<=320));
 });

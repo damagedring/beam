@@ -1,3 +1,4 @@
+import { folderShellMarkup, placeFolderOnRibbon } from '../../components/folder-reel/view.js';
 import { createOutboundCartons } from './outbound-cartons.js';
 import { productIdentityMarkup } from '../../components/product-identity/view.js';
 import { dasFolders, outboundFolders, wrapOutboundIndex } from '../../domain/carton-verification.js';
@@ -51,6 +52,7 @@ export function createOutboundReceipts(host,{l,onChoose,onDispatch,isComplete}){
  const flyerViews=new Map();
 
  let inventory=false,dasView=false,folders=[],folderIndex=0,phase='folder',carton='',resultKey=null,gesture=null,suppressClick=0,wheelAt=-Infinity,wheelDistance=0,wheelCard=-1;
+ const folderNodes=new Map();
  const positions=new Map(),allFolders=new WeakMap(),receiptItems=new WeakMap();
  const at=(f)=>positions.get(f.key)||0;
  const current=()=>folders[folderIndex];
@@ -85,16 +87,21 @@ export function createOutboundReceipts(host,{l,onChoose,onDispatch,isComplete}){
   return {card,more:()=>{end=Math.min(end+100,items.length);append(end);return end<items.length;},remaining:items.length-end};
  }
  function folderSummary(f){return inventory?l(`박스 ${f.cartonCount}개`,`${f.cartonCount} cartons`):l(`주문 ${f.orders.length}건`,`${f.orders.length} orders`);}
- function fileFace(f,selected){
-  const position=at(f),paper=make('span','beam-file-paper'),file=make('span','beam-file'),win=make('span','beam-file-window');
-  const glass=make('span','beam-file-glass'),caption=make('span','beam-file-caption');
-  file.append(make('span','beam-file-back'));
-  if(f.orders.length>1)file.append(make('span','beam-file-sheet beam-file-sheet-left'));
-  if(f.orders.length>2)file.append(make('span','beam-file-sheet beam-file-sheet-right'));
-  paper.append(ticket(f.orders.at(position),selected?7:3).card);win.append(paper);
-  glass.append(make('span','beam-file-position',(position+1)+' / '+f.orders.length),make('span','beam-file-arrow','↗'));file.append(win,glass);
-  caption.append(make('strong','',labelFor(f)),make('span','',folderSummary(f)));
-  return [file,caption];
+ function fillFolder(card,f,selected){
+  const position=at(f),count=f.orders.length;
+  if(!card.firstElementChild){
+   card.innerHTML=folderShellMarkup(position,count);
+   const caption=make('span','beam-file-caption');
+   caption.append(make('strong','',labelFor(f)),make('span','',folderSummary(f)));
+   card.append(caption);
+  }
+  const paper=card.querySelector('.beam-file-paper');
+  const key=position+':'+selected+':'+l('ko','en');
+  if(card.dataset.paperKey===key)return;
+  card.dataset.paperKey=key;
+  paper.replaceChildren(ticket(f.orders.at(position),selected?7:3).card);
+  card.querySelector('.beam-file-position').textContent=(position+1)+' / '+count;
+  card.querySelector('.beam-file-caption>span').textContent=folderSummary(f);
  }
  function stepFolder(step,focus){
   if(folders.length<2)return false;
@@ -171,24 +178,37 @@ export function createOutboundReceipts(host,{l,onChoose,onDispatch,isComplete}){
   flyerMore.textContent=l(`주문 더 보기 · ${visible} / ${f.orders.length}`,`More orders · ${visible} / ${f.orders.length}`);
  }
  function render(step=0,axis=''){
-  const f=current(),lastFocus=[...controls.querySelectorAll('button')].indexOf(document.activeElement);stage.replaceChildren();controls.replaceChildren();host.dataset.phase=phase;host.dataset.inlineCartons=String(!inventory);host.hidden=!f;
+  const f=current(),lastFocus=[...controls.querySelectorAll('button')].indexOf(document.activeElement);
+  if(!f||phase!=='folder'||stage.dataset.folders!=='true'){stage.replaceChildren();folderNodes.clear();}
+  stage.dataset.folders=String(phase==='folder');controls.replaceChildren();host.dataset.phase=phase;host.dataset.inlineCartons=String(!inventory);host.hidden=!f;
   paintFlyers();
   if(!f)return;
   const inFolder=phase==='folder',n=inFolder?folders.length:f.orders.length,index=inFolder?folderIndex:at(f);
+  const nextFolders=new Set(),arrivals=[];
   for(const slot of visibleSlots(n,index)){
    const i=wrapOutboundIndex(index,slot,n),entry=inFolder?folders[i]:f.orders.at(i);
-   const b=button('',()=>{
+   const existing=inFolder?folderNodes.get(entry):null;
+   const b=existing||button('',null,'outbound-reel-card');
+   b.onclick=()=>{
     if(performance.now()<suppressClick)return;
     if(!slot){activate();return;}
     if(inFolder)stepFolder(slot,true);else stepOrder(slot,true);
-   },'outbound-reel-card');
+   };
    b.dataset.slot=String(slot);b.dataset.center=String(!slot);
-   if(inFolder){b.dataset.folder='true';b.dataset.peek=String(!slot);b.dataset.folderIndex=String(i);b.append(...fileFace(entry,!slot));}
+   if(inFolder){
+    b.dataset.folder='true';b.dataset.peek=String(!slot);b.dataset.folderIndex=String(i);
+    fillFolder(b,entry,!slot);nextFolders.add(entry);folderNodes.set(entry,b);
+    if(!existing&&step&&axis==='folder'&&!reduced()){
+     placeFolderOnRibbon(b,slot+step);arrivals.push([b,slot]);
+    }else placeFolderOnRibbon(b,slot);
+   }
    else b.append(ticket(entry,slot?3:8).card);
    const aria=inFolder?labelFor(entry)+' · '+folderSummary(entry):inventory?[entry.id,entry.scope??l('Location 전체','Whole location')].join(' · '):[entry.external||entry.id,entry.id,l(`박스 ${entry.boxes.size}개`,`${entry.boxes.size} cartons`)].join(' · ');
    b.setAttribute('aria-label',aria);b.setAttribute('aria-current',String(!slot));b.tabIndex=slot?-1:0;
-   stage.append(b);
+   if(!existing)stage.append(b);
   }
+  for(const [entry,node] of folderNodes)if(!nextFolders.has(entry)){node.remove();folderNodes.delete(entry);}
+  if(arrivals.length){void stage.offsetWidth;for(const [node,slot] of arrivals)placeFolderOnRibbon(node,slot);}
   if(inFolder&&folders.length>1||!inFolder&&f.orders.length>1){
    const stepper=inFolder?stepFolder:stepOrder;
    controls.append(navButton('‹',inFolder?l('이전 파일','Previous folder'):l('이전 영수증','Previous receipt'),()=>stepper(-1)),status((index+1)+' / '+n),navButton('›',inFolder?l('다음 파일','Next folder'):l('다음 영수증','Next receipt'),()=>stepper(1)));
@@ -199,7 +219,9 @@ export function createOutboundReceipts(host,{l,onChoose,onDispatch,isComplete}){
   if(lastFocus>=0)controls.querySelectorAll('button')[lastFocus]?.focus({preventScroll:true});
   if(step){const active=stage.querySelector('[data-center=true]');
    if(axis==='peek')move(active?.querySelector('.beam-file-paper'),[{translate:'0 '+(step>0?32:-12)+'px',opacity:.45},{translate:'0 0',opacity:1}]);
-   else move(active,[{transform:`perspective(850px) translate3d(${axis==='open'?0:step*8}px,${axis==='open'?27:0}px,0) rotate${axis==='open'?'X':'Y'}(${step*14}deg)`,opacity:.46},{transform:'none',opacity:1}]);
+   else if(inFolder&&axis==='folder'&&matchMedia('(max-width: 680px)').matches)
+    move(active?.querySelector('.beam-file'),[{transform:`rotateY(${step*24}deg)`,opacity:.55},{transform:'none',opacity:1}]);
+   else if(!inFolder)move(active,[{transform:`perspective(850px) translate3d(${axis==='open'?0:step*8}px,${axis==='open'?27:0}px,0) rotate${axis==='open'?'X':'Y'}(${step*14}deg)`,opacity:.46},{transform:'none',opacity:1}]);
   }
  }
  function renderDialog(step=0){

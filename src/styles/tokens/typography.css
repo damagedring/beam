@@ -1,13 +1,16 @@
-/* Display typography is local to work selection and the editorial footer. */
+/* Local type keeps supported Latin/Hangul glyphs out of OS-dependent fallback. */
 @font-face{font-family:"Geist";src:url("./assets/geist-variable.woff2") format("woff2");font-style:normal;font-weight:100 900;font-display:swap}
-@font-face{font-family:"IBM Plex Sans KR";src:url("./assets/ibm-plex-sans-kr-bold.woff2") format("woff2");font-style:normal;font-weight:700;font-display:swap}
 :root{
- --font-system:system-ui,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
- --font-ui:var(--font-system);--font-reading:var(--font-system);
- --font-inspection:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
- --font-display:"Geist",var(--font-system);
- --font-display-ko:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
- --font-terminal:ui-monospace,"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace
+ --font-system:"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",system-ui,sans-serif;
+ --font-display-ko:"Pretendard",var(--font-system);
+ --font-display:"Geist",var(--font-display-ko);
+ --beam-display-compression:.76;--beam-editorial-tracking:-.038em;
+ --font-ui:var(--font-display);--font-reading:var(--font-ui);
+ --font-inspection:var(--font-display);
+ --inspection-display-tracking:-.038em;--inspection-display-leading:1.15;
+ --font-print:"Pretendard",var(--font-system);
+ --font-mono-latin:"SFMono-Regular",Menlo,Consolas,"Liberation Mono";
+ --font-terminal:var(--font-mono-latin),"Pretendard",monospace
 }
 body[data-beam-view="inspection"],#cartonInspection{--font-ui:var(--font-inspection);--font-reading:var(--font-inspection)}
 

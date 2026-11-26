@@ -54,14 +54,23 @@
 .dispatch-profile-options{display:grid;gap:5px;margin-bottom:10px}
 #mappingBody .dispatch-profile-options label,.dispatch-profile-options label{display:flex;align-items:center;flex-direction:row;gap:10px;min-height:40px}
 .dispatch-profile-options input[type=checkbox]{width:18px;height:18px;min-height:0;flex:0 0 auto}
-.carton-coverage{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:8px 10px;margin-bottom:10px;border-radius:7px;background:var(--surface-canvas)}
-.carton-coverage span{font-size:.79rem}
-.carton-coverage #cartonMeter{grid-column:1/-1;height:9px;margin:1px 0}
-.carton-coverage #cartonMeter[data-phase=progress]{--carton-meter-ink:var(--shortage-ink)}
-.carton-coverage #cartonMeter[data-phase=warning]{--carton-meter-ink:var(--warning-ink)}
-.carton-coverage #cartonMeter[data-phase=complete]{--carton-meter-ink:var(--complete-ink)}
-.carton-coverage #cartonMeter[data-phase=excess]{--carton-meter-ink:var(--excess-ink)}
+.carton-coverage:not(.beam-coverage){display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:8px 10px;margin-bottom:10px;border-radius:7px;background:var(--surface-canvas)}
+.carton-coverage:not(.beam-coverage) .beam-coverage-head,.carton-coverage:not(.beam-coverage) .beam-progress-track{grid-column:1/-1}
+.carton-coverage:not(.beam-coverage) .beam-coverage-head{display:flex;justify-content:space-between;gap:8px;font-size:.79rem}
+.carton-coverage:not(.beam-coverage) #cartonCount{font-weight:inherit}
+.carton-coverage:not(.beam-coverage) #cartonMeter{height:9px;margin:1px 0}
+.carton-coverage:not(.beam-coverage) #cartonMeter[data-phase=progress]{--carton-meter-ink:var(--shortage-ink)}
+.carton-coverage:not(.beam-coverage) #cartonMeter[data-phase=warning]{--carton-meter-ink:var(--warning-ink)}
+.carton-coverage:not(.beam-coverage) #cartonMeter[data-phase=complete]{--carton-meter-ink:var(--complete-ink)}
+.carton-coverage:not(.beam-coverage) #cartonMeter[data-phase=excess]{--carton-meter-ink:var(--excess-ink)}
 #cartonCoverageDetails{grid-column:1/-1}
+@media screen{
+ #cartonInspection .beam-coverage:not([hidden]){
+  display:grid;grid-template-columns:minmax(0,1fr);gap:5px;margin:8px 0 0;padding:8px 0 0;
+  border-block-start:1px solid color-mix(in srgb,var(--beam-type) 10%,transparent);color:var(--beam-type);
+ }
+ #cartonWorkspace #cartonMeter.beam-coverage-meter{color:color-mix(in srgb,var(--status-info) 78%,var(--info-ink));margin:0;height:7px}
+}
 
 @media screen{
  #cartonInspection{--font-terminal:var(--font-console-mono)}
@@ -96,7 +105,7 @@
  html[data-theme] body #cartonInspection #cartonScan{
   width:100%;min-height:44px;margin:0;padding-inline:12px;
   font:600 16px/1.3 var(--font-console-mono)!important;
-  background:var(--scan-well,#151515)!important;color:var(--scan-text,#f5f5f5)!important;caret-color:var(--status-info);
+  background:var(--scan-well,#151515)!important;color:var(--scan-text,#f5f5f5)!important;caret-color:var(--scan-text,#f5f5f5);
   border:0!important;border-radius:8px!important;box-shadow:inset 0 1px 0 #ffffff13,inset 0 2px 6px #0005!important
  }
  #cartonInspection #cartonScan::placeholder{color:var(--scan-hint,#bcbcbc);opacity:1}
@@ -105,7 +114,7 @@
  #cartonInspection .carton-last-item{min-width:0;padding:0 6px}
  #cartonLastItem[data-result=unexpected]{background:var(--warning-bg);color:var(--warning-ink);padding:8px 10px;border-radius:8px}
  #cartonLastItem[data-result=unexpected] > span{color:inherit}
- #cartonLastItem #cartonLast{font-size:clamp(1rem,2vw,1.45rem);line-height:1.2}
+ #cartonLastItem #cartonLast{font-size:clamp(1rem,2vw,1.45rem);line-height:var(--inspection-display-leading);letter-spacing:var(--inspection-display-tracking)}
  #cartonLastCode{margin:3px 0;color:inherit;font:600 12px/1.3 var(--font-terminal);overflow-wrap:anywhere}
  #cartonLastProgress{
   display:grid;grid-template-columns:1fr auto;gap:5px 12px;width:min(16rem,100%);padding:6px 9px;margin-top:7px;
@@ -150,11 +159,10 @@
  #cartonInspection :is(.activity-sheet,.carton-table) th{background:var(--recent-sticky,var(--sheet-rail));color:inherit}
  #cartonHistory .activity-sheet td{background:var(--term-bg,var(--sheet-paper))}
  #cartonHistory :is(.sheet-code,.sheet-qty,.sheet-time),#cartonRows :is(.sheet-code,.sheet-qty){font-family:var(--font-console-mono)}
- #cartonHistory :is(.sheet-status,.sheet-qty),#cartonInspection .carton-table :is(td,th):nth-child(n+4){text-align:center}
- #cartonInspection .carton-table th:first-child{width:10%}
- #cartonInspection .carton-table th:nth-child(2){width:22%}
- #cartonInspection .carton-table th:nth-child(3){width:38%}
- #cartonInspection .carton-table th:nth-child(n+4){width:10%}
+ #cartonHistory :is(.sheet-status,.sheet-qty),#cartonInspection .carton-table :is(.carton-col-qty,.sheet-qty,.carton-col-status,.carton-row-status){text-align:center}
+ #cartonInspection .carton-col-code{width:22%}
+ #cartonInspection .carton-col-product{width:38%}
+ #cartonInspection :is(.carton-col-qty,.carton-col-status){width:10%}
  #cartonRows .carton-row-status{font-weight:780}
  #cartonRows [data-state=ok] .carton-row-status{color:var(--complete-ink);background:var(--complete-bg)}
  #cartonRows [data-state=progress] .carton-row-status{color:var(--shortage-ink);background:var(--shortage-bg)}

@@ -192,3 +192,75 @@ test('UX-35/36 DAS groups assigned orders, restores its carton focus, and keeps 
   await page.locator('#beamHomeBack').click();
   await expect(page.locator('#availabilityToggle')).toHaveAttribute('aria-checked','false');
 });
+
+for(const automatic of [false,true])test(automatic?'single original order links on the receipt without a click and stays unlinked after undo':'original outbound lookup joins distinct tracking and contact clues in the receipt and inspection',async({beam:page})=>{
+ const {zip}=await import('../fixtures/scan-workload.mjs');
+ const entries={
+  raw:{sheet:'Return fixture', mapping:{receipt:'R',returnChannel:'Segment',returnTracking:'Return Waybill',originalTracking:'Upstream Waybill',customerAddress:'Ship To',customerPhone:'Contact',customerName:'Buyer',barcode:'Item',sku:'Item Code',name:'Name',qty:'Units',seller:'Store'},rows:[
+   ['RET-F1','B2B','7777-1234-5678','0012-3456-7890','77 Fiction Road, Unit 2','01023456789','Fictional Customer','0001234567890','SKU-A','Field jacket','1','Fictional Store']]},
+  phoneOrders:{sheet:'Shipment fixture',mapping:{id:'O',originalTracking:'Picked Waybill',address:'Destination',phone:'Delivery Contact',customerName:'Receiver',barcode:'Product Barcode',sku:'SKU',name:'Product'},rows:[
+   ['OUT-F1','X001234567890X','77 Fiction Road Unit 2','+82 10 2345 6789','fictional customer','0001234567890','SKU-A','Field jacket'],
+   ['OUT-F2','001299999990','77 Fiction Road Unit 12','01023456789','Fictional Customer','0001234567890','SKU-A','Field jacket'],
+   ['OUT-F3','400000012340','88 Fiction Road Unit 5','','Other Customer','0001234567890','SKU-A','Field jacket']]},
+ };
+ if(automatic)entries.phoneOrders.rows.splice(1,1);
+ const file={};
+ const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',related='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+ const specs=Object.entries(entries).map(([kind,v],i)=>{
+  const header=Object.values(v.mapping),id=i+1;
+  file[kind]={version:1,kind,sheetName:v.sheet,headerNames:v.mapping,signature:[...header].sort(),...(kind==='raw'?{returnChannelReviewed:true,returnChannelValues:{b2b:['B2B'],b2c:['B2C'],exact:true}}:{})};
+  const data=[header,...v.rows];
+  return {id,name:v.sheet,xml:`<worksheet xmlns="${ns}"><sheetData>${data.map((row,n)=>`<row r="${n+1}">${row.map((value,c)=>`<c r="${String.fromCharCode(65+c)}${n+1}" t="inlineStr"><is><t>${value}</t></is></c>`).join('')}</row>`).join('')}</sheetData></worksheet>`};
+ });
+ const workbook=zip({
+  'xl/workbook.xml':`<workbook xmlns="${ns}" xmlns:r="${related}"><sheets>${specs.map(s=>`<sheet name="${s.name}" sheetId="${s.id}" r:id="rId${s.id}"/>`).join('')}</sheets></workbook>`,
+  'xl/_rels/workbook.xml.rels':`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${specs.map(s=>`<Relationship Id="rId${s.id}" Type="${related}/worksheet" Target="worksheets/sheet${s.id}.xml"/>`).join('')}</Relationships>`,
+  ...Object.fromEntries(specs.map(s=>[`xl/worksheets/sheet${s.id}.xml`,s.xml])),
+ });
+ const reference=await openReference(page);
+ page.once('dialog',dialog=>dialog.accept());
+ await chooseReference(page,reference,{name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({version:1,active:'fixture',profiles:{fixture:{name:'Fixture',file,paste:{}}}}))});
+ await expect(reference.getByRole('button',{name:'Fixture'})).toHaveAttribute('aria-current','true');
+ await chooseReference(page,reference,{name:'fixture.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:workbook});
+ await expect(page.locator('#beamRawAnnounce')).toContainText('반품 예정 1행');
+ const search=page.locator('#beamQuery');
+ await search.fill('7777-1234-5678');await search.press('Enter');await page.keyboard.press('Enter');
+ const action=page.locator('#returnOriginalSearch');
+ const dialog=page.locator('#returnOriginalDialog'),results=dialog.locator('#phoneOrderResults');
+ if(automatic){
+  await expect(action).toHaveText('원주문 OUT-F1');
+  await action.click();
+  await expect(dialog.locator('#returnOriginalLinked')).toContainText('고객명·전화번호·배송 주소 일치로 자동 연결');
+  await expect(dialog).not.toContainText('Fictional Customer');
+  await dialog.getByRole('button',{name:'연결 해제',exact:true}).click();
+  await expect(action).toHaveText('원주문 찾기');
+  await page.locator('#beamStart').click();
+  await expect(page.locator('#returnOriginalInspect')).toHaveText('원주문 찾기');
+  await page.locator('#returnOriginalInspect').click();
+  await expect(results.locator('li')).toHaveCount(1);
+  await expect(dialog.getByRole('button',{name:'원주문 연결: OUT-F1',exact:true})).toBeVisible();
+  return;
+ }
+ await expect(action).toHaveText('원주문 찾기');
+ await action.click();
+ await expect(results.locator('li').first()).toContainText('OUT-F1');
+ await expect(results.locator('li').first()).toContainText('원운송장 · 전화번호 · 배송 주소');
+ await expect(results).not.toContainText('77 Fiction Road');
+ const input=dialog.locator('#returnOriginalTracking');
+ await input.fill('4000-0001-2340');await input.press('Enter');
+ await expect(results.locator('li')).toHaveCount(1);
+ await expect(results.locator('li')).toContainText('OUT-F3');
+ await input.fill('7777-1234-5678');await input.press('Enter');
+ await expect(results).toContainText('일치하는 출고 이력이 없어요');
+ await input.fill('0012-3456-7890');await input.press('Enter');
+ await dialog.getByRole('button',{name:'원주문 연결: OUT-F1',exact:true}).click();
+ await expect(page.locator('#returnOriginalSearch')).toHaveText('원주문 OUT-F1');
+ await page.locator('#beamStart').click();
+ await expect(page.locator('#returnOriginalInspect')).toHaveText('원주문 OUT-F1');
+ await page.locator('#receiptBarcode').click();
+ await expect(page.locator('#returnOriginalBarcode')).toHaveText('원주문 OUT-F1');
+ await page.locator('#returnOriginalBarcode').click();
+ await dialog.getByRole('button',{name:'연결 해제',exact:true}).click();
+ await expect(page.locator('#returnOriginalBarcode')).toBeFocused();
+ await expect(page.locator('#returnOriginalBarcode')).toHaveText('원주문 찾기');
+});

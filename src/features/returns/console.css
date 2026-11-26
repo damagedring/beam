@@ -16,8 +16,6 @@
  }
 }
 @layer beam-console {
- html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressBar::-webkit-progress-value {background:var(--excess-ink)!important}
- html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressBar::-moz-progress-bar {background:var(--excess-ink)!important}
  html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressStatus {color:var(--excess-ink)!important}
  html[data-theme] body #sheetWorkspace .activity-sheet .sheet-status[data-cell-state="unknown"] {background:var(--warning-bg)!important;color:var(--warning-ink)!important}
  .beam-scan-sound {display:flex;align-items:center;gap:8px;font-size:.85rem;margin-block:8px}
@@ -196,8 +194,6 @@ html[data-theme="dark"] #undo:hover{background:#292929}
  .scanresult[data-quantity-state="shortage"] .remaining,
  .scanresult[data-quantity-state="shortage"] #laststatus{background:var(--shortage-bg)!important;color:var(--shortage-ink)!important}
  .scanresult[data-quantity-state="shortage"] .remaining :is(b,span){color:var(--shortage-ink)!important}
- #rows tr[data-quantity-state="shortage"] .badge{background:var(--shortage-bg);color:var(--shortage-ink)}
- #rows tr[data-quantity-state="excess"] .badge{background:var(--excess-bg);color:var(--excess-ink)}
  @media(forced-colors:active){
   .scanresult[data-quantity-state="shortage"] .remaining,.scanresult[data-quantity-state="shortage"] #laststatus{background:Canvas!important;color:CanvasText!important;outline:1px solid CanvasText}
   .scanresult[data-quantity-state="shortage"] .remaining :is(b,span){color:CanvasText!important}
@@ -483,8 +479,7 @@ html[data-theme="dark"] #undo:hover{background:#292929}
  .inspection-workbench #results table{width:100%;min-width:580px;font-size:11px;border-collapse:collapse;table-layout:auto}
  .inspection-workbench #results th,.inspection-workbench #results td{padding:8px 10px;line-height:1.45;border-left:0;border-right:0;white-space:normal;overflow-wrap:anywhere}
  .inspection-workbench #results th{font-size:10px;font-weight:500;position:sticky;top:0;z-index:1;background:var(--surface-panel)}
- .inspection-workbench #results td:nth-child(2){font-family:var(--font-ui)}
-.inspection-workbench #results .badge{font-size:10px;padding:2px 5px;border-radius:3px}
+ .inspection-workbench #results td.comparison-code{font-family:var(--font-ui)}
  #activityHistory .activity-sheet{min-width:850px}
  .activity-sheet .original-input{display:block;font-size:10px;font-weight:400;color:var(--muted);overflow-wrap:anywhere;margin-top:3px}
  @media(max-width:1100px){.inspection-workbench{grid-template-columns:minmax(0,1fr)}.inspection-workbench #scanActivityViewport{min-height:130px}.inspection-workbench #results .tablewrap{min-height:120px}}
@@ -509,9 +504,9 @@ html[data-theme="dark"] #undo:hover{background:#292929}
 #overviewStatus #skuQuest>summary{gap:8px}
 #overviewStatus #skuQuest>summary .count-summary{width:100%}
 }
-/* v1.10: Pretendard by default; terminal face only in the two workbench tables. */
+/* v1.10: Proportional by default; terminal face in the two workbench tables. */
 .inspection-workbench #scanActivity :is(.sheet-code,.sheet-qty,.sheet-time),
-.inspection-workbench #results tbody :is(td:nth-child(2),td.num){font-family:var(--font-terminal)!important;font-variant-numeric:tabular-nums}
+.inspection-workbench #results tbody :is(td.comparison-code,td.num){font-family:var(--font-terminal)!important;font-variant-numeric:tabular-nums}
 @media screen{
 html:not([data-theme="dark"]) .inspection-workbench :is(#scanActivitySection,#results){border-color:var(--line)!important}
 html:not([data-theme="dark"]) .inspection-workbench :is(.scan-activity-head,#results>summary,.activity-sheet thead th,#results th){background:#f6f8fa}
@@ -576,7 +571,6 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
  .inspection-workbench :is(.original-input,#results td.name .small){font-family:var(--font-ui);font-weight:400;font-size:11px;line-height:1.45;color:var(--tui-dim);margin-top:3px}
  .inspection-workbench .sheet-time{font-size:11px;line-height:1.5}
  .inspection-workbench .sheet-qty{white-space:nowrap;text-align:right}
- .inspection-workbench #results .badge{border-radius:2px;font:600 11px/1.4 var(--font-ui);padding:3px 5px}
 
  @media(max-width:1100px){.inspection-workbench{gap:12px}}
  @media(max-width:600px){.inspection-workbench :is(.scan-activity-head,#results>summary){min-height:48px;padding-inline:8px!important}.inspection-workbench :is(#activityMinimize,#activityExpand){width:40px;min-width:40px;height:40px;min-height:40px}.inspection-workbench #filter{min-height:36px}.inspection-workbench :is(.activity-sheet td:not(.sheet-status),#results td){padding:9px 8px}.inspection-workbench :is(.activity-sheet th,#results th){padding:7px 8px}}
@@ -596,7 +590,7 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
  .inspection-workbench #results tbody tr:nth-child(even){background:transparent!important}
  .inspection-workbench #scanActivity .sheet-row:last-child>td:not(.sheet-status){background:var(--tui-selected)!important}
  .inspection-workbench #scanActivity .sheet-row:last-child>td:first-child{box-shadow:inset 3px 0 0 var(--tui-focus)!important}
- .inspection-workbench :is(.sheet-code,#results tbody td:nth-child(2)){color:var(--tui-code)}
+ .inspection-workbench :is(.sheet-code,#results tbody td.comparison-code){color:var(--tui-code)}
  .inspection-workbench :is(.activity-sheet tbody tr,#results tbody tr):hover>td:not(.sheet-status){background:var(--tui-selected)!important;box-shadow:none}
  .inspection-workbench :is(.sheet-status,.status-cell){border-radius:0!important}
  .inspection-workbench #results .tablebar{background:var(--tui-surface);border-bottom:0;padding:3px 9px 8px;gap:6px}
@@ -609,8 +603,6 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
  .inspection-workbench .data-pager button{border-radius:0;background:transparent;border:1px solid var(--tui-edge)}
  #overviewStatus .count-exceptions{display:flex!important;flex-wrap:wrap;gap:8px!important}
  #overviewStatus .count-exceptions .metric{flex:0 1 auto;min-width:108px}
- #overviewStatus #otherAsnDetails{border:1px solid var(--line)!important}
- #overviewStatus #otherAsnDetails[hidden]{display:none!important}
  @media(max-width:1100px){.inspection-workbench{grid-template-columns:1fr;gap:22px}.inspection-workbench :is(#scanActivityViewport,#results .tablewrap){max-height:380px}}
 @media(max-width:600px){
 .inspection-workbench :is(.scan-activity-head,#results>summary){min-height:40px!important;margin-top:-15px!important}
@@ -765,9 +757,6 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
  :root #scanActivitySection .compact-activity tr[data-status="예정 외"] .status-symbol{
   background:var(--warning-bg)!important;color:var(--warning-ink)!important;
  }
- #rows tr[data-quantity-state="shortage"] .badge,
- #rows tr[data-quantity-state="excess"] .badge.bad{background:var(--warning-bg)!important;color:var(--warning-ink)!important}
- #rows tr[data-quantity-state="excess"] .badge:not(.bad){background:var(--excess-bg)!important;color:var(--excess-ink)!important}
  #lastScannedBar[data-phase="progress"]{accent-color:var(--lemon-edge)}
  #lastScannedBar[data-phase="progress"]::-webkit-progress-value{background:var(--lemon-edge)}
  #lastScannedBar[data-phase="progress"]::-moz-progress-bar{background:var(--lemon-edge)}
@@ -939,7 +928,7 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
  html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus #scanReadout{grid-column:2;grid-row:1;gap:6px;min-width:0;border-left:1px solid var(--term-rule);padding-left:12px;min-height:55px;box-sizing:border-box}
  #beamTerminal #overviewStatus #scanReadout:has(#lastScanned:not([hidden]) + #overviewPutaway:not([hidden])){grid-template-columns:minmax(0,1fr) minmax(115px,30%)}
  #beamTerminal #lastScanned{padding:5px 7px;border-radius:0!important;min-height:0}
- #beamTerminal #lastScannedName{font-size:clamp(17px,2vw,25px);line-height:1.18;letter-spacing:-.04em}
+ #beamTerminal #lastScannedName{font-size:clamp(17px,2vw,25px);line-height:var(--inspection-display-leading);letter-spacing:var(--inspection-display-tracking)}
  #beamTerminal #lastScannedProgress{font:700 14px/1.25 var(--font-terminal);white-space:nowrap}
  #beamTerminal #lastScanned .last-scanned-codes{font:500 11px/1.4 var(--font-terminal);color:var(--term-dim)}
  #beamTerminal #overviewStatus #scanReadout #overviewPutaway{padding:4px 0 4px 8px}
@@ -1023,8 +1012,6 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
   background:none!important;color:var(--term-dim)!important;opacity:1
  }
  #beamTerminal #results .tablebar,#beamTerminal #recentActivityBar{height:auto;min-height:38px;padding-block:4px}
- #beamTerminal #results #rows td:first-child:has(.badge){width:5.2em;text-align:left}
- #beamTerminal #results #rows td:first-child .badge{font-size:11px;border-radius:0;padding:2px 4px}
  #beamTerminal .output-tools #reset:not(:disabled){color:var(--term-ink);background:var(--term-side);border:1px solid var(--term-edge)}
 }
 @media screen and (forced-colors:none){
@@ -1225,13 +1212,20 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
   --console-inset:#fff2;--console-cast:#0006;
  }
 
+ /* Workbench chrome is neutral in both workflows; hue belongs to the result states. */
+ html[data-theme] .inspection-console .inspection-workbench{
+  --tui-edge:var(--term-edge);--tui-rule:var(--term-rule);--tui-head:var(--recent-sticky);
+  --tui-surface:var(--recent-surface);--tui-dim:var(--term-dim);--tui-code:var(--term-ink);
+  --tui-focus:var(--term-ink);--tui-selected:color-mix(in srgb,var(--term-ink) 7%,var(--recent-surface));
+  --sheet-line:var(--term-rule);color:var(--term-ink);
+ }
  html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode{
-  background:var(--scan-well)!important;color:var(--scan-text)!important;caret-color:var(--status-info);
+  background:var(--scan-well)!important;color:var(--scan-text)!important;caret-color:var(--scan-text);
   border-radius:8px!important;box-shadow:inset 0 1px 0 #ffffff13,inset 0 2px 6px #0005!important;
  }
  html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode::placeholder{color:var(--scan-hint)!important;opacity:1}
 
- #beamTerminal #scanform .beam-scan-prompt{color:var(--status-info)}
+ #beamTerminal #scanform .beam-scan-prompt{color:var(--scan-text)}
  html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #scanActivitySection{
   --tui-dim:var(--term-dim);--muted:var(--term-dim);--tui-surface:var(--recent-surface);
 
@@ -1338,7 +1332,7 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
   color:var(--term-ink);font:750 25px/1 var(--font-ui);letter-spacing:-.03em;
  }
  #beamTerminal #overviewPutaway .picking-loc{color:var(--term-ink);background:none;padding:0;font-size:12px}
- #beamTerminal :is(.sheet-code,.sheet-time,.sheet-qty,#scanform #barcode,#results td:nth-last-child(-n+3),.picking-loc){
+ #beamTerminal :is(.sheet-code,.sheet-time,.sheet-qty,#scanform #barcode,#results td.num,.picking-loc){
   font-variant-numeric:tabular-nums slashed-zero;letter-spacing:.005em;
  }
  #beamTerminal :is(.sheet-name,#results td.name){font-family:var(--font-ui);letter-spacing:-.01em}
@@ -1348,3 +1342,56 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
  #beamTerminal{--font-terminal:var(--font-console-mono)}
  html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode{font-family:var(--font-console-mono)}
 }
+
+/* Reconciliation uses the same semantic ink and cell fills as the scan ledger. */
+@media screen{
+ #beamTerminal #results table .comparison-status{
+  min-inline-size:5.25em;text-align:center;vertical-align:middle;line-height:1.35;
+ }
+ #beamTerminal #results #rows .comparison-status{font:650 .75rem/1.35 var(--font-ui)}
+}
+@media screen and (forced-colors:none){
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #results #rows .comparison-status[data-comparison-status=accepted]{
+  color:var(--complete-ink)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #results #rows .comparison-status[data-comparison-status=excess]{
+  background:var(--excess-bg)!important;color:var(--excess-ink)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #results #rows .comparison-status[data-comparison-status=warning]{
+  background:var(--warning-bg)!important;color:var(--warning-ink)!important;
+ }
+}
+
+/* The existing red warning is the move affordance, without a second control. */
+@layer beam-console{
+ @media screen{
+  html[data-theme] .activity-sheet .sheet-status:has(>.excess-move-trigger){padding-block:0!important;text-align:center;vertical-align:middle}
+  html[data-theme] .activity-sheet .excess-move-trigger:not([hidden]){
+   display:inline-grid;place-items:center;width:40px;height:40px;padding:0!important;margin:0;vertical-align:middle;
+   background:none!important;color:var(--excess-ink)!important;border:0!important;border-radius:6px!important;
+   box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  }
+  .excess-move-trigger .beam-ui-icon{display:block;width:clamp(20px,2.1vw,26px);height:clamp(20px,2.1vw,26px)}
+  html[data-theme] .activity-sheet .excess-move-trigger:is(:hover,:focus-visible){background:color-mix(in srgb,currentColor 11%,transparent)!important}
+  @media(pointer:coarse){html[data-theme] .activity-sheet .excess-move-trigger{min-inline-size:44px;min-block-size:44px}}
+ }
+}
+
+/* Reserve a small line for the contextual callout, rather than covering controls. */
+@media screen{
+ #returnExceptionStack{min-inline-size:0}
+ #returnMixHint{
+  --mix-left:0px;--mix-tail:16px;
+  position:relative;inset-inline-start:var(--mix-left,0px);box-sizing:border-box;
+  inline-size:max-content;max-inline-size:100%;margin:0 0 8px;padding:6px 9px;
+  border-radius:6px;background:var(--warning-bg);color:var(--warning-ink);
+  font:650 .75rem/1.35 var(--font-ui);overflow-wrap:anywhere;
+ }
+ #returnMixHint::after{
+  content:"";position:absolute;inset-block-start:100%;inset-inline-start:var(--mix-tail,16px);
+  translate:-50% 0;border-inline:5px solid transparent;border-block-start:5px solid var(--warning-bg);
+ }
+ #returnMixHint[hidden]{display:none!important}
+ @media(forced-colors:active){#returnMixHint{border:1px solid CanvasText}}
+}
+@media print{#returnMixHint{display:none!important}}

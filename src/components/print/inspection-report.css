@@ -5,7 +5,7 @@
 @media print{
  html,body{margin:0!important;background:#fff!important}
  body>*:not(#printReport){display:none!important}
- #printReport{display:block!important;background:#fff!important;color:#111!important;font:9pt/1.42 Pretendard,"Malgun Gothic",Arial,sans-serif;font-variant-numeric:tabular-nums;print-color-adjust:economy;-webkit-print-color-adjust:economy}
+ #printReport{--font-ui:var(--font-print);display:block!important;background:#fff!important;color:#111!important;font:9pt/1.42 var(--font-print);font-variant-numeric:tabular-nums;print-color-adjust:economy;-webkit-print-color-adjust:economy}
  #printReport[data-paper="landscape"] {page:beam-pda-wide}
  #printReport *{box-sizing:border-box}
  #printReport :where(h1,h2,p,dl,dd){margin:0}

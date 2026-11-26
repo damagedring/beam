@@ -19,7 +19,7 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 
 | ID | Observable behavior |
 | --- | --- |
-| UX-09 | On a locked order with three expected units, a fourth scan records excess and the earlier three retain their accepted verdicts. |
+| UX-09 | The first excess scan stays on the selected order even if another order has room. Earlier scans keep their accepted verdicts; a nonblocking notice asks workers to separate all counted units of the SKU. |
 | UX-10 | Unknown input has its own verdict and leaves expected-quantity coverage unchanged. |
 | UX-11 | Progress reflects the active scope, and extra units of one SKU leave another SKU’s shortage unchanged. |
 | UX-12 | Reassignment offers only eligible orders, and reassignment and undo update totals while preserving the identity and order of surviving entries. |
@@ -48,6 +48,7 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 | UX-30 | Home opens the enabled workflows, and visiting Settings or Help leaves inspection work intact. |
 | UX-35 | Outbound defaults to Single order; linked assignments appear together in DAS without merging inspection scopes. |
 | UX-36 | Outbound defaults to showing eligible mapped picking locations without changing Returns settings. |
+| UX-37 | Returns links exactly one consistent original order automatically only when the customer name, phone and full shipping address match on both sides. Other matches require review, and an explicitly unlinked order stays unlinked with the currently loaded data. |
 
 ## Print and performance
 

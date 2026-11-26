@@ -11,15 +11,14 @@ const source = join(root, 'src');
 const destination = join(root, 'dist');
 const exampleModule = 'features/examples/cry-later-assets.js';
 const files = Object.freeze([
-  'index.html', 'app.js', exampleModule, 'app/navigation.js', 'import/workbook.js', 'import/mapping/profiles.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'features/cartons/workspace.js', 'features/cartons/model.js', 'features/cartons/outbound-receipts.js', 'domain/carton-verification.js', 'domain/expected-inventory-status.js', 'features/cartons/outbound-cartons.js', 'features/cartons/reference.js', 'ui/notice-strip.js',
+  'index.html', 'app.js', exampleModule, 'app/navigation.js', 'import/workbook.js', 'import/mapping/profiles.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'features/cartons/workspace.js', 'features/cartons/model.js', 'features/cartons/outbound-receipts.js', 'domain/carton-verification.js', 'domain/expected-inventory-status.js', 'domain/original-order-lookup.js', 'features/cartons/outbound-cartons.js', 'features/cartons/reference.js', 'ui/notice-strip.js','components/folder-reel/view.js',
   'components/product-identity/view.js', 'components/print/barcode.js', 'components/print/inspection-report.js',
-  'features/returns/quantities.js', 'features/returns/recovery.js', 'features/returns/scan-commands.js', 'platform/indexed-recovery.js', 'platform/inspection-input.js', 'platform/print.js', 'platform/scan-audio.js', 'platform/reference-fingerprint.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
+  'features/returns/quantities.js', 'components/inspection-progress/view.js', 'features/returns/recovery.js', 'features/returns/scan-commands.js', 'platform/indexed-recovery.js', 'platform/inspection-input.js', 'platform/print.js', 'platform/scan-audio.js', 'platform/reference-fingerprint.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/return-report.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
   'assets/geist-variable.woff2', 'assets/OFL-Geist.txt',
-  'assets/ibm-plex-sans-kr-bold.woff2', 'assets/OFL-IBMPlexSansKR.txt',
   'assets/source-code-pro.woff2', 'assets/OFL-SourceCodePro.txt',
 ]);
-const styles = ['styles/layers.css', 'styles/tokens/status.css', 'styles/tokens/typography.css', 'styles/tokens/controls.css', 'styles/glass.css', 'styles/workspace.css', 'features/returns/console.css', 'styles/receipt-paper.css', 'features/returns/quantities.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'features/cartons/workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'features/returns/receipts.css', 'components/product-identity/view.css', 'features/cartons/outbound-receipts.css'];
+const styles = ['styles/layers.css', 'styles/tokens/status.css', 'styles/tokens/typography.css', 'styles/tokens/controls.css', 'styles/glass.css', 'styles/workspace.css', 'features/returns/console.css', 'styles/receipt-paper.css', 'features/returns/quantities.css', 'features/returns/original-order.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'features/cartons/workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'features/returns/receipts.css', 'components/product-identity/view.css', 'features/cartons/outbound-receipts.css'];
 
 async function readSource(relative) {
   const file = join(source, relative);

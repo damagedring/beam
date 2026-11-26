@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
 import {runInNewContext} from 'node:vm';
+import {coverageReadout} from '../src/components/inspection-progress/view.js';
 
 const css=await readFile(new URL('../src/styles/workspace.css',import.meta.url),'utf8');
 const consoleCss=await readFile(new URL('../src/features/returns/console.css',import.meta.url),'utf8');
@@ -133,9 +134,14 @@ test('the scanner well never paints its containing console in either theme',()=>
  const well=styles.match(/([^{}]+)\{\s*background:var\(--scan-well\)!important/)?.[1]?.trim();
  assert.equal(well,'html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode');
  assert.match(consoleCss,/#beamTerminal #overviewStatus \.scan\{[^}]*background:transparent!important/);
- assert.match(styles,/#beamTerminal #scanform \.beam-scan-prompt\{color:var\(--status-info\)\}/);
+ assert.match(styles,/#beamTerminal #scanform \.beam-scan-prompt\{color:var\(--scan-text\)\}/);
  assert.ok(contrast('#505050','#f4f4f4')>=4.5);
  assert.ok(contrast('#bdbdbd','#252525')>=4.5);
+ assert.match(styles,/--tui-head:var\(--recent-sticky\)/);
+ assert.match(styles,/--tui-code:var\(--term-ink\)/);
+ assert.ok(contrast('#131313','#ff3939')>=4.5);
+ assert.ok(contrast('#131313','#f1ff55')>=4.5);
+
 });
 
 
@@ -144,11 +150,15 @@ test('overall progress cannot trade extra units of one SKU for missing units of 
  const source=app.slice(app.indexOf('function drawAsnProgress()'),app.indexOf('const $=id=>',app.indexOf('function drawAsnProgress()')));
  const map=new Map(),$=id=>{if(!map.has(id))map.set(id,{dataset:{},setAttribute(k,v){this[k]=v;}});return map.get(id);};
  const data={expected:6,actual:8,covered:5,percent:116,excess:2,phase:'excess',batch:8,unassigned:0,complete:false};
- runInNewContext(source+'\ndrawAsnProgress()',{$,state:{receipt:'ORD',scans:[]},language:'ko',tr:x=>x,setUI(){},Engine:{asnProgress:()=>data},isInspectionConfirmed:()=>false});
- assert.equal($('asnCoverageQuantity').textContent,'5 / 6 EA');
+ runInNewContext(source+'\ndrawAsnProgress()',{$,state:{receipt:'ORD',scans:[]},language:'ko',tr:x=>x,setUI(){},Engine:{asnProgress:()=>data},coverageReadout,isInspectionConfirmed:()=>false});
+ assert.equal($('asnCoverageQuantity').textContent,'정상 5 + 초과 2 + 확인 필요 1 / 전체 예정 6 EA');
  assert.equal($('asnCoverage').textContent,'116%');
  assert.equal($('asnCoverageDetails').textContent,'1개 남음 · 2개 초과');
  assert.ok($('asnProgressBar').value<100);
+ Object.assign(data,{expected:4,actual:3,covered:2,percent:50,excess:1});
+ runInNewContext(source+'\ndrawAsnProgress()',{$,state:{receipt:'ORD',scans:[]},language:'ko',tr:x=>x,setUI(){},Engine:{asnProgress:()=>data},coverageReadout,isInspectionConfirmed:()=>false});
+ assert.equal($('asnCoverageQuantity').textContent,'정상 2 + 초과 1 / 전체 예정 4 EA');
+ assert.equal($('asnProgressBar').value,50);
 });
 
 test('order progress is a single full-width sibling immediately beneath the order sheet controls',async()=>{
@@ -158,4 +168,62 @@ test('order progress is a single full-width sibling immediately beneath the orde
  assert.match(html,/id="orderCoverage"[\s\S]*?id="asnProgressBar"[\s\S]*?id="beamTerminal"[\s\S]*?id="lastScannedBar"/);
  assert.equal(html.match(/id="asnProgressBar"/g).length,1);
  assert.match(rail,/#orderCoverage\{[\s\S]*?margin:8px var\(--order-inset\) 0/);
+});
+
+test('Returns anchors the candidate callout to excess and keeps the blue progress fill independent of status',async()=>{
+ const [html,rail,workspace]=await Promise.all(['index.html','styles/inspection-rail.css','styles/workspace.css'].map(path=>readFile(new URL('../src/'+path,import.meta.url),'utf8')));
+ assert.doesNotMatch(html,/id="(?:otherAsnDetails|allocationNotice)"/);
+ assert.match(html,/id="returnExceptionStack">\s*<p id="returnMixHint"[\s\S]*?id="excessDetails"/);
+ assert.match(rail,/\.beam-coverage \.beam-coverage-meter\{color:color-mix\(in srgb,var\(--status-info\) 78%,var\(--info-ink\)\)/);
+ assert.doesNotMatch(rail,/#orderCoverage\[data-phase/);
+ assert.match(rail,/\.beam-progress-markers button[\s\S]*?color:var\(--coral-edge\)/);
+ assert.doesNotMatch(workspace,/#beamRawProgress,#asnProgressBar/);
+});
+
+test('Return sheet rail keeps order tools while the ASN list sits next to the party name',async()=>{
+ const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8');
+ const rail=html.slice(html.indexOf('id="returnSheetRail"'),html.indexOf('id="activeOrderSheet"'));
+ assert.match(rail,/id="orderTabs"[\s\S]+id="returnSheetTools"[\s\S]+id="activeOrderInfo"[\s\S]+id="receiptBarcode"/);
+ assert.doesNotMatch(rail,/id="(?:receipt|receiptToggle)"/);
+ assert.match(html,/<div class="beam-inspect-party">\s*<h1 id="beamWorkName"[\s\S]+?id="receiptToggle"[^>]*aria-controls="receiptList"[^>]*>[\s\S]+?href="#beam-glyph-info"\/>[\s\S]+?<input id="receipt"[\s\S]+?id="receiptList"/);
+ for(const id of ['activeOrderInfo','receiptToggle','receiptBarcode'])assert.equal(html.split('id="'+id+'"').length,2);
+});
+
+test('the Returns action says finish inspection in both outcomes and requires review for discrepancies',async()=>{
+ const src=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
+ const dialog=src.slice(src.indexOf('function openDifferenceConfirm('),src.indexOf('function fingerprintReadinessMessage('));
+ const button=src.slice(src.indexOf('function updateConfirmButton('),src.indexOf('var allocationEventId='));
+ const nodes=new Map(),calls=[],state={currentBatch:'one',receipt:'return-1'};
+ const $=id=>{
+  if(!nodes.has(id))nodes.set(id,{dataset:{},close(){calls.push('closed')},setAttribute(k,v){this[k]=v},removeAttribute(k){delete this[k]}});
+  return nodes.get(id);
+ };
+ let mode='report',signature='snapshot';
+ const ctx={$,state,language:'ko',inspectionReportState:()=>({mode}),completionState:()=>({mode}),inspectionCompletion:()=>null,allocationReviewEntries:()=>[],referenceFingerprintState:()=>({status:'ready'}),confirmationSignature:()=>signature,confirmationFingerprintGuard:()=>true,openUtilityDialog:(...args)=>calls.push(args),completeLocalInspection:outcome=>calls.push(outcome),notice:()=>calls.push('warning')};
+ const api=runInNewContext(dialog+button+'\n({openDifferenceConfirm,updateConfirmButton})',ctx);
+ api.updateConfirmButton();
+ assert.equal($('confirmInspection').textContent,'검수 완료');
+ assert.equal($('confirmInspection')['aria-haspopup'],'dialog');
+ assert.equal(api.openDifferenceConfirm(),true);
+ assert.equal($('confirmDifferenceTitle').textContent,'수량 또는 SKU 차이를 확인하고 검수를 완료할까요?');
+ assert.equal($('confirmDifferenceAccept').textContent,'검수 완료');
+ assert.equal(calls.at(-1)[2],'confirmDifferenceClose');
+ signature='changed';
+ $('confirmDifferenceAccept').onclick();
+ assert.equal(calls.at(-1),'warning');
+ assert.ok(!calls.includes('difference'));
+ assert.equal(api.openDifferenceConfirm(),true);
+ $('confirmDifferenceAccept').onclick();
+ assert.equal(calls.at(-1),'difference');
+ mode='matched';
+ api.updateConfirmButton();
+ assert.equal($('confirmInspection').textContent,'검수 완료');
+ assert.equal($('confirmInspection')['aria-haspopup'],undefined);
+ ctx.language='en';
+ mode='report';
+ api.updateConfirmButton();
+ assert.equal(api.openDifferenceConfirm(),true);
+ assert.equal($('confirmInspection').textContent,'Finish inspection');
+ assert.equal($('confirmDifferenceAccept').textContent,'Finish inspection');
+ assert.match($('confirmDifferenceTitle').textContent,/quantities or SKUs/);
 });

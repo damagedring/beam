@@ -33,6 +33,7 @@ function boot(profiles,active){
  assert.ok(source.includes('function chooseProfile'));
  const {MappingCore,returnChannelExact,returnChannelKey,returnChannelValues}=require('../dist/import/mapping/profiles.js');
  Object.assign(c,{MappingCore,returnChannelExact,returnChannelKey,returnChannelValues});
+ Object.assign(c,require('../dist/domain/return-report.js'));
  vm.runInContext(source+'\nMappingUI.init(); globalThis.api=MappingUI;',c);
  return {document,c,retries,read:()=>JSON.parse(state),shelf:elements.get('profileShelf'),details:elements.get('dataProfileDetails')};
 }

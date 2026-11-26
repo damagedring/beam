@@ -117,7 +117,7 @@ export function matchCartonScan(group,box,input,actual=0){
  const r=barcodes.has(value)?barcodes.get(value):skus.get(value);
  if(r===null)return {status:'conflict'};
  if(!r)return {status:'unexpected',key:null,value};
- return {status:quantityOutcome(actual,r.expected),key:r.key,value,name:r.name,sku:r.sku,barcode:r.barcode,...(r.brand?{brand:r.brand}:{}),expected:r.expected};
+ return {status:quantityOutcome(actual,r.expected),key:r.key,value,name:r.name,sku:r.sku,barcode:r.barcode,...(r.brand?{brand:r.brand}:{}),expected:r.expected,coverageEligible:barcodes.get(r.barcode)!==null};
 }
 export function cartonSearch(index,query){
  const value=codeKey(query).toLocaleLowerCase();

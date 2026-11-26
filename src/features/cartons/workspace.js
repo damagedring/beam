@@ -1,3 +1,4 @@
+import { attachProgressMarkers, coverageReadout } from '../../components/inspection-progress/view.js';
 import { inspectionCoverage } from '../../domain/reconcile.js';
 import { createCartonWork } from './model.js';
 import { createOutboundReceipts } from './outbound-receipts.js';
@@ -5,9 +6,27 @@ import { productIdentityMarkup } from '../../components/product-identity/view.js
 import { scannedProductLabel } from '../../domain/product-identity.js';
 import { cartonAdapter, cartonQuantityAliases, cartonSearch, codeKey, createCartonIndex, fields, aliases, outboundCandidates, outboundDispatch, outboundSearchScope } from '../../domain/carton-verification.js';
 
-export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglish,openLabels,openReport,openDispatch,dispatchProfile,cartonProfile,saveCartonMapping,showHome,notice,renderActivity,quantityLabel,audio,locationFor,syncLocation}){
+export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglish,openLabels,openReport,openDispatch,dispatchProfile,cartonProfile,saveCartonMapping,showHome,notice,renderActivity,quantityLabel,audio,locationFor,syncLocation,progressIcon}){
  const $=id=>document.getElementById(id), root=$('cartonWorkspace'), l=(ko,en)=>isEnglish()?en:ko;
  const work=createCartonWork(),combinedStatus=new Map();
+ const markers=attachProgressMarkers(document,isEnglish,progressIcon,{track:'cartonProgressTrack',markers:'cartonProgressMarkers',note:'cartonProgressNote'});
+ function writeCoverage(ids,p,options){
+  const [quantity,percent,meter,details]=ids.map($),value=coverageReadout(p,isEnglish(),options);
+  quantity.textContent=value.quantity;percent.textContent=value.percent;
+  meter.max=100;meter.value=value.fill;meter.dataset.phase=p.phase;
+  details.textContent=value.details;
+  meter.setAttribute('aria-valuetext',[value.quantity,value.percent,value.details].filter(Boolean).join(' · '));
+ }
+ function drawOutboundProgress(boxCoverage,rows){
+  const {covered,excess,unverified}=work.outboundOrderProgress(group);
+  const expected=group.qty,remaining=Math.max(0,expected-covered),actual=covered+excess;
+  const order={expected,covered,excess,remaining,phase:unverified?'warning':'progress',
+   percent:expected?(actual>expected?Math.max(101,Math.floor(actual/expected*100)):Math.floor(covered/expected*100)):null};
+  writeCoverage(['outboundOrderQuantity','outboundOrderPercent','outboundOrderMeter','outboundOrderDetails'],order,{unverified});
+  const unknown=rows.reduce((total,r)=>total+(r.unregistered||r.conflict?r.actual:0),0);
+  writeCoverage(['cartonCount','cartonPercent','cartonMeter','cartonCoverageDetails'],boxCoverage,{unverified:unknown,locked:locked()});
+  markers.update(scopeKey(),{events:work.outboundOverages(group,box),expected:boxCoverage.expected});
+ }
  let combinedFile=null;
  const receiptPicker=createOutboundReceipts($('outboundReceiptHost'),{l,onChoose:select,onDispatch:g=>openDispatch(dispatchContext(g)),isComplete:(g,key)=>work.locked('outbound',g,key)});
  let mode=null,group=null,box=null,loading=false,page=0,stage='search',outboundLocationOn=true,outboundKind='single';
@@ -42,7 +61,9 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    preserved:l('기존 검수 기록을 유지했어요. 새 RAW로 바꾸려면 시트를 다시 연결하세요.','Existing inspection work was kept. Link the sheet to switch to the new workbook.'),
    empty:l('이 작업의 시트에 검수할 수량이 없어요.','This workflow’s sheet has no quantities to verify.'),
   };
-  $('cartonSource').textContent=status==='preserved'?messages.preserved:view()?.name||messages[status]||(inventory?l('기준 파일을 연결하면 검색할 수 있어요.','Connect a workbook to search.'):l('PDA 피킹 결과를 연결하면 출고 박스를 확인할 수 있어요.','Connect a picking results export to see outbound cartons.'));
+  const source=view()?.name,reason=messages[status];
+  const previous=source&&reason?l('이전 기준 파일 사용 중: ','Using previous reference: ')+source:'';
+  $('cartonSource').textContent=[reason,previous].filter(Boolean).join(' · ')||source||(inventory?l('기준 파일을 연결하면 검색할 수 있어요.','Connect a workbook to search.'):l('PDA 피킹 결과를 연결하면 출고 박스를 확인할 수 있어요.','Connect a picking results export to see outbound cartons.'));
   $('cartonMapButton').hidden=stage!=='search'||!combinedFile||!status||status==='ready';
   $('cartonMapButton').disabled=loading;
   $('cartonFileButton').hidden=stage!=='search';
@@ -235,6 +256,11 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    };
    scopes.append(button);
   }
+  $('outboundOrderCoverage').hidden=!outbound||!ready;
+  $('cartonPercent').hidden=!outbound;
+  $('cartonMeter').classList.toggle('beam-coverage-meter',outbound);
+  $('cartonMeter').closest('.carton-coverage').classList.toggle('beam-coverage',outbound);
+  if(!ready||!outbound)markers.update(null,{events:[],expected:0});
   if(!ready)return;
   const rows=rowList(),p=inspectionCoverage(rows);
   const pct=p.percent===null?'—':p.percent+'%';
@@ -246,10 +272,13 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    p.complete?l(locked()?'검수 완료':'수량 일치 · 완료 대기',locked()?'Complete':'Ready to confirm'):'',
   ].filter(Boolean).join(' · ');
   $('cartonCoverageLabel').textContent=box===null?l('Location 전체 진행','Location progress'):l('박스 전체 진행','Carton progress');
-  $('cartonCount').textContent=coveredText;
-  $('cartonCoverageDetails').textContent=report;
-  const meter=$('cartonMeter');meter.max=p.expected||1;meter.value=p.covered;meter.dataset.phase=p.phase;
-  meter.setAttribute('aria-valuetext',[coveredText,report].filter(Boolean).join(' · '));
+  if(outbound)drawOutboundProgress(p,rows);
+  else{
+   $('cartonCount').textContent=coveredText;
+   $('cartonCoverageDetails').textContent=report;
+   const meter=$('cartonMeter');meter.max=p.expected||1;meter.value=p.covered;meter.dataset.phase=p.phase;
+   meter.setAttribute('aria-valuetext',[coveredText,report].filter(Boolean).join(' · '));
+  }
   $('cartonCurrent').textContent=box??l('Location 전체','Whole location');
   const last=work.latest(mode,group,box),readout=$('cartonLastItem');
   const item=scannedProductLabel(last?.name,last?.brand),badge=$('cartonLastBrand');
@@ -304,7 +333,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
     if(locations.length)product.append(make('div','Location · '+locations.join(' · '),{className:'carton-row-location'}));
    }
    const delta=r.actual-r.expected;
-   tr.append(status,identifiers,product,...[r.expected,r.actual,delta>0?'+'+delta:delta].map(v=>make('td',String(v),{className:'sheet-qty'})));
+   tr.append(identifiers,product,...[r.expected,r.actual,delta>0?'+'+delta:delta].map(v=>make('td',String(v),{className:'sheet-qty'})),status);
    tr.dataset.state=state;body.append(tr);
   }
  }
@@ -359,23 +388,28 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   input:{
    root,visible:()=>!root.hidden,
    canScan:()=>inspectionActive()&&!$('cartonScan').disabled,
-   back:()=>{if(loading)return false;back();return true;},
+   back:()=>{if(markers.dismiss())return true;if(loading)return false;back();return true;},
    scan:add,
   },
   applyCombined({file,results}){
    combinedFile=file;
+   const retained=[];
    for(const [kind,result] of Object.entries(results)){
     combinedStatus.set(kind,result.status);
-    if(result.status!=='ready')continue;
+    if(result.status!=='ready'){if(work.reference(kind))retained.push(kind);continue;}
     // A new combined workbook never implicitly discards this workflow's scans.
-    if(work.hasJobs(kind)){combinedStatus.set(kind,'preserved');continue;}
+    if(work.hasJobs(kind)){combinedStatus.set(kind,'preserved');retained.push(kind);continue;}
     work.connect(kind,file.name,result.index);
     if(mode===kind){group=null;box=null;stage='search';$('cartonQuery').value='';}
    }
    if(!root.hidden)render();
+   return retained;
   },
-  open(newMode){mode=newMode;outboundKind='single';group=null;box=null;page=0;stage='search';warn('');$('cartonQuery').value='';receiptPicker.update(searchIndex(),'',null,{reset:true,mode:newMode});root.hidden=false;root.inert=false;render();root.focus({preventScroll:true});},
-  hide(){root.hidden=true;root.inert=true;syncLocation();},
+  open(newMode){mode=newMode;outboundKind='single';group=null;box=null;page=0;stage='search';warn('');$('cartonQuery').value='';receiptPicker.update(searchIndex(),'',null,{reset:true,mode:newMode});root.hidden=false;root.inert=false;render();
+   if(mode==='outbound'&&matchMedia('(any-pointer: fine)').matches)focusStage('cartonQuery');
+   else root.focus({preventScroll:true});
+  },
+  hide(){markers.dismiss();root.hidden=true;root.inert=true;syncLocation();},
   locationMode,
   toggleLocation(){if(locationMode()===null)return false;outboundLocationOn=!outboundLocationOn;render();return true;},
   refresh(){if(!root.hidden)render();},

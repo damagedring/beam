@@ -51,11 +51,35 @@
 <symbol id="beam-glyph-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path stroke-width="2" d="m4.75 12.35 4.6 4.6 9.9-10"/></g></symbol>
 <symbol id="beam-glyph-prompt" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6.75 5.25 5.25L8 17.25"/></g></symbol>
 </defs></svg>
+<div id="beamNoticeSlot">
+<section id="beamRecoveryPanel" class="beam-notice-strip beam-recovery-prism" hidden aria-label="브라우저 작업 복구">
+ <div class="beam-notice-prism">
+  <div class="beam-notice-face" aria-hidden="true"></div>
+  <div class="beam-notice-face beam-notice-next">
+   <p id="beamRecoveryStatus" role="status" aria-live="polite"></p>
+   <div class="beam-recovery-actions">
+    <button type="button" id="beamRecoveryConnect" hidden>기준 자료 연결</button>
+    <button type="button" id="beamRecoverDraft" hidden>작업 복구</button>
+    <button type="button" id="beamKeepDraft" hidden>현재 작업으로 대체</button>
+    <button type="button" id="beamDiscardDraft" hidden>복구본 폐기</button>
+   </div>
+  </div>
+ </div>
+</section>
+<div id="beamNoticeStrip" class="beam-notice-strip" hidden aria-hidden="true"><div class="beam-notice-prism"><p class="beam-notice-face"></p><p class="beam-notice-face beam-notice-next"></p></div></div>
+</div>
+<span id="beamNoticeAnnounce" class="beam-sr" role="status" aria-live="polite"></span>
 <header>
+<div class="beam-masthead-mark" aria-hidden="true"><span class="beam-masthead-word" data-word="Beam">Beam</span></div>
 <div class="beam-identity">
+<div class="beam-header-nav">
 <button type="button" id="workSidebarToggle" class="beam-mark" aria-label="작업 사이드바" title="작업 사이드바" aria-controls="beamSidebar" aria-expanded="false">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-sidebar"/></svg>
 </button>
+<button type="button" id="beamHomeBack" hidden aria-controls="beamHome" aria-label="Beam 홈으로 돌아가기" title="Beam 홈으로 돌아가기">
+<span class="beam-home-spin" aria-hidden="true"><span class="beam-home-word-static">Beam</span><span class="beam-home-drum" hidden></span></span>
+</button>
+</div>
 <span class="beam-save-wrap">
 <span class="sr-only saved" id="saved" role="status">저장 전</span>
 <button hidden type="button" id="beamSaveHint" aria-label="변경사항 저장" title="변경사항 저장">
@@ -63,7 +87,6 @@
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-download"/></svg>
 </button>
 </span>
-<button type="button" id="beamHomeBack" hidden aria-controls="beamHome" data-ko="업무 선택" data-en="Work selection">업무 선택</button>
 <button type="button" id="beamBack" hidden aria-controls="beamSearch" aria-label="반품 주문 검색으로 돌아가기">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-chevron-left"/></svg>
 <span data-ko="반품 주문 검색" data-en="Return order search">반품 주문 검색</span>
@@ -132,13 +155,6 @@
  <p data-ko="다음 창에서 Google 계정을 선택한 뒤에만 새 파일을 만들어요." data-en="A new file is created only after you choose a Google account in the next window.">다음 창에서 Google 계정을 선택한 뒤에만 새 파일을 만들어요.</p>
  <button type="button" id="beamDriveProceed" data-ko="저장 창 열기" data-en="Open export window">저장 창 열기</button>
 </dialog>
-<div id="beamNoticeStrip" class="beam-notice-strip" hidden aria-hidden="true"><p></p></div>
-<span id="beamNoticeAnnounce" class="beam-sr" role="status" aria-live="polite"></span>
-<section id="beamRecoveryPanel" hidden aria-label="브라우저 작업 복구">
- <p id="beamRecoveryStatus" role="status" aria-live="polite"></p>
- <button type="button" id="beamRecoverDraft" hidden>작업 복구</button>
- <button type="button" id="beamKeepDraft" hidden>현재 작업 유지</button>
-</section>
 <span id="beamRecoverySaved" class="beam-sr" role="status" aria-live="polite"></span>
 <aside hidden inert id="beamSidebar" aria-labelledby="beamJobsTitle">
 <div class="beam-drawer-head">
@@ -149,8 +165,8 @@
 <div class="beam-drawer-foot"><button type="button" id="beamNewWork"><span data-ko="새 작업" data-en="New work">새 작업</span><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-add"/></svg></button></div>
 </aside>
 <main id="beamHome" aria-labelledby="beamHomeTitle" tabindex="-1">
- <h1 id="beamHomeTitle" class="beam-sr" data-ko="업무 선택" data-en="Work selection">업무 선택</h1>
- <ul class="beam-home-choices" aria-label="업무 선택">
+ <h1 id="beamHomeTitle" class="beam-sr" lang="en">Beam</h1>
+ <ul class="beam-home-choices" aria-label="업무 선택" data-ko-label="업무 선택" data-en-label="Work selection">
   <li id="beamHomeSlotInbound"><button type="button" id="beamHomeInbound" class="beam-home-word" aria-describedby="beamHomeInboundHint"><span class="beam-home-en" lang="en">Inbound</span> <span class="beam-home-ko" lang="ko">입고</span></button><small id="beamHomeInboundHint" data-ko="준비 중" data-en="Not yet available">준비 중</small></li>
   <li id="beamHomeSlotOutbound"><button type="button" id="beamHomeOutbound" class="beam-home-word" aria-describedby="beamHomeOutboundHint"><span class="beam-home-en" lang="en">Outbound</span> <span class="beam-home-ko" lang="ko">출고</span></button><small id="beamHomeOutboundHint" data-ko="박스별 검수" data-en="Verify by carton">박스별 검수</small></li>
   <li id="beamHomeSlotInventory"><button type="button" id="beamHomeInventory" class="beam-home-word" aria-describedby="beamHomeInventoryHint"><span class="beam-home-en" lang="en">Inventory</span> <span class="beam-home-ko" lang="ko">재고관리</span></button><small id="beamHomeInventoryHint" data-ko="Location·박스 실사" data-en="Count by location or carton">Location·박스 실사</small></li>
@@ -196,11 +212,20 @@
     <button id="cartonFinish" type="button" data-ko="검수 완료" data-en="Finish inspection">검수 완료</button>
    </div>
   </header>
-  <div class="carton-coverage">
-   <span id="cartonCoverageLabel"></span><output id="cartonCount"></output>
-   <progress id="cartonMeter" value="0" max="1" aria-labelledby="cartonCoverageLabel"></progress>
-   <span id="cartonCoverageDetails"></span>
-  </div>
+  <section id="outboundOrderCoverage" class="beam-coverage carton-order-coverage" aria-labelledby="outboundOrderCoverageLabel" hidden>
+   <div class="beam-coverage-head" aria-live="polite" aria-atomic="true"><span id="outboundOrderCoverageLabel" class="beam-coverage-title" data-ko="오더 전체 진행 · 이 브라우저" data-en="Order progress · This browser">오더 전체 진행 · 이 브라우저</span><strong id="outboundOrderQuantity" class="beam-coverage-quantity"></strong><strong id="outboundOrderPercent" class="beam-coverage-percent"></strong></div>
+   <progress id="outboundOrderMeter" class="beam-coverage-meter" value="0" max="100" aria-labelledby="outboundOrderCoverageLabel"></progress>
+   <span id="outboundOrderDetails" class="beam-coverage-details"></span>
+  </section>
+  <section class="carton-coverage" aria-labelledby="cartonCoverageLabel">
+   <div class="beam-coverage-head" aria-live="polite" aria-atomic="true"><span id="cartonCoverageLabel" class="beam-coverage-title"></span><strong id="cartonCount" class="beam-coverage-quantity"></strong><strong id="cartonPercent" class="beam-coverage-percent" hidden></strong></div>
+   <div id="cartonProgressTrack" class="beam-progress-track">
+    <progress id="cartonMeter" value="0" max="1" aria-labelledby="cartonCoverageLabel"></progress>
+    <div id="cartonProgressMarkers" class="beam-progress-markers" role="group" aria-label="초과 스캔 지점" data-ko-label="초과 스캔 지점" data-en-label="Excess scan points" hidden></div>
+    <div id="cartonProgressNote" class="beam-progress-note" role="region" aria-label="초과 스캔 상세" data-ko-label="초과 스캔 상세" data-en-label="Excess scan details" tabindex="-1" hidden></div>
+   </div>
+   <span id="cartonCoverageDetails" class="beam-coverage-details"></span>
+  </section>
   <div class="beam-term-bar"><strong data-ko="검수 콘솔" data-en="INSPECTION CONSOLE">검수 콘솔</strong></div>
   <div class="carton-overview">
   <form id="cartonScanForm" class="carton-action-row">
@@ -226,7 +251,7 @@
   <section class="carton-comparison" aria-labelledby="cartonComparisonTitle">
   <h4 id="cartonComparisonTitle" data-ko="현재 박스 대조결과" data-en="Carton comparison">현재 박스 대조결과</h4>
   <div class="carton-table"><table>
-   <thead><tr><th data-ko="상태" data-en="Status">상태</th><th>Barcode / SKU</th><th data-ko="제품명" data-en="Product">제품명</th><th data-ko="예정" data-en="Expected">예정</th><th data-ko="실물" data-en="Counted">실물</th><th data-ko="차이" data-en="Delta">차이</th></tr></thead>
+   <thead><tr><th class="carton-col-code">Barcode / SKU</th><th class="carton-col-product" data-ko="제품명" data-en="Product">제품명</th><th class="carton-col-qty" data-ko="예정" data-en="Expected">예정</th><th class="carton-col-qty" data-ko="실물" data-en="Counted">실물</th><th class="carton-col-qty" data-ko="차이" data-en="Delta">차이</th><th class="carton-col-status" data-ko="상태" data-en="Status">상태</th></tr></thead>
    <tbody id="cartonRows"></tbody>
   </table></div>
   <nav class="carton-pages" aria-label="Inventory rows"><button id="cartonPrev" type="button" data-ko="이전" data-en="Previous">이전</button><span id="cartonPage"></span><button id="cartonNext" type="button" data-ko="다음" data-en="Next">다음</button></nav>
@@ -247,8 +272,8 @@
   
   <div class="beam-input">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-search"/></svg>
-<label class="beam-sr" id="beamQueryLabel" for="beamQuery">매장명 또는 반송장번호</label>
-<input id="beamQuery" type="search" spellcheck="false" autocomplete="off" enterkeyhint="search" placeholder="매장명 또는 반송장번호" aria-describedby="beamSearchStatus">
+<label class="beam-sr" id="beamQueryLabel" for="beamQuery">매장명 / 반송장번호 / 외부 주문 ID</label>
+<input id="beamQuery" type="search" spellcheck="false" autocomplete="off" enterkeyhint="search" placeholder="매장명 / 반송장번호 / 외부 주문 ID" aria-describedby="beamSearchStatus">
 </div>
   <div class="beam-narrow" id="beamNarrow" hidden>
 <label for="beamSku" data-ko="SKU 또는 반송장번호로 좁히기" data-en="Narrow by SKU or return tracking">SKU 또는 반송장번호로 좁히기</label>
@@ -260,7 +285,7 @@
  <div id="beamRawAnnounce" class="beam-sr" role="status" aria-live="polite">
 </div>
  <div id="beamRawStatus" class="beam-raw-status" hidden>
-<p id="beamRawMessage" role="status" aria-live="polite">
+<p id="beamRawMessage" class="beam-notice-source" aria-hidden="true">
 </p>
 <progress id="beamRawProgress" aria-label="통합 RAW 불러오기" max="100">
 </progress>
@@ -277,6 +302,9 @@
 </p>
 </div>
  <div class="beam-stage" id="beamStage" role="group" aria-label="반품 주문 후보">
+<button type="button" id="beamFolderReceiptOpen" hidden aria-label="영수증 펼쳐보기" aria-haspopup="dialog" aria-controls="beamFolderReceiptDialog">
+<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-expand"/></svg>
+</button>
 </div>
  <div class="beam-empty" id="beamEmpty" hidden>
 <strong id="beamEmptyTitle">
@@ -290,16 +318,13 @@
 <span>검수 시작</span>
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-diagonal"/></svg>
 </button>
+  <button id="returnOriginalSearch" class="return-original-link" type="button" aria-haspopup="dialog" aria-controls="returnOriginalDialog" hidden>원주문 찾기</button>
   <div id="beamFolderActions" hidden>
   <div class="beam-folder-pager">
   <button type="button" id="beamFolderPeekPrev" aria-label="폴더 안 이전 영수증" data-ko-label="폴더 안 이전 영수증" data-en-label="Previous receipt in folder"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-arrow-left"/></svg></button>
   <span id="beamFolderPage" role="status" aria-atomic="true"></span>
   <button type="button" id="beamFolderPeekNext" aria-label="폴더 안 다음 영수증" data-ko-label="폴더 안 다음 영수증" data-en-label="Next receipt in folder"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-arrow-right"/></svg></button>
   </div>
-  <button type="button" id="beamFolderReceiptOpen" hidden aria-haspopup="dialog" aria-controls="beamFolderReceiptDialog">
-<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-expand"/></svg>
-<span data-ko="영수증 펼쳐보기" data-en="Unfold receipt">영수증 펼쳐보기</span>
-</button>
   </div>
   <div id="beamBrowse" hidden>
 <button id="beamPrev" type="button" aria-label="이전 ASN"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-arrow-left"/></svg></button>
@@ -348,7 +373,17 @@
 <section id="inspectionOrderSurface" class="inspection-sheet" aria-label="선택 주문 검수 시트" data-ko-label="선택 주문 검수 시트" data-en-label="Selected order inspection sheet">
 <section id="orderWorkspace" aria-label="현재 작업 안의 ASN">
 <div class="order-workspace-top">
+<div id="returnSheetRail">
 <div id="orderTabs" class="inspection-sheet-tabs" role="group" aria-label="오더 시트" data-ko-label="오더 시트" data-en-label="Order sheets"></div>
+<div id="returnSheetTools" role="group" aria-label="오더 시트 도구">
+<button type="button" class="order-sheet-action order-info-button" id="activeOrderInfo" data-order-info="" aria-expanded="false" aria-label="오더 검수 정보" aria-haspopup="dialog" aria-controls="orderInfoPopover">
+<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-info"/></svg>
+</button>
+<button id="receiptBarcode" type="button" aria-label="Order ID PDA 바코드" title="Order ID PDA 바코드" aria-haspopup="dialog" aria-controls="receiptBarcodeDialog" disabled>
+<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-barcode"/></svg>
+</button>
+</div>
+</div>
 <section id="activeOrderSheet" class="overview-asn order-selector" aria-labelledby="overviewAsnLabel">
 <div class="overview-asn-heading">
 <label id="overviewAsnLabel" class="asn-status-accessible" for="receipt">
@@ -361,22 +396,12 @@
 <div class="asn-combobox">
 <span id="selectedInternalLabel" class="asn-key-label">Order ID · —</span>
 <div class="receipt-entry">
-<input id="receipt" role="combobox" aria-label="External order ID" aria-describedby="selectedExternalKey" aria-expanded="false" aria-controls="receiptList" aria-autocomplete="list" autocomplete="off" placeholder="주문번호 또는 고객명 검색">
 <span id="activeAsnMark">
 </span>
 <button id="newreceipt" class="header-target-lock" hidden type="button" aria-pressed="false">검수 대상 고정</button>
-<button type="button" class="order-sheet-action order-info-button" id="activeOrderInfo" data-order-info="" aria-expanded="false" aria-label="오더 검수 정보" aria-haspopup="dialog" aria-controls="orderInfoPopover">
-<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-info"/></svg>
-</button>
-<button id="receiptToggle" type="button" aria-label="ASN 목록" title="ASN 목록" aria-haspopup="listbox" aria-controls="receiptList" aria-expanded="false">
-<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-chevron-down"/></svg>
-</button>
-<button id="receiptBarcode" type="button" aria-label="Order ID PDA 바코드" title="Order ID PDA 바코드" aria-haspopup="dialog" aria-controls="receiptBarcodeDialog" disabled>
-<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-barcode"/></svg>
-</button>
 <div id="currentAsnActions" role="group" aria-label="현재 ASN 검수 작업" hidden>
 <button id="confirmInspection" type="button" aria-describedby="confirmHint" disabled>검수 완료</button>
-<button id="directReport" type="button" aria-haspopup="dialog" aria-controls="reportDialog" hidden>검수 보고</button>
+<button id="directReport" type="button" aria-haspopup="dialog" aria-controls="reportDialog" hidden>보고용 메시지</button>
 <button id="orderMixReview" type="button" aria-haspopup="dialog" aria-controls="allocationDialog" hidden>배정 검토</button>
 <button id="asnShare" type="button" title="PDF 저장" aria-label="현재 ASN PDF 저장" aria-haspopup="dialog" aria-controls="asnShareDialog">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-share"/></svg>
@@ -386,10 +411,9 @@
 </span>
 </div>
 </div>
+<button id="returnOriginalInspect" class="return-original-link" type="button" aria-haspopup="dialog" aria-controls="returnOriginalDialog" hidden>원주문 찾기</button>
 <span id="selectedExternalKey" class="asn-external-key">
 </span>
-<div id="receiptList" role="listbox" aria-label="ASN 목록" class="hidden">
-</div>
 </div>
 </div>
 </div>
@@ -400,14 +424,26 @@
 </span>
 </div>
 </section>
-<section id="orderCoverage" class="asn-coverage" aria-labelledby="orderCoverageTitle" aria-live="polite" aria-atomic="true">
-<div class="beam-coverage-head"><span id="orderCoverageTitle" data-ko="오더 전체 진행" data-en="Order progress">오더 전체 진행</span><strong id="asnCoverageQuantity"></strong><strong id="asnCoverage"></strong></div>
-<progress id="asnProgressBar" max="100" value="0" aria-label="오더 전체 진행률" data-ko-label="오더 전체 진행률" data-en-label="Overall order progress"></progress>
-<span id="asnCoverageDetails"></span>
+<section id="orderCoverage" class="asn-coverage beam-coverage" aria-labelledby="orderCoverageTitle">
+<div class="beam-coverage-head" aria-live="polite" aria-atomic="true"><span id="orderCoverageTitle" class="beam-coverage-title" data-ko="오더 전체 진행" data-en="Order progress">오더 전체 진행</span><strong id="asnCoverageQuantity" class="beam-coverage-quantity"></strong><strong id="asnCoverage" class="beam-coverage-percent"></strong></div>
+<div class="beam-progress-track" id="returnProgressTrack">
+<progress id="asnProgressBar" class="beam-coverage-meter" max="100" value="0" aria-label="오더 전체 진행률" data-ko-label="오더 전체 진행률" data-en-label="Overall order progress"></progress>
+<div id="returnProgressMarkers" class="beam-progress-markers" role="group" aria-label="초과 스캔 지점" hidden></div>
+<div id="returnProgressNote" class="beam-progress-note" role="region" aria-label="초과 스캔 상세" tabindex="-1" hidden></div>
+</div>
+<span id="asnCoverageDetails" class="beam-coverage-details"></span>
 </section>
 <div class="beam-inspect-identity">
+<div class="beam-inspect-party">
 <h1 id="beamWorkName" hidden>
 </h1>
+<button id="receiptToggle" type="button" aria-label="ASN 목록" title="ASN 목록" aria-haspopup="listbox" aria-controls="receiptList" aria-expanded="false">
+<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-info"/></svg>
+</button>
+</div>
+<input id="receipt" role="combobox" aria-label="External order ID" aria-describedby="selectedExternalKey" aria-expanded="false" aria-controls="receiptList" aria-autocomplete="list" autocomplete="off" placeholder="주문번호 또는 고객명 검색">
+<div id="receiptList" role="listbox" aria-label="ASN 목록" class="hidden">
+</div>
 <div id="overviewTracking" hidden>
 <span id="overviewTrackingLabel">반송장번호</span>
 <span id="overviewTrackingValues">
@@ -543,6 +579,8 @@
 <div id="overviewExtra">
 <p id="mobileBatchCount" class="mobile-batch-count">
 </p>
+<div id="returnExceptionStack">
+<p id="returnMixHint" role="status" hidden></p>
 <div class="count-exceptions" role="group" aria-label="확인할 항목">
 <button class="metric discrepancy-trigger" id="missingDetails" type="button" aria-expanded="false" aria-controls="discrepancyPopover">
 <span>부족 수량</span>
@@ -558,13 +596,6 @@
 <span class="metric-unit">EA</span>
 </span>
 </button>
-<button class="metric" id="otherAsnDetails" type="button" aria-haspopup="dialog" aria-controls="otherAsnDialog" hidden>
-<span>다른 ASN 혼입 후보</span>
-<span class="metric-quantity">
-<b id="otherAsnCount">0</b>
-<span class="metric-unit">EA</span>
-</span>
-</button>
 <button class="metric discrepancy-trigger" id="outsideDetails" type="button" aria-expanded="false" aria-controls="discrepancyPopover">
 <span>미확인 바코드<small id="unverifiedScope" class="sheet-scope-note">
 </small>
@@ -574,6 +605,7 @@
 <span class="metric-unit">EA</span>
 </span>
 </button>
+</div>
 </div>
 </div>
 </div>
@@ -591,10 +623,6 @@
 </div>
 <div id="discrepancyProducts">
 </div>
-</section>
-<section id="allocationNotice" class="hidden" role="status">
-<span id="allocationHint">
-</span>
 </section>
 <div class="inspection-workbench" aria-label="입력 기록과 검수 대조">
 <section id="scanActivitySection" class="scan-activity" aria-labelledby="scanActivityTitle">
@@ -637,12 +665,12 @@
 <table>
 <thead>
 <tr>
-<th>상태</th>
 <th>바코드 / SKU</th>
 <th data-ko="상품명 · 피킹 위치" data-en="Product · Picking location">상품명 · 피킹 위치</th>
 <th class="num">전산 수량</th>
 <th class="num">실물</th>
 <th class="num">차이량</th>
+<th class="comparison-status" scope="col">상태</th>
 </tr>
 </thead>
 <tbody id="rows">
@@ -738,26 +766,56 @@
 </div>
 <div id="receiptBarcodeTicket">
 </div>
+<button id="returnOriginalBarcode" class="return-original-link" type="button" aria-haspopup="dialog" aria-controls="returnOriginalDialog" hidden>원주문 찾기</button>
+</dialog>
+<dialog id="returnOriginalDialog" aria-labelledby="returnOriginalTitle">
+<div class="dialog-heading">
+ <h2 id="returnOriginalTitle" data-ko="원주문 찾기" data-en="Find original order">원주문 찾기</h2>
+ <button type="button" id="returnOriginalClose" data-ko-label="닫기" data-en-label="Close" aria-label="닫기" autofocus><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#beam-glyph-close"/></svg></button>
+</div>
+<form id="returnOriginalForm">
+ <label for="returnOriginalTracking" data-ko="원운송장번호" data-en="Original tracking number">원운송장번호</label>
+ <div><input id="returnOriginalTracking" type="search" maxlength="160" autocomplete="off" autocapitalize="off" spellcheck="false" data-ko-placeholder="반송장에 적힌 원운송장번호" data-en-placeholder="Original tracking printed on the return label" placeholder="반송장에 적힌 원운송장번호"><button type="submit" data-ko="검색" data-en="Search">검색</button></div>
+ <details id="returnOriginalExtra">
+ <summary data-ko="전화번호·주소로 찾기" data-en="Search by phone or address">전화번호·주소로 찾기</summary>
+ <label for="returnOriginalPhone" data-ko="전화번호" data-en="Phone number">전화번호</label>
+ <input id="returnOriginalPhone" type="tel" maxlength="80" autocomplete="off">
+ <label for="returnOriginalAddress" data-ko="배송 주소" data-en="Shipping address">배송 주소</label>
+ <input id="returnOriginalAddress" maxlength="512" autocomplete="off">
+ </details>
+</form>
+<p id="returnOriginalLinked"></p>
+<button type="button" id="returnOriginalUnlink" hidden data-ko="연결 해제" data-en="Unlink">연결 해제</button>
+<div id="phoneOrderResults" aria-live="polite"></div>
+</dialog>
+<dialog id="beamDiscardRecoveryDialog" aria-labelledby="beamDiscardRecoveryTitle" aria-describedby="beamDiscardRecoveryDescription">
+<div class="dialog-heading">
+<h2 id="beamDiscardRecoveryTitle" data-ko="복구본을 폐기할까요?" data-en="Discard this recovery copy?">복구본을 폐기할까요?</h2>
+</div>
+<p id="beamDiscardRecoveryDescription" data-ko="이 브라우저에 저장된 복구본만 삭제돼요. 현재 작업과 기준 자료는 그대로 남아요." data-en="Only this recovery copy in your browser will be deleted. Current work and reference data stay unchanged.">이 브라우저에 저장된 복구본만 삭제돼요. 현재 작업과 기준 자료는 그대로 남아요.</p>
+<form method="dialog" class="beam-recovery-dialog-actions">
+<button type="submit" value="cancel" autofocus data-ko="취소" data-en="Cancel">취소</button>
+<button type="submit" value="discard" data-ko="복구본 폐기" data-en="Discard recovery">복구본 폐기</button>
+</form>
 </dialog>
 <dialog id="confirmDifferenceDialog" aria-labelledby="confirmDifferenceTitle">
 <div class="dialog-heading">
-<h2 id="confirmDifferenceTitle">ASN과 실제 입고 SKU 또는 수량이 상이한 상황이 맞나요?</h2>
+<h2 id="confirmDifferenceTitle">수량 또는 SKU 차이를 확인하고 검수를 완료할까요?</h2>
 </div>
 <div class="confirm-difference-actions">
 <button id="confirmDifferenceClose" type="button" autofocus>Cancel</button>
-<button id="confirmDifferenceAccept" type="button">Yes</button>
+<button id="confirmDifferenceAccept" type="button">검수 완료</button>
 </div>
 </dialog>
 <dialog id="reportDialog" aria-labelledby="reportDialogTitle">
 <div class="dialog-heading">
-<h2 id="reportDialogTitle">고객 안내문</h2>
+<h2 id="reportDialogTitle" data-ko="보고용 메시지" data-en="Report message">보고용 메시지</h2>
 <button id="reportClose" type="button" aria-label="닫기" title="닫기"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-close"/></svg></button>
 </div>
 <div id="confirmationPanel">
-<label for="confirmationText">고객 안내문</label>
 <p id="reportNotice" role="status">
 </p>
-<textarea id="confirmationText" readonly rows="8">
+<textarea id="confirmationText" aria-labelledby="reportDialogTitle" readonly rows="8">
 </textarea>
 <div class="report-actions">
 <button id="copyConfirmation" type="button" disabled>안내문 복사</button>
@@ -893,10 +951,12 @@
 </div>
 <p id="allocationProduct">
 </p>
+<p id="allocationGuidance"></p>
 <div id="allocationCandidates">
 </div>
 <p id="allocationError" role="alert">
 </p>
+<button id="allocationKeep" type="button" hidden>현재 ASN에 그대로 두기</button>
 <button id="allocationReport" type="button" hidden>현재 ASN 차이 보고</button>
 </dialog>
 <dialog id="newWorkDialog" aria-labelledby="newWorkTitle">
@@ -922,7 +982,6 @@
 <details>
 <summary>Font licenses</summary>
 <p class="small">Geist · <a href="./assets/OFL-Geist.txt">SIL Open Font License 1.1</a></p>
-<p class="small">IBM Plex Sans KR · <a href="./assets/OFL-IBMPlexSansKR.txt">SIL Open Font License 1.1</a></p>
 <p class="small">Source Code Pro · <a href="./assets/OFL-SourceCodePro.txt">SIL Open Font License 1.1</a></p>
 <pre id="fontlicense">Copyright (c) 2021, Kil Hyung-jin (https://github.com/orioncactus/pretendard),
 with Reserved Font Name Pretendard.
@@ -1040,6 +1099,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</pre>
 </div>
 <div class="beam-long-receipt-foot">
  <p id="beamFolderReceiptTotal"></p>
+ <button id="returnOriginalFolder" class="return-original-link" type="button" aria-haspopup="dialog" aria-controls="returnOriginalDialog" hidden>원주문 찾기</button>
  <div id="beamFolderReceiptNav" hidden>
   <button type="button" id="beamFolderReceiptPrev" aria-label="이전 영수증" data-ko-label="이전 영수증" data-en-label="Previous receipt"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-arrow-left"/></svg></button>
   <span id="beamFolderReceiptPosition" role="status" aria-atomic="true"></span>
@@ -1080,10 +1140,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</pre>
 </dialog>
 <article id="printReport">
 </article>
-<footer id="beamFooter" aria-label="Beam">
- <div class="beam-footer-word" lang="en">BEAM</div>
- <span class="beam-footer-kicker" lang="en">Warehouse<br>operations</span>
-</footer>
 <input id="file" type="file" accept=".xlsx,.xlsm" class="hidden">
 <input id="backup" type="file" accept=".json" class="hidden">
 </body></html>

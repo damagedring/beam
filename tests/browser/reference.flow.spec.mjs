@@ -1,7 +1,8 @@
 import { expect } from '@playwright/test';
 import { buffer } from 'node:stream/consumers';
 import { fileURLToPath } from 'node:url';
-import { enterScan, test } from './beam-fixture.mjs';
+import { chooseOutboundCarton, enterScan, loadCartons, openCartons, test } from './beam-fixture.mjs';
+import { zip } from '../fixtures/scan-workload.mjs';
 
 const originalMapping = {
   '주문 식별자': 'A · Intake ID',
@@ -289,3 +290,67 @@ test('UX-05 B2B uses store names and B2C uses customer names and preserves track
   await expect(page.getByRole('button', { name: /Mira Example · 주문 1/ })).toBeVisible();
   await expect(page.locator('#barcode')).toBeHidden();
 });
+
+test('combined import reports an invalid picking refresh without losing the previous carton or scan', async ({beam: page}) => {
+  await loadCartons(page,'Outbound');
+  await chooseOutboundCarton(page,'OUT-1','BOX-1');
+  await enterScan(page.locator('#cartonScan'),'0001234567890');
+  await expect(page.locator('#cartonCount')).toContainText('정상 1 / 전체 예정 3');
+  await page.locator('#beamHomeBack').click();
+  const current=page.locator('.beam-home-word[aria-current=true]');
+  for(let i=0;i<4&&(await current.getAttribute('id'))!=='beamHomeReturns';i++)await current.press('ArrowRight');
+  await expect(current).toHaveAttribute('id','beamHomeReturns');
+  await current.press('Enter');
+
+  const settings = await referenceSettings(page);
+  await chooseReferenceFile(page,settings,invalidPickingWorkbook());
+  const columns=await mapWorkbook(page,'Fictional Annex',annexMapping);
+  await mapConfirm(columns).click();
+  await expect(page.locator('#beamRawAnnounce')).toHaveText('RAW 연결 완료 · 반품 예정 1행 · 출고 이전 기준 유지');
+  await page.locator('#beamQuery').fill('Gamma Annex');
+  await expect(page.getByRole('button',{name:/Gamma Annex · 주문 1/})).toBeVisible();
+
+  await page.locator('#beamHomeBack').click();
+  await openCartons(page,'Outbound');
+  await expect(page.locator('#cartonSource')).toHaveText('이 작업의 시트에서 읽을 수 없는 값이 있어요. · 이전 기준 파일 사용 중: cartons.xlsx');
+  await expect(page.locator('#cartonMapButton')).toBeVisible();
+  await chooseOutboundCarton(page,'OUT-1','BOX-1');
+  await expect(page.locator('#cartonCount')).toContainText('정상 1 / 전체 예정 3');
+});
+
+test('the same invalid picking sheet without a previous source never enables outbound search', async ({beam: page}) => {
+  await page.getByRole('button',{name:/Returns/}).click();
+  await chooseReferenceFile(page,await referenceSettings(page),invalidPickingWorkbook());
+  await mapConfirm(await mapWorkbook(page,'Fictional Annex',annexMapping)).click();
+  await expectImported(page,1);
+
+  await page.locator('#beamHomeBack').click();
+  await openCartons(page,'Outbound');
+  await expect(page.locator('#cartonSource')).toHaveText('이 작업의 시트에서 읽을 수 없는 값이 있어요.');
+  await expect(page.locator('#cartonSearchButton')).toBeDisabled();
+  await expect(page.locator('#cartonMapButton')).toBeVisible();
+});
+
+function invalidPickingWorkbook() {
+  const spreadsheet='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const relationship='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const sheets=[
+    ['Fictional Annex', [
+      ['Synthetic combined import'],
+      ['Annex units','Annex shop','Annex key','Annex code','Annex title','Annex barcode','Annex waybill'],
+      ['2','Gamma Annex','ANNEX-1','SKU-A','Fictional article','0001234567890','1234567890'],
+    ]],
+    ['Picking Results', [
+      ['Order ID','Carton Label ID','Product Barcode','SKU','Product Name','Picked Units','Destination Store'],
+      ['NEW-ORDER','NEW-CARTON','0001234567890','SKU-A','Fictional article','not a quantity','Gamma Annex'],
+    ]],
+  ];
+  const sheetXml=rows=>`<worksheet xmlns="${spreadsheet}"><sheetData>${rows.map((values,i)=>
+    `<row r="${i+1}">${values.map((value,j)=>`<c r="${String.fromCharCode(65+j)}${i+1}" t="inlineStr"><is><t>${value}</t></is></c>`).join('')}</row>`
+  ).join('')}</sheetData></worksheet>`;
+  return {name:'synthetic-partial-refresh.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:zip({
+    'xl/workbook.xml':`<workbook xmlns="${spreadsheet}" xmlns:r="${relationship}"><sheets>${sheets.map(([name],i)=>`<sheet name="${name}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`,
+    'xl/_rels/workbook.xml.rels':`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="${relationship}/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}</Relationships>`,
+    ...Object.fromEntries(sheets.map(([,rows],i)=>[`xl/worksheets/sheet${i+1}.xml`,sheetXml(rows)])),
+  })};
+}

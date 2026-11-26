@@ -31,6 +31,25 @@ export function createIndexedRecoveryStore(getIndexedDB=()=>globalThis.indexedDB
  return {
   read:key=>operate('readonly',(s,finish)=>{const req=s.get(key);req.onsuccess=()=>finish(req.result??null);}),
   hasDraft:()=>operate('readonly',(s,finish)=>{const req=s.openKeyCursor();req.onsuccess=()=>finish(!!req.result);}),
+  inspectDrafts:()=>operate('readonly',(s,finish)=>{
+   const cursor=s.openKeyCursor();let key;
+   cursor.onsuccess=()=>{
+    if(cursor.result){
+     if(key!==undefined){finish({exists:true,entry:null});return;}
+     key=cursor.result.primaryKey;cursor.result.continue();return;
+    }
+    if(key===undefined){finish({exists:false,entry:null});return;}
+    const req=s.get(key);req.onsuccess=()=>{
+     const draft=req.result;finish({exists:true,entry:draft?{key,revision:draft.revision,savedAt:draft.savedAt}:null});
+    };
+   };
+  }),
+  discard:(key,revision)=>operate('readwrite',(s,finish)=>{
+   const req=s.get(key);req.onsuccess=()=>{
+    if(!req.result||req.result.revision!==revision){finish(false);return;}
+    s.delete(key);finish(true);
+   };
+  }),
   write:(entry,expected)=>operate('readwrite',(s,finish)=>{
    const req=s.get(entry.key);req.onsuccess=()=>{if((req.result?.revision??null)!==expected){finish(false);return;}s.put(entry);finish(true);};
   }),

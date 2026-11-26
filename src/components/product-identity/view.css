@@ -19,7 +19,7 @@
 @media print{.product-brand-inline{--brand-badge-bg:#fff;--brand-badge-size:6.5pt;--brand-badge-border:.15mm solid #777}}
 
 @media screen{
- html:not([data-theme=dark]) .scan-brand-badge:not([hidden]){
+ .scan-brand-badge:not([hidden]){
   --brand-badge-bg:#171717;--brand-badge-border:0;color:#fff;
  }
 }

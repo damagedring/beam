@@ -6,6 +6,8 @@ The carton table and ledger keep the established neutral marks for matching or u
 
 `src/styles/tokens/typography.css` owns the UI, reading and terminal font stacks. `src/styles/tokens/controls.css` supplies the shared touch target size. Component geometry, density and animation sequences live with the corresponding view. `src/styles/receipt-paper.css` supplies the paper stock and perforation shared by Returns and Outbound. Each feature's receipt stylesheet controls its own spacing, reel, preview and touch treatment.
 
+Geist leads Latin UI and display text; locally bundled Pretendard renders Hangul, including in mixed-script titles. Scan input retains Source Code Pro for Latin and uses Pretendard where needed for Hangul. Print remains Pretendard for both scripts. Uncovered glyphs can use the system fallback.
+
 | Appearance | Owner |
 | --- | --- |
 | Product name and brand badge | `components/product-identity/view.css` |

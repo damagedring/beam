@@ -44,14 +44,9 @@ test('UX-22/28 Outbound receipt, identity and label preview', async ({ beam: pag
   for (let i = 0; i < 3; i++) await enterScan(page.locator('#cartonScan'), '0001234567890');
   await enterScan(page.locator('#cartonScan'), 'fictional-unknown');
   await expect(page.locator('#cartonMeter')).toHaveAttribute('data-phase', 'excess');
-  await expect(page.locator('#cartonMeter')).toHaveCSS('color', await page.locator('#cartonMeter').evaluate(m => {
-    const sample = document.createElement('span');
-    sample.style.color = 'var(--excess-ink)';
-    m.parentElement.append(sample);
-    const ink = getComputedStyle(sample).color;
-    sample.remove();
-    return ink;
-  }));
+  await expect(page.locator('#cartonMeter')).toHaveCSS('color', await page.locator('#outboundOrderMeter').evaluate(m => getComputedStyle(m).color));
+  await expect(page.locator('#cartonProgressMarkers button')).toHaveCount(1);
+  await expect(page.locator('#cartonCount')).toContainText('초과 1 + 확인 필요 1');
   await expect(page).toHaveScreenshot('outbound-excess.png');
   await page.locator('#theme').click();
   await expect(page).toHaveScreenshot('outbound-excess-dark.png');
@@ -68,7 +63,7 @@ test.describe('1280 × 720 viewport', () => {
     await page.evaluate(() => document.fonts.ready);
     await expect(page).toHaveScreenshot('returns-folders.png');
     await query.press('Enter');
-    await page.locator('#beamFolderReceiptOpen').click();
+    await page.locator('#beamFolderReceiptOpen').press('Space');
     await expect(page.locator('#beamFolderReceiptDialog')).toBeVisible();
     await expect(page).toHaveScreenshot('returns-folder-receipt.png');
     await page.keyboard.press('Escape');

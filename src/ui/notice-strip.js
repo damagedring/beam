@@ -8,7 +8,7 @@ export function createNoticeStrips(doc,globalStrip) {
   if(!state){state={active:null,pending:[],timer:0};states.set(strip,state);}
   return state;
  };
- const duration=(strip,track)=>Math.max(6200,Math.min(24000,(strip.clientWidth+track.scrollWidth)/0.14));
+ const holdTime=text=>Math.max(6800,Math.min(18000,2500+[...text].length*70));
  function end(strip){
   const s=playing(strip);
   clearTimeout(s.timer);s.active=null;strip.hidden=true;
@@ -22,17 +22,18 @@ export function createNoticeStrips(doc,globalStrip) {
  }
  function start(strip,notice){
   const s=playing(strip);s.active=notice;
-  const track=strip.firstElementChild;
+  const prism=strip.firstElementChild;
+  const [face,nextFace]=prism.children;
+  const ms=holdTime(notice.text);
+  const reduce=doc.defaultView.matchMedia('(prefers-reduced-motion: reduce)').matches;
   clearTimeout(s.timer);
-  strip.hidden=true;track.textContent=notice.text;
-  strip.dataset.tone=notice.tone;strip.classList.remove('is-running');
+  strip.hidden=true;face.textContent=nextFace.textContent=notice.text;
+  strip.dataset.tone=notice.tone;strip.dataset.scope=notice.scope;strip.classList.remove('is-running');
+  strip.style.setProperty('--notice-hold',ms+'ms');
   strip.hidden=false;
-  const ms=duration(strip,track),reduce=doc.defaultView.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  strip.style.setProperty('--notice-duration',ms+'ms');
-  strip.style.setProperty('--notice-start',strip.clientWidth+'px');
-  void strip.offsetWidth;
+  strip.style.setProperty('--notice-depth',face.offsetHeight/2+'px');
   strip.classList.add('is-running');
-  s.timer=setTimeout(()=>end(strip),reduce?8350:ms+550);
+  s.timer=setTimeout(()=>end(strip),ms+(reduce?150:1370));
  }
  function target(dialog){
   if(!dialog)return globalStrip;
@@ -40,18 +41,22 @@ export function createNoticeStrips(doc,globalStrip) {
   if(!strip){
    strip=doc.createElement('div');strip.className='beam-notice-strip';
    strip.hidden=true;strip.setAttribute('aria-hidden','true');
-   strip.append(doc.createElement('p'));dialog.prepend(strip);
+   const prism=doc.createElement('div');prism.className='beam-notice-prism';
+   const face=doc.createElement('p'),nextFace=doc.createElement('p');
+   face.className='beam-notice-face';nextFace.className='beam-notice-face beam-notice-next';
+   prism.append(face,nextFace);strip.append(prism);dialog.prepend(strip);
   }
   return strip;
  }
- function show(text,{tone='info',origin=null,announce=false}={}){
+ function show(text,{tone='info',scope='ui',key=null,origin=null,announce=false}={}){
   text=(text||'').replace(/\s+/gu,' ').trim();if(!text)return;
   const dialog=origin?.closest('dialog')||(!origin?[...doc.querySelectorAll('dialog[open]')].at(-1):null);
   if(origin&&!visible(origin))return;
-  const strip=target(dialog),s=playing(strip),next={text,tone,origin,view:doc.body.dataset.beamView};
+  const strip=target(dialog),s=playing(strip),next={text,tone,scope,key,origin,view:doc.body.dataset.beamView};
   if(s.active?.text===text&&s.active?.tone===tone)return;
   if(announce)doc.getElementById('beamNoticeAnnounce').textContent=text;
-  if(!s.active||tone!=='info'&&s.active.tone==='info'){start(strip,next);return;}
+  if(key)s.pending=s.pending.filter(item=>item.key!==key);
+  if(!s.active||key&&s.active.key===key||tone!=='info'&&s.active.tone==='info'){start(strip,next);return;}
   if(origin)s.pending=s.pending.filter(item=>item.origin!==origin);
   s.pending=s.pending.filter(item=>item.text!==text);
   if(s.pending.length===3)s.pending.shift();
@@ -63,7 +68,7 @@ export function createNoticeStrips(doc,globalStrip) {
   if(set.last===text)return;
   set.last=text;
   if(!text||set.accept&&!set.accept(text,node))return;
-  show(text,{origin:node,tone:typeof set.tone==='function'?set.tone(node):set.tone});
+  show(text,{origin:node,scope:set.scope,tone:typeof set.tone==='function'?set.tone(node):set.tone});
  };
  function bind(id,options={}){
   const node=doc.getElementById(id);if(!node)return;
@@ -76,7 +81,7 @@ export function createNoticeStrips(doc,globalStrip) {
   }
  }
  doc.addEventListener('animationend',event=>{
-  if(event.target.classList?.contains('beam-notice-strip')&&['beamNoticeFold','beamNoticeHide'].includes(event.animationName))end(event.target);
+  if(event.target.classList?.contains('beam-notice-strip')&&['beamNoticeVerticalShutter','beamNoticeHide'].includes(event.animationName))end(event.target);
  });
  doc.addEventListener('close',event=>{
   const strip=event.target.querySelector?.(':scope > .beam-notice-strip');if(strip)reset(strip);
