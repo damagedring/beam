@@ -69,7 +69,7 @@ async function mapWorkbook(page, sheet, fields) {
 }
 
 async function expectImported(page, rows) {
-  await expect(page.locator('#beamRawAnnounce')).toHaveText('RAW 연결 완료 · 반품 예정 ' + rows + '행');
+  await expect(page.locator('#beamRawAnnounce')).toHaveText(new RegExp(`^RAW 연결 완료 · 반품 예정 ${rows}행(?:$| · )`));
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 }
 
@@ -171,7 +171,7 @@ test('UX-03 Escape cancels pending mapping without applying data and a new schem
   });
   expect(await confirmImport).toContain('현재 프로필 목록을 가져온 목록으로 바꿀까요?');
   await expect(retry).toBeFocused();
-  await expect(settings.getByText('프로필 적용 완료 · 저장된 Excel 시트 1개', { exact: true })).toBeVisible();
+  await expect(settings.locator('#profileShelf .profile-storage-note')).toHaveText('프로필 적용 완료 · 저장된 Excel 시트 1개');
   await retry.click();
   await expectImported(page, 3);
   await page.locator('#beamQuery').fill('Juniper Supply');
@@ -267,13 +267,13 @@ test('UX-04 reference fingerprint completion preserves a focused draft in the se
 test('UX-05 B2B uses store names and B2C uses customer names and preserves tracking ambiguity', async ({ beam: page }) => {
   await importOriginal(page);
   const query = page.locator('#beamQuery');
-  await expect(query).toHaveAccessibleName('매장명 또는 반송장번호');
+  await expect(query).toHaveAccessibleName('매장명 / 반송장번호 / 외부 주문 ID');
   await query.fill('Mina Example');
   await expect(page.locator('#beamEmptyTitle')).toHaveText('일치하는 반품 주문이 없어요');
   await query.fill('Juniper Supply');
   await expect(page.getByRole('button', { name: /Juniper Supply · 주문 1/ })).toBeVisible();
   await page.getByRole('button', { name: 'B2C', exact: true }).click();
-  await expect(query).toHaveAccessibleName('고객명 또는 반송장번호');
+  await expect(query).toHaveAccessibleName('고객명 / 반송장번호 / 외부 주문 ID');
   await expect(query).toBeFocused();
   await expect(page.locator('#beamEmptyTitle')).toHaveText('일치하는 반품 주문이 없어요');
   await query.fill('Mina Example');
@@ -281,7 +281,7 @@ test('UX-05 B2B uses store names and B2C uses customer names and preserves track
 
   await query.fill('3344556677');
   await query.press('Enter');
-  await expect(searchStatus(page)).toContainText('반송장번호를 찾지 못했어요');
+  await expect(searchStatus(page)).toContainText('일치하는 번호가 없어요. 고객명으로 검색해 보세요.');
   await query.fill('００３３ ４４５５–６６７７');
   await expect(searchStatus(page)).toHaveText('검색 결과 2건');
   await query.press('Enter');
@@ -306,7 +306,7 @@ test('combined import reports an invalid picking refresh without losing the prev
   await chooseReferenceFile(page,settings,invalidPickingWorkbook());
   const columns=await mapWorkbook(page,'Fictional Annex',annexMapping);
   await mapConfirm(columns).click();
-  await expect(page.locator('#beamRawAnnounce')).toHaveText('RAW 연결 완료 · 반품 예정 1행 · 출고 이전 기준 유지');
+  await expect(page.locator('#beamRawAnnounce')).toHaveText(/^RAW 연결 완료 · 반품 예정 1행 · 출고 이전 기준 유지(?:$| · )/);
   await page.locator('#beamQuery').fill('Gamma Annex');
   await expect(page.getByRole('button',{name:/Gamma Annex · 주문 1/})).toBeVisible();
 

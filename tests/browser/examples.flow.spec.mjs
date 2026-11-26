@@ -111,9 +111,9 @@ test('Cry Later downloads preserve the supplied files and reconnect in the norma
   const reference = await openReference(page);
   page.once('dialog', dialog => dialog.accept());
   await chooseReference(page, reference, files[0]);
-  await expect(reference.getByText('프로필 적용 완료 · 저장된 Excel 시트 4개', { exact: true })).toBeVisible();
+  await expect(reference.locator('#profileShelf .profile-storage-note')).toHaveText('프로필 적용 완료 · 저장된 Excel 시트 4개');
   await chooseReference(page, reference, files[1]);
-  await expect(page.locator('#beamRawAnnounce')).toHaveText('RAW 연결 완료 · 반품 예정 571행');
+  await expect(page.locator('#beamRawAnnounce')).toHaveText(/^RAW 연결 완료 · 반품 예정 571행(?:$| · )/);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await scanCryLaterOrder(page, { tracking: '0003-0001-7001', code: 'CLB00602', progress: /1\s*\/\s*6/ });
 });

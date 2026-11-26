@@ -2,7 +2,7 @@ name: Beam Pages
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: ["**"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,9 +26,9 @@ jobs:
       - id: visual
         run: npm run test:visual
       # Keep failures visible. Capture runner-native evidence only on review branches.
-      - if: failure() && steps.visual.outcome == 'failure' && github.event_name == 'pull_request'
+      - if: failure() && steps.visual.outcome == 'failure' && (github.event_name == 'pull_request' || github.ref != 'refs/heads/main')
         run: npm run test:visual -- --update-snapshots=all --output=test-results/visual-candidate
-      - if: failure() && steps.visual.outcome == 'failure' && github.event_name == 'pull_request'
+      - if: failure() && steps.visual.outcome == 'failure' && (github.event_name == 'pull_request' || github.ref != 'refs/heads/main')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: beam-visual-review

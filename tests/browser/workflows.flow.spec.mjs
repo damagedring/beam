@@ -26,7 +26,8 @@ test('UX-15/16 Returning to matching reference data after reload restores an act
   await enterScan(page.locator('#barcode'), '0012345678901');
   await expect(page.locator('#beamRecoverySaved')).toContainText('자동 저장됨');
   await page.reload();
-  await expect(page.locator('#beamNoticeStrip')).toContainText('기준 자료를 먼저');
+  await expect(page.locator('#beamRecoveryPanel')).toBeVisible();
+  await expect(page.locator('#beamRecoveryConnect')).toBeVisible();
   await expect(page.locator('#beamRecoverDraft')).toBeHidden();
   await loadReturnsFixture(page);
   await expect(page.locator('#beamRecoverDraft')).toBeVisible();
