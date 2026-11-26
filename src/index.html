@@ -132,6 +132,8 @@
 </button>
 <button id="newWork" type="button" aria-haspopup="dialog" aria-controls="newWorkDialog">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-add"/></svg>새 작업</button>
+<button id="clearCompletionsLauncher" type="button" aria-haspopup="dialog" aria-controls="clearCompletionsDialog">
+<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-clock"/></svg><span data-ko="검수 완료 기록 관리" data-en="Saved inspection completions">검수 완료 기록 관리</span></button>
 <span class="settings-section-label" data-ko="환경 · 도움말" data-en="PREFERENCES · HELP">환경 · 도움말</span>
 <button id="language" class="settings-language" type="button" aria-label="현재 한국어 · 영어로 변경" title="현재 한국어 · 영어로 변경">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-language"/></svg><span id="beamLanguageLabel">KR</span></button>
@@ -146,6 +148,15 @@
  <a id="beamDriveResult" target="_blank" rel="noopener noreferrer" hidden data-ko="저장된 파일 열기" data-en="Open saved file">저장된 파일 열기</a>
 </section>
 <section id="beamOneDriveNotice" hidden aria-label="OneDrive 저장"><span id="beamOneDriveExportStatus" role="status" aria-live="polite"></span></section>
+<dialog id="clearCompletionsDialog" aria-labelledby="clearCompletionsTitle" aria-describedby="clearCompletionsDescription">
+ <div class="dialog-heading"><h2 id="clearCompletionsTitle" data-ko="검수 완료 기록" data-en="Saved inspection completions">검수 완료 기록</h2></div>
+ <p id="clearCompletionsDescription" data-ko="출고·재고 검수 완료 기록은 이 브라우저에 30일 동안 보관돼요. 지워도 현재 창의 스캔, 반품 복구본, 프로필에는 영향이 없어요." data-en="Outbound and inventory completions are stored in this browser for 30 days. Clearing them does not affect scans in this tab, returns recovery drafts, or profiles.">출고·재고 검수 완료 기록은 이 브라우저에 30일 동안 보관돼요. 지워도 현재 창의 스캔, 반품 복구본, 프로필에는 영향이 없어요.</p>
+ <p id="clearCompletionsStatus" role="status"></p>
+ <div class="beam-recovery-dialog-actions">
+  <button type="button" id="clearCompletionsCancel" data-ko="취소" data-en="Cancel">취소</button>
+  <button type="button" id="clearCompletionsConfirm" data-ko="이 브라우저 기록 지우기" data-en="Clear this browser’s records">이 브라우저 기록 지우기</button>
+ </div>
+</dialog>
 <dialog id="beamDriveConsent" aria-labelledby="beamDriveConsentTitle">
  <div class="dialog-heading">
   <h2 id="beamDriveConsentTitle" data-ko="Google Drive 설정" data-en="Google Drive settings">Google Drive 설정</h2>

@@ -379,6 +379,13 @@ test('combined RAW manual carton mapping reads its own SKU pack size and restore
   await page.locator('#cartonFinish').click();
   await expect(page.locator('#cartonFeedback')).toHaveText('검수를 완료했어요.');
   await expect(page.locator('#cartonFinish')).toBeDisabled();
+  await page.evaluate(async () => {
+    const { createIndexedRecoveryStore } = await import(new URL('platform/indexed-recovery.js',document.baseURI));
+    const completion = createIndexedRecoveryStore(undefined, 'beam-inspection-completions');
+    const recovery = createIndexedRecoveryStore();
+    await completion.write({ key: 'sandbox-expired', revision: 'v1', completedAt: '2000-01-01T00:00:00Z' }, null);
+    await recovery.write({ key: 'sandbox-unrelated-recovery', revision: 'fixture' }, null);
+  });
 
   await page.reload();
   await connect();
@@ -389,6 +396,34 @@ test('combined RAW manual carton mapping reads its own SKU pack size and restore
   await chooseOutboundCarton(page,'CASE-ORDER','CASE-CARTON');
   await expect(page.locator('#cartonCount')).toContainText('정상 10 / 전체 예정 10');
   await expect(page.locator('#cartonScan')).toBeDisabled();
+  const readDatabases = () => page.evaluate(async () => {
+    const { createIndexedRecoveryStore } = await import(new URL('platform/indexed-recovery.js',document.baseURI));
+    const recovery = createIndexedRecoveryStore();
+    const completion = createIndexedRecoveryStore(undefined, 'beam-inspection-completions');
+    return {
+      expired: await completion.read('sandbox-expired'),
+      saved: await completion.hasDraft(),
+      recovery: (await recovery.read('sandbox-unrelated-recovery'))?.revision,
+    };
+  });
+  expect(await readDatabases()).toEqual({ expired: null, saved: true, recovery: 'fixture' });
+  const settingsButton = page.getByRole('button', { name: 'Settings' });
+  const launcher = page.getByRole('button', { name: '검수 완료 기록 관리' });
+  const completionsDialog = page.getByRole('dialog', { name: '검수 완료 기록' });
+  await settingsButton.click();
+  await launcher.click();
+  await expect(completionsDialog).toContainText('30일');
+  await expect(completionsDialog.getByRole('button', { name: '취소' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(settingsButton).toBeFocused();
+  expect(await readDatabases()).toMatchObject({ saved: true, recovery: 'fixture' });
+  await settingsButton.click();
+  await launcher.click();
+  await completionsDialog.getByRole('button', { name: '이 브라우저 기록 지우기' }).click();
+  await expect(completionsDialog).toBeHidden();
+  await expect(settingsButton).toBeFocused();
+  await expect(page.locator('#cartonCount')).toContainText('정상 10 / 전체 예정 10');
+  expect(await readDatabases()).toEqual({ expired: null, saved: false, recovery: 'fixture' });
 });
 
 function invalidPickingWorkbook({pickingName="Picking Results",picking,catalog}={}) {

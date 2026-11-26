@@ -30,6 +30,21 @@ export function createIndexedRecoveryStore(getIndexedDB=()=>globalThis.indexedDB
  }
  return {
   read:key=>operate('readonly',(s,finish)=>{const req=s.get(key);req.onsuccess=()=>finish(req.result??null);}),
+  readCurrent:(key,expired)=>operate('readwrite',(s,finish)=>{
+   const req=s.get(key);req.onsuccess=()=>{
+    const entry=req.result;
+    if(entry&&expired(entry)){s.delete(key);finish(null);}
+    else finish(entry??null);
+   };
+  }),
+  prune:expired=>operate('readwrite',s=>{
+   const req=s.openCursor();req.onsuccess=()=>{
+    const cursor=req.result;if(!cursor)return;
+    if(expired(cursor.value))cursor.delete();
+    cursor.continue();
+   };
+  }),
+  clear:()=>operate('readwrite',s=>s.clear()),
   hasDraft:(offer=()=>true)=>operate('readonly',(s,finish)=>{
    const cursor=s.openCursor();cursor.onsuccess=()=>{
     if(!cursor.result){finish(false);return;}

@@ -1,4 +1,4 @@
-import { createIndexedRecoveryStore } from '../../platform/indexed-recovery.js';
+import { createInspectionCompletionStore } from '../../platform/inspection-completions.js';
 import { attachProgressMarkers, coverageReadout } from '../../components/inspection-progress/view.js';
 import { inspectionCoverage } from '../../domain/reconcile.js';
 import { createCartonWork } from './model.js';
@@ -28,7 +28,27 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   writeCoverage(['cartonCount','cartonPercent','cartonMeter','cartonCoverageDetails'],boxCoverage,{unverified:unknown,locked:locked()});
   markers.update(scopeKey(),{events:work.outboundOverages(group,box),expected:boxCoverage.expected});
  }
- const completions=createIndexedRecoveryStore(undefined,'beam-inspection-completions');
+ const completions=createInspectionCompletionStore();
+ let lastSweep=-Infinity;
+ function sweepCompletions(){
+  const now=Date.now();if(now>=lastSweep&&now-lastSweep<86_400_000)return;
+  lastSweep=now;
+  void completions.prune().catch(()=>{if(lastSweep===now)lastSweep=-Infinity;});
+ }
+ sweepCompletions();
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)sweepCompletions();});
+ $('clearCompletionsConfirm').onclick=async()=>{
+  const button=$('clearCompletionsConfirm');
+  button.disabled=true;
+  try{
+   await completions.clear();
+   $('clearCompletionsDialog').close();
+   notice(l('이 브라우저의 검수 완료 기록을 지웠어요.','Saved inspection completions were cleared from this browser.'));
+  }catch{
+   $('clearCompletionsStatus').textContent=l('완료 기록을 지우지 못했어요. 다시 시도해 주세요.','Could not clear saved completions. Try again.');
+  }finally{button.disabled=false;}
+ };
+ $('clearCompletionsLauncher').addEventListener('click',()=>{$('clearCompletionsStatus').textContent='';});
  const workbookFingerprints=new WeakMap(),sourceFiles=new WeakMap();
  let statusCheck=null,statusSave=null,loadedStatus=null;
  const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',value)),b=>b.toString(16).padStart(2,'0')).join('');

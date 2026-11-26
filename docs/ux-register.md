@@ -66,3 +66,7 @@ Picking profiles can optionally map `Verification Unit`, `Units per Case` and `C
 Grouped piece verification records are scoped to one outbound carton and use only surviving, accepted scans on explicitly each-verified lines. Returning to an already seen SKU is observable; physical grouping, effort and causes of shipment errors are not proven by scan order. These signals are not scores and are not sent or used for worker evaluation.
 
 Completed outbound cartons and inventory scopes write a per-scope completion record with the scan replay to Beam's IndexedDB. The exact workbook and mapped scope must match to reopen it. Opening a scope reads but never creates a completion record. Concurrent windows cannot replace an already saved completion, and failure to save does not mark work complete. No WMS or Drive updates are part of this path.
+
+### Local completion retention
+
+Outbound carton and Inventory completion records stay in the current browser for up to 30 days. Beam removes expired entries when opened, when it returns to the foreground (periodic cleanup), or when that record is read. Settings → Saved inspection completions clears this browser's saved Outbound and Inventory completions after confirmation. It does not clear Returns recovery drafts, saved profiles, downloaded files, or scans already open in the current tab. It does not change the warehouse system.
