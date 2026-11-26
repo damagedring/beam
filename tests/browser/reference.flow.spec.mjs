@@ -331,7 +331,67 @@ test('the same invalid picking sheet without a previous source never enables out
   await expect(page.locator('#cartonMapButton')).toBeVisible();
 });
 
-function invalidPickingWorkbook() {
+test('combined RAW manual carton mapping reads its own SKU pack size and restores completed FULL scans', async ({beam: page}) => {
+  const workbook=invalidPickingWorkbook({
+    pickingName:'Custom Picking Export',
+    picking:[
+      ['Order ID','Carton Label ID','Product Barcode','SKU','Product Name','Picked Units','Destination Store','Verification Unit','Units per Case','Case Barcode'],
+      ['CASE-ORDER','CASE-CARTON','0001234567890','SKU-A','Fictional article','10','Gamma Annex','CASE','','CASE-10'],
+      ['CASE-ORDER','CONFLICT-CARTON','0001234567890','SKU-A','Fictional article','10','Gamma Annex','CASE','5','CASE-5'],
+    ],
+    catalog:[
+      ['Product Barcode','SKU','Product Name','Units per Case'],
+      ['0001234567890','SKU-A','Fictional article','10'],
+    ],
+  });
+  async function connect() {
+    await page.getByRole('button',{name:/Returns/}).click();
+    await chooseReferenceFile(page,await referenceSettings(page),workbook);
+  }
+  await connect();
+  await page.getByRole('combobox',{name:'SKU Master'}).selectOption({label:'Product Catalog'});
+  await mapConfirm(await mapWorkbook(page,'Fictional Annex',annexMapping)).click();
+  const catalog=page.getByRole('dialog',{name:'SKU Master · 열 연결'});
+  await catalog.getByRole('combobox',{name:'헤더 행'}).selectOption('0');
+  for(const [name,label] of [
+    ['상품 바코드','A · Product Barcode'],['상품 코드','B · SKU'],['상품명','C · Product Name'],['박스당 수량 (선택)','D · Units per Case'],
+  ])await catalog.getByRole('combobox',{name,exact:true}).selectOption({label});
+  await mapConfirm(catalog).click();
+  await expect(page.locator('#beamRawAnnounce')).toContainText('RAW 연결 완료 · 반품 예정 1행');
+
+  await page.locator('#beamHomeBack').click();
+  await openCartons(page,'Outbound');
+  await page.locator('#cartonMapButton').click();
+  const dialog=page.locator('#cartonImportDialog');
+  await dialog.locator('select').selectOption({label:'Custom Picking Export'});
+  await page.locator('#cartonImportApply').click();
+  await expect(dialog.locator('.mapping-fields')).toBeVisible();
+  await page.locator('#cartonImportApply').click();
+
+  await chooseOutboundCarton(page,'CASE-ORDER','CONFLICT-CARTON');
+  await expect(page.locator('#cartonScan')).toBeEnabled();
+  await expect(page.locator('#cartonScanCase')).toBeDisabled();
+  await page.locator('#cartonBack').click();
+  await page.locator('.outbound-carton').filter({hasText:'CASE-CARTON'}).click();
+  await page.locator('#cartonScanCase').click();
+  await enterScan(page.locator('#cartonScan'),'CASE-10');
+  await expect(page.locator('#cartonCount')).toContainText('정상 10 / 전체 예정 10');
+  await page.locator('#cartonFinish').click();
+  await expect(page.locator('#cartonFeedback')).toHaveText('검수를 완료했어요.');
+  await expect(page.locator('#cartonFinish')).toBeDisabled();
+
+  await page.reload();
+  await connect();
+  await expect(page.locator('#beamRawAnnounce')).toContainText('RAW 연결 완료 · 반품 예정 1행');
+  await page.locator('#beamHomeBack').click();
+  await openCartons(page,'Outbound');
+  await expect(page.locator('#cartonMapButton')).toBeHidden();
+  await chooseOutboundCarton(page,'CASE-ORDER','CASE-CARTON');
+  await expect(page.locator('#cartonCount')).toContainText('정상 10 / 전체 예정 10');
+  await expect(page.locator('#cartonScan')).toBeDisabled();
+});
+
+function invalidPickingWorkbook({pickingName="Picking Results",picking,catalog}={}) {
   const spreadsheet='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
   const relationship='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
   const sheets=[
@@ -340,15 +400,16 @@ function invalidPickingWorkbook() {
       ['Annex units','Annex shop','Annex key','Annex code','Annex title','Annex barcode','Annex waybill'],
       ['2','Gamma Annex','ANNEX-1','SKU-A','Fictional article','0001234567890','1234567890'],
     ]],
-    ['Picking Results', [
+    [pickingName, picking??[
       ['Order ID','Carton Label ID','Product Barcode','SKU','Product Name','Picked Units','Destination Store'],
       ['NEW-ORDER','NEW-CARTON','0001234567890','SKU-A','Fictional article','not a quantity','Gamma Annex'],
     ]],
   ];
+  if(catalog)sheets.push(['Product Catalog',catalog]);
   const sheetXml=rows=>`<worksheet xmlns="${spreadsheet}"><sheetData>${rows.map((values,i)=>
     `<row r="${i+1}">${values.map((value,j)=>`<c r="${String.fromCharCode(65+j)}${i+1}" t="inlineStr"><is><t>${value}</t></is></c>`).join('')}</row>`
   ).join('')}</sheetData></worksheet>`;
-  return {name:'synthetic-partial-refresh.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:zip({
+  return {name:catalog?'synthetic-case-reference.xlsx':'synthetic-partial-refresh.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:zip({
     'xl/workbook.xml':`<workbook xmlns="${spreadsheet}" xmlns:r="${relationship}"><sheets>${sheets.map(([name],i)=>`<sheet name="${name}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`,
     'xl/_rels/workbook.xml.rels':`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="${relationship}/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}</Relationships>`,
     ...Object.fromEntries(sheets.map(([,rows],i)=>[`xl/worksheets/sheet${i+1}.xml`,sheetXml(rows)])),

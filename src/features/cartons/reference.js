@@ -84,5 +84,5 @@ export async function prepareCartonReferences(file, mappings, readWorkbook, env)
    results[mode] = index.groups.size ? { status: 'ready', index } : { status: 'empty' };
   } catch { results[mode] = { status: reason }; }
  }
- return { file, results };
+ return { file, results, packs };
 }

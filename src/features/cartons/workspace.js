@@ -64,7 +64,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    }
   }}
  }
- let combinedFile=null;
+ let combinedReference=null;
  const receiptPicker=createOutboundReceipts($('outboundReceiptHost'),{l,onChoose:select,onDispatch:g=>openDispatch(dispatchContext(g)),isComplete:(g,key)=>work.locked('outbound',g,key)});
  let mode=null,group=null,box=null,loading=false,page=0,stage='search',outboundLocationOn=true,outboundKind='single',scanUnit='each';
  const locationMode=()=>!root.hidden&&mode==='outbound'?outboundLocationOn:null;
@@ -101,7 +101,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   const source=view()?.name,reason=messages[status];
   const previous=source&&reason?l('이전 기준 파일 사용 중: ','Using previous reference: ')+source:'';
   $('cartonSource').textContent=[reason,previous].filter(Boolean).join(' · ')||source||(inventory?l('기준 파일을 연결하면 검색할 수 있어요.','Connect a workbook to search.'):l('PDA 피킹 결과를 연결하면 출고 박스를 확인할 수 있어요.','Connect a picking results export to see outbound cartons.'));
-  $('cartonMapButton').hidden=stage!=='search'||!combinedFile||!status||status==='ready';
+  $('cartonMapButton').hidden=stage!=='search'||!combinedReference||!status||status==='ready';
   $('cartonMapButton').disabled=loading;
   $('cartonFileButton').hidden=stage!=='search';
   $('cartonFileButton').textContent=inventory?l('기준 파일 연결','Connect workbook'):l('피킹 결과 연결','Connect picking results');
@@ -136,7 +136,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   das:l('DAS 주문 식별자 (선택)','DAS order ID (optional)'),
   qty:mode==='inventory'?l('예정 수량','Expected quantity'):l('피킹 수량','Picked quantity'),name:l('제품명','Product name'),brand:l('브랜드 (선택)','Brand (optional)'),sku:'SKU',barcode:l('상품 바코드','Product barcode')
  });
- async function load(file){
+ async function load(file,packs){
   if(loading||!file)return;
   if(work.hasJobs(mode)&&!window.confirm(l('이 업무의 기존 검수 기록이 바뀝니다. 새 자료를 연결할까요?','Loading a new reference replaces this mode’s inspection history. Continue?')))return;
   loading=true;const target=mode,prefs=cartonProfile(),rememberedMapping=prefs.mappings[target];let separator='',savedMapping=null;localize();
@@ -145,7 +145,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    const {cartonLines}=await readWorkbook(file,'cartonLines',p=>{
     if(p.phase==='sheet')$('cartonSource').textContent=l('읽는 중 · ','Reading · ')+p.rowsProcessed.toLocaleString();
    },{
-    cartonAdapter:{validateColumns:adapter.validateColumns,table:(...args)=>cartonAdapter(target,separator).table(...args)},
+    cartonAdapter:{validateColumns:adapter.validateColumns,table:(...args)=>cartonAdapter(target,separator,packs).table(...args)},
     selectSheets:({sheets})=>chooseSheet(target==='outbound'?l('피킹 결과 시트 연결','Connect picking results sheet'):l('검수 대상 시트 연결','Connect inspection sheet'),body=>{
      const sel=make('select',null);
      sel.replaceChildren(...sheets.map(x=>new Option(x.name,String(x.index))));
@@ -445,7 +445,9 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  }
  $('cartonScanForm').onsubmit=e=>{e.preventDefault();add($('cartonScan').value);};
  $('cartonFileButton').onclick=()=>$('cartonFile').click();
- $('cartonMapButton').onclick=()=>load(combinedFile);
+ $('cartonMapButton').onclick=()=>{
+  if(combinedReference)load(combinedReference.file,combinedReference.packs);
+ };
  $('cartonFile').onchange=e=>{const file=e.currentTarget.files[0];e.currentTarget.value='';load(file);};
  $('cartonUndo').onclick=()=>{if(group&&!$('cartonUndo').disabled&&work.undo(mode,group,box)){warn('');render();}};
  $('cartonFinish').onclick=async()=>{
@@ -475,8 +477,8 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    back:()=>{if(markers.dismiss())return true;if(loading)return false;back();return true;},
    scan:add,
   },
-  applyCombined({file,results}){
-   combinedFile=file;
+  applyCombined({file,results,packs}){
+   combinedReference={file,packs};
    const retained=[];
    for(const [kind,result] of Object.entries(results)){
     combinedStatus.set(kind,result.status);
