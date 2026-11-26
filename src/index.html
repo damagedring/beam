@@ -234,6 +234,11 @@
   <div class="beam-term-bar"><strong data-ko="검수 콘솔" data-en="INSPECTION CONSOLE">검수 콘솔</strong></div>
   <div class="carton-overview">
   <form id="cartonScanForm" class="carton-action-row">
+   <div id="cartonScanModes" class="carton-scan-modes" role="group" aria-label="스캔 단위" data-ko-label="스캔 단위" data-en-label="Scan unit" hidden>
+    <button type="button" id="cartonScanEach" aria-pressed="true" data-ko="낱개" data-en="Each">낱개</button>
+    <button type="button" id="cartonScanCase" aria-pressed="false" aria-describedby="cartonScanUnitNote" data-ko="FULL 박스" data-en="Full case">FULL 박스</button>
+    <output id="cartonScanUnitNote" aria-live="polite"></output>
+   </div>
    <label class="carton-scan-label" for="cartonScan" data-ko="바코드 / SKU" data-en="Barcode / SKU">바코드 / SKU</label>
    <input id="cartonScan" aria-label="Barcode / SKU" type="text" autocomplete="off" autocapitalize="off" enterkeyhint="done" spellcheck="false">
    <button id="cartonAdd" type="submit" data-ko="스캔" data-en="Scan">스캔</button>

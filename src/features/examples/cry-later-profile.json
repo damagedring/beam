@@ -103,7 +103,8 @@
           "headerNames": {
             "sku": "SKU",
             "barcode": "Scan Code",
-            "name": "Product Name"
+            "name": "Product Name",
+            "unitsPerCase": "Units per Case"
           },
           "signature": [
             "Brand",
@@ -117,6 +118,7 @@
             "Public Product Code",
             "SKU",
             "Scan Code",
+            "Units per Case",
             "Variant"
           ]
         },

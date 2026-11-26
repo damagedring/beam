@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {A4_LABEL_PAPER, planProductLabels, labelPageLayout, fitsBarcode, labelsInRange, validateLabelPapers} from '../dist/domain/product-labels.js';
 import { productBarcodeSvg } from '../dist/components/print/barcode.js';
-import {cartonAdapter, cartonLocation, createCartonIndex, cartonSearch, matchCartonScan, outboundCandidates, outboundFolders, wrapOutboundIndex, outboundDispatch, validateDispatchProfile} from '../dist/domain/carton-verification.js';
+import {cartonAdapter, catalogCasePacks, cartonCaseSizes, cartonLocation, createCartonIndex, cartonSearch, matchCartonScan, outboundCandidates, outboundFolders, wrapOutboundIndex, outboundDispatch, validateDispatchProfile} from '../dist/domain/carton-verification.js';
 import {createCartonWork} from '../dist/features/cartons/model.js';
 
 const first={group:'ORDER',box:'BOX 01',external:'EXT-001',sku:'SKU-01',barcode:'0012345678901',name:'Test product',qty:3};
@@ -170,7 +170,7 @@ test('outbound packaging metadata is optional, preserves scan quantities and dis
  assert.deepEqual(lines.map(x=>x.verification),[{unit:'case',unitsPerCase:10,caseBarcode:'CASE123'},{unit:'each'},undefined]);
  const index=createCartonIndex(lines),group=index.groups.get('ORDER'),work=createCartonWork();
  work.connect('outbound','fictional',index);
- work.scan('outbound',group,'A','CASE123');
+ assert.equal(work.scan('outbound',group,'A','CASE123'),'wrong-unit');
  work.scan('outbound',group,'A','123');
  assert.equal(work.rows('outbound',group,'A').find(r=>r.sku==='X').actual,1);
  assert.equal(work.outboundPieceEvidence(group,'A').pieceScans,0);
@@ -208,4 +208,35 @@ test('completed scans can be rehydrated for one scope without rewriting timestam
  assert.equal(fresh.locked('outbound',order,'BOX 02'),false);
  assert.equal(fresh.undo('outbound',order,'BOX 01'),false);
  assert.deepEqual(fresh.outboundOrderProgress(order),{covered:1,excess:0,unverified:0});
+});
+
+test('a full-case scan uses verified SKU pack size, keeps pieces separate, undoes atomically and restores its unit',()=>{
+ const headers=['Order ID','Carton Label ID','SKU','Product Barcode','Product Name','Picked Units','Verification Unit','Units per Case','Case Barcode'];
+ const packs=catalogCasePacks([{sku:'DEMO',unitsPerCase:'10'},{sku:'BAD',unitsPerCase:'10'},{sku:'BAD',unitsPerCase:'12'}]);
+ const adapter=cartonAdapter('outbound','',packs);
+ const columns=adapter.validateColumns('',headers,{receipt:0,id:1,sku:2,barcode:3,name:4,qty:5,verificationUnit:6,unitsPerCase:7,caseBarcode:8});
+ const lines=adapter.table('',[headers,['ORDER','A','DEMO','ITEM','Top',10,'CASE','','CASE-DEMO'],
+  ['ORDER','B','DEMO','ITEM','Top',20,'CASE','20','BAD-SIZE'],
+  ['ORDER','C','BAD','B-ITEM','Coat',10,'CASE','10','BAD-PACK'],
+  ['ORDER','D','DEMO','ITEM','Top',10,'CASE','10','ITEM']],{columns});
+ const index=createCartonIndex(lines),group=index.groups.get('ORDER'),work=createCartonWork();
+ assert.deepEqual(cartonCaseSizes(group,'A'),[10]);
+ for(const carton of ['B','C','D'])assert.deepEqual(cartonCaseSizes(group,carton),[]);
+ work.connect('outbound','example',index);
+ const scan=(value,unit)=>work.scan('outbound',group,'A',value,4200,unit);
+ assert.equal(scan('ITEM','case'),'wrong-unit');
+ assert.equal(scan('CASE-DEMO','each'),'wrong-unit');
+ assert.equal(scan('ITEM','each'),'accepted');
+ assert.equal(scan('CASE-DEMO','case'),'excess');
+ assert.deepEqual(work.outboundOrderProgress(group),{covered:10,excess:1,unverified:0});
+ assert.equal(work.outboundOverages(group,'A')[0].delta,1);
+ assert.equal(work.rows('outbound',group,'A')[0].actual,11);
+ work.undo('outbound',group,'A');
+ assert.deepEqual(work.outboundOrderProgress(group),{covered:1,excess:0,unverified:0});
+ work.undo('outbound',group,'A');assert.equal(scan('CASE-DEMO','case'),'accepted');
+ const snap=work.completionSnapshot('outbound',group,'A');
+ assert.deepEqual(snap,[{value:'CASE-DEMO',at:4200,unit:'case'}]);
+ const next=createCartonWork();next.connect('outbound','same',index);
+ assert.equal(next.restoreCompletion('outbound',group,'A',snap),true);
+ assert.equal(next.rows('outbound',group,'A')[0].actual,10);
 });

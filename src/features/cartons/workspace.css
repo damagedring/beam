@@ -191,3 +191,15 @@
  #outboundSearchModes button[aria-pressed=true]{background:var(--beam-action)!important;color:var(--beam-action-ink)!important}
  @media(pointer:coarse){#outboundSearchModes button{min-height:44px}}
 }
+
+
+@media screen{
+ #cartonScanForm .carton-scan-modes:not([hidden]){
+  grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-block-end:4px;
+ }
+ #cartonScanForm .carton-scan-modes button{min-height:40px;font-size:.8125rem}
+ html[data-theme] body #cartonScanForm .carton-scan-modes button[aria-pressed=true]:not(:disabled){
+  background:var(--term-ink,var(--beam-type))!important;color:var(--term-bg,var(--beam-canvas))!important;
+ }
+ #cartonScanUnitNote{margin-inline-start:4px;font:650 .75rem/1.4 var(--font-ui);color:var(--term-dim,var(--muted))}
+}

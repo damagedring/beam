@@ -7,14 +7,17 @@ const emptyCounts = () => ({ counts: new Map(), unknown: new Map() });
 const emptyProgress = () => ({ covered: 0, excess: 0, unverified: 0 });
 const noMarkers = [];
 function tallyProgress(progress, event, delta) {
-  const key = !event.coverageEligible ? 'unverified' : event.result === 'excess' ? 'excess' : 'covered';
-  progress[key] += delta;
+  if(!event.coverageEligible)progress.unverified+=delta*event.qty;
+  else {
+    progress.covered+=delta*event.covered;
+    progress.excess+=delta*(event.qty-event.covered);
+  }
 }
 
 function tally(projection, event, delta) {
   const map = event.key === null ? projection.unknown : projection.counts;
   const key = event.key === null ? event.value : event.key;
-  const count = (map.get(key) || 0) + delta;
+  const count = (map.get(key) || 0) + delta*event.qty;
   if (count === 0) map.delete(key);
   else map.set(key, count);
 }
@@ -34,24 +37,26 @@ export function createCartonWork(now = Date.now) {
   function locked(mode, group, box) {
     return !!job(mode, group)?.done.has(box);
   }
-  function scan(mode, group, box, input, time = now()) {
+  function scan(mode, group, box, input, time = now(), unit = 'each') {
     const value = codeKey(input);
     if (!value || value.length > 200 || !canScan(mode, group, box) || locked(mode, group, box)) return null;
-    const jobs = sources.get(mode).jobs;
-    if (!jobs.has(group.id)) {
-      jobs.set(group.id, { method: methodFor(box), scopes: new Map(), events: [], totals: emptyCounts(), progress: emptyProgress(), done: new Set() });
-    }
-    const current = jobs.get(group.id);
-    const match = matchCartonScan(group, box, value);
-    if (match.status === 'conflict') return 'conflict';
-    if (match.status === 'empty') return null;
-    if (!current.events.length) current.method = methodFor(box);
-    if (!current.scopes.has(box)) current.scopes.set(box, { ...emptyCounts(), unknownCount: 0, events: [], progress: emptyProgress(), overages: [] });
-    const active = current.scopes.get(box);
-    const count = (match.key === null ? active.unknownCount : active.counts.get(match.key) || 0) + 1;
-    const result = match.key === null ? 'unexpected' : quantityOutcome(count-1,match.expected);
-    const event = { box, key: match.key, value: match.value, result, at: time, name: match.name,
-      brand: match.brand, sku: match.sku, barcode: match.barcode, count, expected: match.expected, coverageEligible: match.coverageEligible };
+    const match = matchCartonScan(group,box,value,0,mode==='outbound'?unit:'each');
+    if(match.status==='conflict'||match.status==='wrong-unit')return match.status;
+    if(match.status==='empty')return null;
+    const jobs=sources.get(mode).jobs,existing=scope(mode,group,box);
+    const qty=match.qty||1,prior=match.key===null?(existing?.unknownCount||0):(existing?.counts.get(match.key)||0),count=prior+qty;
+    if(!Number.isSafeInteger(count))return null;
+    if(!jobs.has(group.id))jobs.set(group.id,{method:methodFor(box),scopes:new Map(),events:[],totals:emptyCounts(),progress:emptyProgress(),done:new Set()});
+    const current=jobs.get(group.id);
+    if(!current.events.length)current.method=methodFor(box);
+    if(!current.scopes.has(box))current.scopes.set(box,{...emptyCounts(),unknownCount:0,events:[],progress:emptyProgress(),overages:[]});
+    const active=current.scopes.get(box);
+    const result=match.key===null?'unexpected':quantityOutcome(prior,match.expected,qty);
+    const event={box,key:match.key,value:match.value,result,at:time,name:match.name,brand:match.brand,sku:match.sku,barcode:match.barcode,count,expected:match.expected,
+     coverageEligible:match.coverageEligible,qty,unit:mode==='outbound'?unit:'each',
+     covered:match.coverageEligible?Math.min(qty,Math.max(0,match.expected-prior)):0};
+    if(!Number.isSafeInteger((current.totals.counts.get(event.key)||0)+qty)||
+       !Number.isSafeInteger(current.progress.covered+current.progress.excess+current.progress.unverified+qty))return null;
     active.events.push(event);
     current.events.push(event);
     if (event.key === null) active.unknownCount++;
@@ -90,13 +95,14 @@ export function createCartonWork(now = Date.now) {
   }
   function completionSnapshot(mode,group,box){
     const active=scope(mode,group,box);
-    return active?.events.map(({value,at})=>({value,at}))||[];
+    return active?.events.map(({value,at,unit})=>({value,at,...(unit==='case'?{unit}:{})}))||[];
   }
   function restoreCompletion(mode,group,box,events){
     if(!Array.isArray(events)||!events.length||events.length>200000||scope(mode,group,box)?.events.length||!canScan(mode,group,box))return false;
     if(events.some(e=>!e||typeof e.value!=='string'||!e.value.trim()||e.value.length>200||!Number.isFinite(e.at)||Math.abs(e.at)>8.64e15||
-      ['empty','conflict'].includes(matchCartonScan(group,box,e.value).status)))return false;
-    for(const {value,at} of events)scan(mode,group,box,value,at);
+      (e.unit!==undefined&&(e.unit!=='case'||mode!=='outbound'))||
+      ['empty','conflict','wrong-unit'].includes(matchCartonScan(group,box,e.value,0,e.unit||'each').status)))return false;
+    for(const {value,at,unit} of events)scan(mode,group,box,value,at,unit||'each');
     job(mode,group).done.add(box);
     return true;
   }

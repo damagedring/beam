@@ -30,7 +30,20 @@ export function cartonLocation(value,box,separator){
  if(!location||!carton)throw Error('Invalid Location / carton separator.');
  return [location,carton];
 }
-export function cartonAdapter(mode,separator=''){
+function packSize(value){
+ const text=codeKey(value),units=Number(text);
+ return /^[0-9]+$/.test(text)&&Number.isSafeInteger(units)&&units>1?units:null;
+}
+export function catalogCasePacks(rows=[]){
+ const result=new Map();
+ for(const row of rows){
+  const sku=codeKey(row.sku),value=codeKey(row.unitsPerCase);
+  if(!sku||!value)continue;
+  const size=packSize(value);result.set(sku,!result.has(sku)||result.get(sku)===size?size:null);
+ }
+ return result;
+}
+export function cartonAdapter(mode,separator='',packs=new Map()){
  const inventory=mode==='inventory';
  const required=['receipt','qty','name',...(!inventory?['id']:[])];
  function validateColumns(_kind,headers,selected){
@@ -57,9 +70,11 @@ export function cartonAdapter(mode,separator=''){
    if(!group||(!inventory&&!box)||!(sku||barcode)||!name||!Number.isSafeInteger(qty)||qty<0||!read(r,'qty')||[group,box,external,sku,barcode,das].some(v=>v.length>200)||name.length>1000||store.length>300||country.length>100)
     throw Error((i+2)+'행: Verify group, carton, item, and expected quantity.');
    const declared=inventory?'':cartonHeaderKey(read(r,'verificationUnit'));
-   const unitsPerCase=Number(read(r,'unitsPerCase'));
+   const pickedPack=read(r,'unitsPerCase'),master=packs.get(sku);
+   const unitsPerCase=pickedPack?packSize(pickedPack):master;
+   const verifiedPack=unitsPerCase&&(!packs.has(sku)||master===unitsPerCase);
    const caseCode=read(r,'caseBarcode'),caseBarcode=caseCode.length<=200?caseCode:'';
-   const verification=declared==='each'?{unit:'each'}:declared==='case'&&Number.isSafeInteger(unitsPerCase)&&unitsPerCase>1&&qty%unitsPerCase===0?{unit:'case',unitsPerCase,...(caseBarcode?{caseBarcode}:{})}:undefined;
+   const verification=declared==='each'?{unit:'each'}:declared==='case'&&verifiedPack&&qty%unitsPerCase===0?{unit:'case',unitsPerCase,...(caseBarcode?{caseBarcode}:{})}:undefined;
    return {group,box,external,sku,barcode,name,qty,...(verification?{verification}:{}),...(das?{das}:{}),...(brand?{brand}:{}),...(store?{store}:{}),...(country?{country}:{})};
   }).filter(r=>r&&r.qty>0);
  }
@@ -115,15 +130,16 @@ const scopeIndexes = new WeakMap();
 function scopeIndex(expected) {
  const existing = scopeIndexes.get(expected);
  if (existing) return existing;
- const barcodes = new Map(), skus = new Map();
+ const barcodes = new Map(), skus = new Map(), cases=new Map();
  function index(map, value, row) {
   if (value) map.set(value, map.has(value) ? null : row);
  }
  for (const row of expected.values()) {
   index(barcodes, row.barcode, row);
   index(skus, row.sku, row);
+  index(cases,row.verification?.caseBarcode,row);
  }
- const result = { barcodes, skus };
+ const result = { barcodes, skus, cases };
  scopeIndexes.set(expected, result);
  return result;
 }
@@ -135,14 +151,27 @@ export function cartonRows(group,box,{counts,unknown}={counts:new Map(),unknown:
  return [...[...expected.values()].map(r=>({...r,actual:counts.get(r.key)||0,conflict:barcodes.get(r.barcode)===null})),
   ...[...unknown].map(([barcode,actual])=>({key:'unknown:'+barcode,barcode,actual,expected:0,unregistered:true}))];
 }
-export function matchCartonScan(group,box,input,actual=0){
+function usableCase(box,code,index){
+ const row=index.cases.get(code);
+ return row&&code!==box&&!index.barcodes.has(code)&&!index.skus.has(code)&&index.barcodes.get(row.barcode)!==null?row:null;
+}
+export function cartonCaseSizes(group,box){
+ const rows=group.boxes.get(box);
+ if(!rows||!box)return [];
+ const index=scopeIndex(rows);
+ return [...new Set([...index.cases.keys()].map(code=>usableCase(box,code,index)?.verification.unitsPerCase).filter(Boolean))].sort((a,b)=>a-b);
+}
+export function matchCartonScan(group,box,input,actual=0,unit='each'){
  const value=codeKey(input),expected=box===null?group.totals:group.boxes.get(box);
  if(!value||!expected)return {status:'empty'};
- const {barcodes,skus}=scopeIndex(expected);
- const r=barcodes.has(value)?barcodes.get(value):skus.get(value);
+ const index=scopeIndex(expected),{barcodes,skus,cases}=index;
+ const r=unit==='case'?usableCase(box,value,index):(barcodes.has(value)?barcodes.get(value):skus.get(value));
+ if(unit==='case'&&!r||unit==='each'&&cases.has(value)&&!barcodes.has(value)&&!skus.has(value))return {status:'wrong-unit'};
+
  if(r===null)return {status:'conflict'};
  if(!r)return {status:'unexpected',key:null,value};
- return {status:quantityOutcome(actual,r.expected),key:r.key,value,name:r.name,sku:r.sku,barcode:r.barcode,...(r.brand?{brand:r.brand}:{}),expected:r.expected,coverageEligible:barcodes.get(r.barcode)!==null};
+ const qty=unit==='case'?r.verification.unitsPerCase:1;
+ return {status:quantityOutcome(actual,r.expected,qty),...(unit==='case'?{qty}:{}),key:r.key,value,name:r.name,sku:r.sku,barcode:r.barcode,...(r.brand?{brand:r.brand}:{}),expected:r.expected,coverageEligible:barcodes.get(r.barcode)!==null};
 }
 export function cartonSearch(index,query){
  const value=codeKey(query).toLocaleLowerCase();
@@ -246,7 +275,7 @@ export function pieceVerificationEvidence(group,box,events){
  const rows=group.boxes.get(box), seen=new Set();
  let pieceScans=0, repeatedSkuRuns=0, previous=null;
  for(const event of events){
-  if(event.box!==box||event.result!=='accepted'||!event.coverageEligible||rows?.get(event.key)?.verification?.unit!=='each')continue;
+  if(event.box!==box||event.result!=='accepted'||event.unit==='case'||!event.coverageEligible||rows?.get(event.key)?.verification?.unit!=='each')continue;
   pieceScans++;
   if(event.key!==previous&&seen.has(event.key))repeatedSkuRuns++;
   seen.add(event.key);previous=event.key;

@@ -1,4 +1,4 @@
-import { aliases, cartonAdapter, cartonQuantityAliases, codeKey, createCartonIndex, fields } from '../../domain/carton-verification.js';
+import { aliases, catalogCasePacks, cartonAdapter, cartonQuantityAliases, codeKey, createCartonIndex, fields } from '../../domain/carton-verification.js';
 
 export const cartonModes = ['outbound', 'inventory'];
 const clean = value => codeKey(value).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
@@ -58,14 +58,14 @@ export function matchCartonHeaders(mode, rows, saved) {
 
 // Reuse the bounded XLSX reader and never guess between two possible sheets or headers.
 export async function prepareCartonReferences(file, mappings, readWorkbook, env) {
- const results = {};
+ const results = {},packs=catalogCasePacks(env?.productCatalog);
  for (const mode of cartonModes) {
   let chosen, reason = 'invalid';
   const cancel = status => { reason = status; throw Error('Carton link requires review.'); };
   try {
    const adapter = cartonAdapter(mode);
    const { cartonLines } = await readWorkbook(file, 'cartonLines', null, {
-    cartonAdapter: { validateColumns: adapter.validateColumns, table: (...args) => cartonAdapter(mode, chosen.saved?.separator).table(...args) },
+    cartonAdapter: { validateColumns: adapter.validateColumns, table: (...args) => cartonAdapter(mode, chosen.saved?.separator,packs).table(...args) },
     selectSheets: ({ sheets }) => {
      chosen = cartonSheetChoice(mode, sheets, mappings?.[mode]);
      if (!chosen.sheet) cancel(chosen.status);

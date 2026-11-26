@@ -61,7 +61,7 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 
 ### Outbound verification signals
 
-Picking profiles can optionally map `Verification Unit`, `Units per Case` and `Case Barcode`. The carton header shows the declared unit, not a claim about what was physically checked. An omitted or inconsistent unit stays unspecified. Case metadata does not turn a scan into a quantity multiplier or change completion. Existing profiles remain valid.
+Picking profiles can optionally map `Verification Unit`, `Units per Case` and `Case Barcode`. The carton header shows the declared unit, not a claim about what was physically checked. An omitted or inconsistent unit stays unspecified. The default Each mode always counts one unit. Explicit Full case mode counts one verified case by pack size, only with an unambiguous case barcode mapped in the selected carton. When both sources specify a pack size they must agree. The catalog can supply a missing picking-row pack size, never a missing case barcode. Switching cartons resets to Each. Existing profiles remain valid.
 
 Grouped piece verification records are scoped to one outbound carton and use only surviving, accepted scans on explicitly each-verified lines. Returning to an already seen SKU is observable; physical grouping, effort and causes of shipment errors are not proven by scan order. These signals are not scores and are not sent or used for worker evaluation.
 

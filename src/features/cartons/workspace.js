@@ -5,7 +5,7 @@ import { createCartonWork } from './model.js';
 import { createOutboundReceipts } from './outbound-receipts.js';
 import { productIdentityMarkup } from '../../components/product-identity/view.js';
 import { scannedProductLabel } from '../../domain/product-identity.js';
-import { cartonAdapter, cartonQuantityAliases, cartonSearch, codeKey, createCartonIndex, fields, aliases, cartonVerificationPlan, outboundCandidates, outboundDispatch, outboundSearchScope } from '../../domain/carton-verification.js';
+import { cartonAdapter, cartonQuantityAliases, cartonSearch, codeKey, createCartonIndex, fields, aliases, cartonCaseSizes, cartonVerificationPlan, outboundCandidates, outboundDispatch, outboundSearchScope } from '../../domain/carton-verification.js';
 
 export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglish,openLabels,openReport,openDispatch,dispatchProfile,cartonProfile,saveCartonMapping,showHome,notice,renderActivity,quantityLabel,audio,locationFor,syncLocation,progressIcon}){
  const $=id=>document.getElementById(id), root=$('cartonWorkspace'), l=(ko,en)=>isEnglish()?en:ko;
@@ -36,7 +36,8 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   const file=sourceFiles.get(source);
   if(!file||!globalThis.crypto?.subtle)throw Error('No completion fingerprint');
   if(!workbookFingerprints.has(file))workbookFingerprints.set(file,file.arrayBuffer().then(digest));
-  const manifest=JSON.stringify([...((carton===null?g.totals:g.boxes.get(carton))||[])].map(([key,r])=>[key,r.expected]));
+  const manifest=JSON.stringify([...((carton===null?g.totals:g.boxes.get(carton))||[])].map(([key,r])=>
+   r.verification?.caseBarcode?[key,r.expected,r.verification.caseBarcode,r.verification.unitsPerCase]:[key,r.expected]));
   return JSON.stringify(['v1',kind,await workbookFingerprints.get(file),g.id,carton,await digest(new TextEncoder().encode(manifest))]);
  }
  function selection(){return {mode,group,box,source:view()};}
@@ -65,7 +66,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  }
  let combinedFile=null;
  const receiptPicker=createOutboundReceipts($('outboundReceiptHost'),{l,onChoose:select,onDispatch:g=>openDispatch(dispatchContext(g)),isComplete:(g,key)=>work.locked('outbound',g,key)});
- let mode=null,group=null,box=null,loading=false,page=0,stage='search',outboundLocationOn=true,outboundKind='single';
+ let mode=null,group=null,box=null,loading=false,page=0,stage='search',outboundLocationOn=true,outboundKind='single',scanUnit='each';
  const locationMode=()=>!root.hidden&&mode==='outbound'?outboundLocationOn:null;
  const view=()=>work.reference(mode);
  const searchIndex=()=>mode==='outbound'?outboundSearchScope(view()?.index,outboundKind):view()?.index;
@@ -208,7 +209,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   $(id)?.focus({preventScroll:true});
  }
  function showStage(next){
-  stage=next;page=0;warn('');clearScanner();$('cartonScan').value='';render();window.scrollTo(0,0);
+  stage=next;page=0;scanUnit='each';warn('');clearScanner();$('cartonScan').value='';render();window.scrollTo(0,0);
   if(next==='search'){focusStage(matchMedia('(pointer:fine)').matches?'cartonQuery':'cartonTitle');return;}
   focusStage(matchMedia('(pointer:fine)').matches&&!$('cartonScan').disabled?'cartonScan':'cartonGroupTitle');
   if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
@@ -353,12 +354,25 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   for(const id of ['cartonScan','cartonAdd'])$(id).disabled=!allowed||locked()||verifying||saving;
   $('cartonUndo').disabled=!allowed||locked()||!last||verifying||saving;
   $('cartonFinish').disabled=!allowed||locked()||!last||verifying||saving;
+  const sizes=outbound?cartonCaseSizes(group,box):[];
+  if(!sizes.length)scanUnit='each';
+  $('cartonScanModes').hidden=!outbound;
+  $('cartonScanEach').disabled=$('cartonScan').disabled;
+  $('cartonScanCase').disabled=$('cartonScan').disabled||!sizes.length;
+  $('cartonScanEach').setAttribute('aria-pressed',String(scanUnit==='each'));
+  $('cartonScanCase').setAttribute('aria-pressed',String(scanUnit==='case'));
+  $('cartonScanUnitNote').textContent=!sizes.length?l('FULL 박스 정보 없음','No verified full case'):
+   scanUnit==='each'?l('1회 = 1 EA','1 scan = 1 EA'):
+   sizes.length===1?l('1박스 = '+sizes[0]+' EA','1 case = '+sizes[0]+' EA'):l('입수: '+sizes.join(' / ')+' EA','Case sizes: '+sizes.join(' / ')+' EA');
+  if(scanUnit==='case')$('cartonScan').placeholder=l('FULL 박스 겉면 바코드','Full-case barcode');
+  $('cartonScan').setAttribute('aria-label',$('cartonScan').placeholder);
+
   $('cartonLabelTrigger').hidden=mode==='inventory';$('cartonReport').hidden=mode==='inventory';
   if(!allowed)warn(l('중복 집계를 막기 위해 먼저 시작한 실사 방식에서만 입력할 수 있어요. 그 스캔을 모두 취소하면 방식을 바꿀 수 있어요.','To prevent double counting, use the counting method already started. Undo its scans to switch methods.'));
   else if(locked())warn(l('검수를 완료했어요.','Inspection complete.'));
   const body=$('cartonRows');body.replaceChildren();
   const recent=work.recent(mode,group,box).slice(0,5).reverse().map(e=>({
-   ...e,scope:'carton',qty:1,at:new Date(e.at).toISOString(),code:e.value,
+   ...e,scope:'carton',qty:e.qty,at:new Date(e.at).toISOString(),code:e.value,
    name:e.name||l('미확인 바코드','Unverified barcode'),
    barcode:e.barcode||(!e.sku?e.value:''),scanOutcome:e.result==='unexpected'?'unknown':e.result,
    status:e.result==='unexpected'?'예정 외':e.result==='excess'?'초과':'정상',
@@ -385,7 +399,13 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  }
  function add(value){
   if(!inspectionActive()||$('cartonScan').disabled)return;
-  const result=work.scan(mode,group,box,value);
+  const result=work.scan(mode,group,box,value,undefined,scanUnit);
+  if(result==='wrong-unit'){
+   $('cartonScan').value='';
+   warn(scanUnit==='case'?l('이 검수 박스에 연결된 FULL 박스 바코드가 아니에요. 수량은 그대로예요.','This full-case barcode is not linked to the current carton. Counts are unchanged.'):
+    l('제품 박스 바코드예요. FULL 박스 모드로 바꿔 주세요.','This is a case barcode. Switch to Full case mode.'));
+   return;
+  }
   if(result==='conflict'){audio('conflict');warn(l('여러 품목과 일치합니다. 상품 바코드를 확인하세요.','Code matches multiple products. Check the product barcode.'));return;}
   if(!result)return;
   audio(result==='unexpected'?'unknown':result);
@@ -416,6 +436,13 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  $('cartonDispatch').onclick=()=>{if(mode==='outbound'&&group)openDispatch(dispatchContext());};
  $('cartonQuery').onkeydown=e=>{if(!e.isComposing&&e.keyCode!==229&&e.key==='ArrowDown'){e.preventDefault();receiptPicker.focus();}};
  $('cartonQuery').oninput=renderSearch;
+ for(const [id,unit] of [['cartonScanEach','each'],['cartonScanCase','case']]){
+  $(id).onclick=()=>{
+   if($(id).disabled||!inspectionActive()||scanUnit===unit)return;
+   scanUnit=unit;clearScanner();$('cartonScan').value='';warn('');render();
+   if(matchMedia('(pointer:fine)').matches)focusStage('cartonScan');
+  };
+ }
  $('cartonScanForm').onsubmit=e=>{e.preventDefault();add($('cartonScan').value);};
  $('cartonFileButton').onclick=()=>$('cartonFile').click();
  $('cartonMapButton').onclick=()=>load(combinedFile);
