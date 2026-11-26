@@ -21,6 +21,7 @@ jobs:
           node-version: '24.22.3'
           package-manager-cache: false
       - run: npm ci
+      - run: npm run check:maintenance
       - run: npx playwright install --with-deps chromium
       - run: npm run build && npm run test:unit && npm run test:flow
       - id: visual
