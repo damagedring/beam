@@ -59,7 +59,7 @@
 
 /* Satin glass: low-contrast broad reflections, a single frosted substrate,
    and no perimeter highlights. Keep paper, quantities, and print out of the material. */
-@layer beam-satin{
+@layer beam-surface-controls{
  /* Blur support is sufficient. WebKit can render it but does not yet
     expose the transparency-preference media feature. */
  @media screen and (forced-colors:none){

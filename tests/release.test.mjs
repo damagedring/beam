@@ -87,7 +87,7 @@ test('style URL changes with the deployed CSS bytes', async () => {
 
 test('satin glass uses filter support rather than requiring a transparency preference signal', async () => {
   const css=await read('app.css');
-  const layer=css.slice(css.indexOf('@layer beam-satin{'),css.indexOf('/* Profiles read as documents'));
+  const layer=css.slice(css.indexOf('@layer beam-surface-controls{'),css.indexOf('/* Profiles read as documents'));
   assert.match(layer,/@media screen and \(forced-colors:none\)\s*\{/);
   assert.doesNotMatch(layer,/prefers-reduced-transparency\s*:\s*no-preference/);
   assert.match(layer,/@supports \(backdrop-filter:blur\(2px\)\) or \(-webkit-backdrop-filter:blur\(2px\)\)/);

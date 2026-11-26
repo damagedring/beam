@@ -1001,7 +1001,7 @@ html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(
  #beamTerminal .beam-term-bar kbd{border:1px solid var(--term-edge);color:var(--term-ink);padding:1px 4px;font:inherit}
  #beamTerminal .tablewrap,#beamTerminal #scanActivityViewport{scrollbar-color:var(--term-edge) var(--term-bg)}
 }
-@layer beam-action-shape{
+@layer beam-control-geometry{
  @media screen{
   #beamTerminal :is(#scanbutton,#undo,#activityMinimize,#activityExpand,#reset,.count-exceptions button){border-radius:5px!important}
   #beamTerminal #undo{--beam-icon-size:37px}

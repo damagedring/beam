@@ -1,4 +1,4 @@
-@layer beam-clear-frost{
+@layer beam-legacy-control-effects{
  @media screen and (forced-colors:none){
   html[data-theme=light]{
    --glass-control:rgb(0 0 0 / .014);
@@ -67,7 +67,7 @@
 }
 
 /* v1.53 · Frosted matte glass: one material, three thicknesses. */
-@layer beam-matte {
+@layer beam-legacy-overlay-effects {
  @media screen and (forced-colors:none){
   html[data-theme]{
    --frost-ink:#252321;--frost-muted:#514d48;
@@ -1461,7 +1461,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
 }
 
 /* Shape tokens: action pills, circular icon controls, unchanged receipt paper. */
-@layer beam-action-shape{
+@layer beam-control-geometry{
  @media screen{
   button:not(.beam-receipt,.inspection-sheet-tab), [role="button"]:not(.beam-receipt,.inspection-sheet-tab),
   input:is([type="button"],[type="submit"],[type="reset"]){
