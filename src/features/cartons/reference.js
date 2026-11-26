@@ -7,7 +7,7 @@ const names = {
  inventory: ['inventorycartons', 'locationcartons', 'stockcartons', '재고박스', '재고박스자료', '재고실사'],
 };
 const pickingSheets=['pickingresults','pickingexport','outboundpicks','pickedcartons','피킹결과','피킹실적','피킹내역'];
-const inventoryOnly = field => !['external', 'store', 'country', 'das'].includes(field);
+const inventoryOnly = field => !['external', 'store', 'country', 'das', 'verificationUnit', 'unitsPerCase', 'caseBarcode'].includes(field);
 
 export function validateCartonMappings(value = {}) {
  if (!value || typeof value !== 'object' || Array.isArray(value) ||

@@ -161,3 +161,32 @@ test('outbound progress never applies an extra unit in one box to another box’
  assert.deepEqual(work.outboundOrderProgress(order),{covered:4,excess:0,unverified:1});
  assert.equal(markers.length,0);
 });
+
+test('outbound packaging metadata is optional, preserves scan quantities and distinguishes case from pieces',()=>{
+ const headers=['Order ID','Carton Label ID','SKU','Product Barcode','Product Name','Picked Units','Verification Unit','Units per Case','Case Barcode'];
+ const adapter=cartonAdapter('outbound');
+ const columns=adapter.validateColumns('',headers,{receipt:0,id:1,sku:2,barcode:3,name:4,qty:5,verificationUnit:6,unitsPerCase:7,caseBarcode:8});
+ const lines=adapter.table('',[headers,['ORDER','A','X','123','Coat',10,'CASE',10,'CASE123'],['ORDER','A','Y','456','Top',2,'EACH'],['ORDER','A','Z','789','Shirt',3,'CASE',2,'CASE789']],{columns});
+ assert.deepEqual(lines.map(x=>x.verification),[{unit:'case',unitsPerCase:10,caseBarcode:'CASE123'},{unit:'each'},undefined]);
+ const index=createCartonIndex(lines),group=index.groups.get('ORDER'),work=createCartonWork();
+ work.connect('outbound','fictional',index);
+ work.scan('outbound',group,'A','CASE123');
+ work.scan('outbound',group,'A','123');
+ assert.equal(work.rows('outbound',group,'A').find(r=>r.sku==='X').actual,1);
+ assert.equal(work.outboundPieceEvidence(group,'A').pieceScans,0);
+});
+test('piece evidence distinguishes grouping for the same counts, ignores exceptions, and follows undo',()=>{
+ const mk=(sku,qty)=>({...first,box:'A',name:sku,sku,barcode:sku,qty,verification:{unit:'each'}});
+ const index=createCartonIndex([mk('X',2),mk('Y',2),mk('Z',2)]),group=index.groups.get('ORDER');
+ const run=values=>{
+  const work=createCartonWork();work.connect('outbound','fictional',index);
+  for(const v of values)work.scan('outbound',group,'A',v);
+  return work;
+ };
+ const grouped=run(['X','X','?','Y','Y','Z','Z']);
+ assert.deepEqual(grouped.outboundPieceEvidence(group,'A'),{pieceScans:6,distinctSku:3,repeatedSkuRuns:0});
+ const alternating=run(['X','Y','X','Z','Y','Z']);
+ assert.deepEqual(alternating.outboundPieceEvidence(group,'A'),{pieceScans:6,distinctSku:3,repeatedSkuRuns:3});
+ alternating.undo('outbound',group,'A');
+ assert.deepEqual(alternating.outboundPieceEvidence(group,'A'),{pieceScans:5,distinctSku:3,repeatedSkuRuns:2});
+});

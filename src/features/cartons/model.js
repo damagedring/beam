@@ -1,4 +1,4 @@
-import { cartonRows, codeKey, matchCartonScan } from '../../domain/carton-verification.js';
+import { cartonRows, codeKey, matchCartonScan, pieceVerificationEvidence } from '../../domain/carton-verification.js';
 
 import { quantityOutcome } from '../../domain/reconcile.js';
 
@@ -95,6 +95,7 @@ export function createCartonWork(now = Date.now) {
     hasScans: () => [...sources.values()].some(source => [...source.jobs.values()].some(work => work.events.length)),
     finish: (mode, group, box) => job(mode, group)?.done.add(box),
     outboundOrderProgress: group => job('outbound', group)?.progress || emptyProgress(),
+    outboundPieceEvidence: (group, box) => pieceVerificationEvidence(group, box, scope('outbound', group, box)?.events || []),
     outboundOverages: (group, box) => scope('outbound', group, box)?.overages || noMarkers,
     latest: (mode, group, box) => scope(mode, group, box)?.events.at(-1),
     recent: (mode, group, box) => {

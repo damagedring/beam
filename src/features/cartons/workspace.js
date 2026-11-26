@@ -4,7 +4,7 @@ import { createCartonWork } from './model.js';
 import { createOutboundReceipts } from './outbound-receipts.js';
 import { productIdentityMarkup } from '../../components/product-identity/view.js';
 import { scannedProductLabel } from '../../domain/product-identity.js';
-import { cartonAdapter, cartonQuantityAliases, cartonSearch, codeKey, createCartonIndex, fields, aliases, outboundCandidates, outboundDispatch, outboundSearchScope } from '../../domain/carton-verification.js';
+import { cartonAdapter, cartonQuantityAliases, cartonSearch, codeKey, createCartonIndex, fields, aliases, cartonVerificationPlan, outboundCandidates, outboundDispatch, outboundSearchScope } from '../../domain/carton-verification.js';
 
 export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglish,openLabels,openReport,openDispatch,dispatchProfile,cartonProfile,saveCartonMapping,showHome,notice,renderActivity,quantityLabel,audio,locationFor,syncLocation,progressIcon}){
  const $=id=>document.getElementById(id), root=$('cartonWorkspace'), l=(ko,en)=>isEnglish()?en:ko;
@@ -94,6 +94,8 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   receipt:mode==='inventory'?l('Location','Location'):l('주문 ID','Order ID'),
   id:l('박스 라벨번호','Carton label ID'),external:l('외부 주문 ID','External order ID'),
   store:l('도착 매장 (선택)','Destination store (optional)'),country:l('도착 국가 (선택)','Destination country (optional)'),
+  verificationUnit:l('검수 단위 (선택)','Verification unit (optional)'),unitsPerCase:l('박스 입수 (선택)','Units per case (optional)'),
+  caseBarcode:l('제품 박스 바코드 (선택)','Product case barcode (optional)'),
   das:l('DAS 주문 식별자 (선택)','DAS order ID (optional)'),
   qty:mode==='inventory'?l('예정 수량','Expected quantity'):l('피킹 수량','Picked quantity'),name:l('제품명','Product name'),brand:l('브랜드 (선택)','Brand (optional)'),sku:'SKU',barcode:l('상품 바코드','Product barcode')
  });
@@ -131,12 +133,12 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
       map.replaceChildren();controls.clear();
       const head=rows[readHeader()],quantityAliases=cartonQuantityAliases(target,head);
       for(const field of fields){
-       if(target==='inventory'&&['external','store','country','das'].includes(field))continue;
+       if(target==='inventory'&&['external','store','country','das','verificationUnit','unitsPerCase','caseBarcode'].includes(field))continue;
        const label=make('label',captions()[field]),select=make('select',null);
        select.append(new Option(l('연결 안 함','Not mapped'),''));
        head.forEach((c,i)=>{if(codeKey(c))select.append(new Option(codeKey(c),String(i)));});
        const matches=remembered&&Object.hasOwn(remembered,field)?byHeader(head,remembered[field]):
-        previous>=0&&!['brand','das'].includes(field)?[]:
+        previous>=0&&!['brand','das','verificationUnit','unitsPerCase','caseBarcode'].includes(field)?[]:
         head.flatMap((c,i)=>(field==='qty'?quantityAliases:aliases[field]).includes(clean(c))?[i]:[]);
        if(matches.length===1)select.value=String(matches[0]);
        label.append(select);map.append(label);controls.set(field,select);
@@ -280,6 +282,14 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    meter.setAttribute('aria-valuetext',[coveredText,report].filter(Boolean).join(' · '));
   }
   $('cartonCurrent').textContent=box??l('Location 전체','Whole location');
+  const verificationPlan=$('cartonVerificationPlan'),plan=outbound?cartonVerificationPlan(group,box):null;
+  verificationPlan.hidden=!plan||!(plan.eachUnits||plan.caseCount);
+  if(!verificationPlan.hidden)verificationPlan.textContent=l('자료상 검수 단위','Planned verification unit')+' · '+[
+   plan.eachUnits?l('낱개 '+plan.eachUnits+' EA','Each '+plan.eachUnits+' EA'):'',
+   plan.caseCount?l('제품 박스 '+plan.caseCount+'개 ('+plan.caseUnits+' EA)',plan.caseCount+' product cases ('+plan.caseUnits+' EA)'):'',
+   plan.unspecifiedUnits?l('미지정 '+plan.unspecifiedUnits+' EA','Unspecified '+plan.unspecifiedUnits+' EA'):'',
+  ].filter(Boolean).join(' · ');
+
   const last=work.latest(mode,group,box),readout=$('cartonLastItem');
   const item=scannedProductLabel(last?.name,last?.brand),badge=$('cartonLastBrand');
   readout.hidden=!last;readout.dataset.result=last?.result||'';

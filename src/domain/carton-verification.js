@@ -1,7 +1,7 @@
 import { quantityOutcome } from './reconcile.js';
 import { mergeProductBrands } from './product-identity.js';
 const LIMIT=200000;
-export const fields=['receipt','id','external','store','country','barcode','sku','name','brand','qty','das'];
+export const fields=['receipt','id','external','store','country','barcode','sku','name','brand','qty','das','verificationUnit','unitsPerCase','caseBarcode'];
 export const aliases={
  receipt:['orderid','originalorderid','outboundorderid','location','주문번호','오더번호','로케이션'],
  id:['boxlabelid','cartonlabelid','cartonid','boxid','cartonlpn','박스라벨번호','박스번호'],
@@ -9,6 +9,9 @@ export const aliases={
  store:['destinationstore','store','storename','shiptostore','도착매장','매장명'],
  country:['destinationcountry','country','shiptocountry','countrycode','도착국가','국가'],
  barcode:['scancode','barcode','productbarcode','상품바코드','바코드'],
+ verificationUnit:['verificationunit','inspectionunit','검수단위'],
+ unitsPerCase:['unitspercase','casepackquantity','박스입수'],
+ caseBarcode:['casebarcode','productcasebarcode','제품박스바코드'],
  das:['dasorderid','dasid','dasbatchid','dasassignmentid','das오더번호','das오더id','das할당번호','das식별자'],
  sku:['sku','상품코드'],brand:['brand','brandname','브랜드','브랜드명'],name:['productname','name','상품명','제품명'],qty:['expectedunits','plannedunits','onhand','quantity','qty','예정수량','수량']
 };
@@ -53,7 +56,11 @@ export function cartonAdapter(mode,separator=''){
    if(!inventory&&!box&&(!picked||qty===0))return null;
    if(!group||(!inventory&&!box)||!(sku||barcode)||!name||!Number.isSafeInteger(qty)||qty<0||!read(r,'qty')||[group,box,external,sku,barcode,das].some(v=>v.length>200)||name.length>1000||store.length>300||country.length>100)
     throw Error((i+2)+'행: Verify group, carton, item, and expected quantity.');
-   return {group,box,external,sku,barcode,name,qty,...(das?{das}:{}),...(brand?{brand}:{}),...(store?{store}:{}),...(country?{country}:{})};
+   const declared=inventory?'':cartonHeaderKey(read(r,'verificationUnit'));
+   const unitsPerCase=Number(read(r,'unitsPerCase'));
+   const caseCode=read(r,'caseBarcode'),caseBarcode=caseCode.length<=200?caseCode:'';
+   const verification=declared==='each'?{unit:'each'}:declared==='case'&&Number.isSafeInteger(unitsPerCase)&&unitsPerCase>1&&qty%unitsPerCase===0?{unit:'case',unitsPerCase,...(caseBarcode?{caseBarcode}:{})}:undefined;
+   return {group,box,external,sku,barcode,name,qty,...(verification?{verification}:{}),...(das?{das}:{}),...(brand?{brand}:{}),...(store?{store}:{}),...(country?{country}:{})};
   }).filter(r=>r&&r.qty>0);
  }
  return {validateColumns,table};
@@ -80,11 +87,29 @@ export function createCartonIndex(lines){
  }
  return {groups,boxes};
 }
+// Imported packaging describes the plan, never how the operator actually verified it.
+const verificationPlans=new WeakMap();
+export function cartonVerificationPlan(group,box){
+ const rows=group.boxes.get(box);
+ if(!rows)return {eachUnits:0,caseUnits:0,caseCount:0,unspecifiedUnits:0,skuCount:0};
+ if(verificationPlans.has(rows))return verificationPlans.get(rows);
+ const plan={eachUnits:0,caseUnits:0,caseCount:0,unspecifiedUnits:0,skuCount:rows.size};
+ for(const row of rows.values()){
+  if(row.verification?.unit==='each')plan.eachUnits+=row.expected;
+  else if(row.verification?.unit==='case'){
+   plan.caseUnits+=row.expected;plan.caseCount+=row.expected/row.verification.unitsPerCase;
+  }else plan.unspecifiedUnits+=row.expected;
+ }
+ verificationPlans.set(rows,plan);
+ return plan;
+}
 const itemKey=(r)=>JSON.stringify([r.sku,r.barcode]);
 function add(items,row){
  const key=itemKey(row),old=items.get(key);
- if(old){if(old.name!==row.name)throw Error('Conflicting product names: '+(row.sku||row.barcode));old.expected+=row.qty;if(row.brand)old.brand=mergeProductBrands([old.brand,row.brand]);}
- else items.set(key,{key,name:row.name,sku:row.sku,barcode:row.barcode,...(row.brand?{brand:row.brand}:{}),expected:row.qty,actual:0});
+ if(old){if(old.name!==row.name)throw Error('Conflicting product names: '+(row.sku||row.barcode));old.expected+=row.qty;if(row.brand)old.brand=mergeProductBrands([old.brand,row.brand]);
+  if(old.verification?.unit!==row.verification?.unit||old.verification?.unitsPerCase!==row.verification?.unitsPerCase||old.verification?.caseBarcode!==row.verification?.caseBarcode)delete old.verification;
+ }
+ else items.set(key,{key,name:row.name,sku:row.sku,barcode:row.barcode,...(row.brand?{brand:row.brand}:{}),expected:row.qty,actual:0,...(row.verification?{verification:row.verification}:{})});
 }
 const scopeIndexes = new WeakMap();
 function scopeIndex(expected) {
@@ -216,3 +241,15 @@ export function dasFolders(groups){
  return [...batches.values()];
 }
 export function wrapOutboundIndex(index,step,count){return count?((index+step)%count+count)%count:0;}
+
+export function pieceVerificationEvidence(group,box,events){
+ const rows=group.boxes.get(box), seen=new Set();
+ let pieceScans=0, repeatedSkuRuns=0, previous=null;
+ for(const event of events){
+  if(event.box!==box||event.result!=='accepted'||!event.coverageEligible||rows?.get(event.key)?.verification?.unit!=='each')continue;
+  pieceScans++;
+  if(event.key!==previous&&seen.has(event.key))repeatedSkuRuns++;
+  seen.add(event.key);previous=event.key;
+ }
+ return {pieceScans,distinctSku:seen.size,repeatedSkuRuns};
+}

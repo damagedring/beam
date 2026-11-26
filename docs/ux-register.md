@@ -58,3 +58,9 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 | UX-32 | The outbound shipment summary prints the selected order-level fields and carton details separately from the carton comparison. |
 | UX-33 | Label print layouts use millimetres, swap dimensions in landscape and keep A4 available. |
 | UX-34 | A long scan session stays responsive and preserves input counts and order. |
+
+### Outbound verification signals
+
+Picking profiles can optionally map `Verification Unit`, `Units per Case` and `Case Barcode`. The carton header shows the declared unit, not a claim about what was physically checked. An omitted or inconsistent unit stays unspecified. Case metadata does not turn a scan into a quantity multiplier or change completion. Existing profiles remain valid.
+
+Grouped piece verification records are scoped to one outbound carton and use only surviving, accepted scans on explicitly each-verified lines. Returning to an already seen SKU is observable; physical grouping, effort and causes of shipment errors are not proven by scan order. These signals are not scores and are not sent or used for worker evaluation.
