@@ -39,6 +39,7 @@
  #printReport tbody tr:not(:last-child) td{border-bottom:.35pt solid #c3c3c3!important}
  #printReport tfoot td{font-weight:800;border-top:.75pt solid #333!important}
  #printReport .pr-number{text-align:right}
+ #printReport th.pr-number{white-space:nowrap}
  #printReport .pr-empty{text-align:center;padding:9pt;color:#555!important}
  #printReport .product-brand-inline{box-shadow:none!important;background:none!important;border:0!important;color:#444!important;font-size:7pt;padding:0!important;margin-right:3pt}
  #printReport .pr-dispatch-fields{display:grid;grid-template-columns:1fr 1fr;gap:3mm 6mm}

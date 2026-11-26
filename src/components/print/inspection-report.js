@@ -53,7 +53,7 @@ export function renderInspectionHeader({mode,orderId,externalId='',party='',part
 export function renderInspectionReport({rows=[],...context}){
  const header=renderInspectionHeader(context);
  const columns=['Status','Barcode / SKU','Product','Expected','Checked','Difference'];
- const widths=[16,25,35,8,8,8];
+ const widths=[14,23,31,10,10,12];
  const cells=(tag,values,product=null)=>values.map((v,i)=>'<'+tag+(tag==='th'?' scope="col"':'')+
   (i>=columns.length-3?' class="pr-number"':'')+'>'+(i===2&&product?productIdentityMarkup(product.name,displayBrand(product)):escape(v))+'</'+tag+'>').join('');
  let expected=0,actual=0;
