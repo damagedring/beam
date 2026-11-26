@@ -33,8 +33,7 @@ test('UX-22/28 Outbound receipt, identity and label preview', async ({ beam: pag
   await loadCartons(page, 'Outbound');
   await page.evaluate(() => document.fonts.ready);
   await expect(page).toHaveScreenshot('outbound-receipts.png');
-  await chooseCarton(page, 'OUT-1');
-  await page.locator('#cartonStart').click();
+  await page.locator('.outbound-carton').filter({hasText:'BOX-1'}).first().click();
   await enterScan(page.locator('#cartonScan'), '0001234567890');
   await expect(page).toHaveScreenshot('outbound-inspection.png');
   await page.locator('#cartonLabelTrigger').click();
@@ -45,6 +44,14 @@ test('UX-22/28 Outbound receipt, identity and label preview', async ({ beam: pag
   for (let i = 0; i < 3; i++) await enterScan(page.locator('#cartonScan'), '0001234567890');
   await enterScan(page.locator('#cartonScan'), 'fictional-unknown');
   await expect(page.locator('#cartonMeter')).toHaveAttribute('data-phase', 'excess');
+  await expect(page.locator('#cartonMeter')).toHaveCSS('color', await page.locator('#cartonMeter').evaluate(m => {
+    const sample = document.createElement('span');
+    sample.style.color = 'var(--excess-ink)';
+    m.parentElement.append(sample);
+    const ink = getComputedStyle(sample).color;
+    sample.remove();
+    return ink;
+  }));
   await expect(page).toHaveScreenshot('outbound-excess.png');
   await page.locator('#theme').click();
   await expect(page).toHaveScreenshot('outbound-excess-dark.png');

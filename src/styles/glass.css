@@ -97,7 +97,7 @@
      the search field. This ordering is also needed in Safari's compositor. */
   #beamSearch .beam-input>svg{z-index:1}
   @supports (backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)){
-   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.order-tab-link),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
+   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.inspection-sheet-tab),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
     background:radial-gradient(ellipse 86% 115% at 30% -10%,var(--satin-polish),transparent 92%),var(--satin-state,var(--satin-body))!important;
     border-color:transparent!important;
     -webkit-backdrop-filter:blur(10px) saturate(.45)!important;
@@ -145,7 +145,7 @@
     /* Drop only the satin material; the earlier opaque accessibility
        colours and keyboard focus treatments remain in the cascade. */
     html[data-theme] body :is(
-     button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.order-tab-link),input[type=button],input[type=submit],
+     button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.inspection-sheet-tab),input[type=button],input[type=submit],
      #beamQuery,#beamSku,dialog[open],#fileMenuPanel,#receiptList,#storeList,#beamSidebar,
      #discrepancyPopover,#orderInfoPopover,#questPeek,#availabilityNote,.beam-empty,
      #fileMenuPanel>button,dialog[open] :is(select,input:not([type]),input[type=text],input[type=search],input[type=number],textarea)
@@ -296,7 +296,7 @@
 /* The control baseline disables transitions. Both paper and file pass
    through the same reel positions; direct dragging still follows the pointer. */
 @media screen and (prefers-reduced-motion:no-preference){
- #beamSearch .beam-stage:not([data-dragging]) .beam-receipt{
+ #beamSearch .beam-stage:not([data-dragging]) .beam-receipt:not([data-rebasing]){
   transition:transform 520ms cubic-bezier(.28,.08,.22,1),opacity 320ms cubic-bezier(.25,.1,.25,1)!important;
  }
  #beamSearch .beam-stage:not([data-dragging]) .beam-file-caption>strong{

@@ -7,7 +7,7 @@ const css=await readFile(new URL('../src/styles/workspace.css',import.meta.url),
 const consoleCss=await readFile(new URL('../src/features/returns/console.css',import.meta.url),'utf8');
 const palette=await readFile(new URL('../src/styles/tokens/status.css',import.meta.url),'utf8');
 const styles=consoleCss.slice(consoleCss.indexOf('/* Inspection glass: neutral outer material'));
-const readToken=name=>styles.match(new RegExp('--'+name+':(#[0-9a-f]{6})(?:;|\\s)'))?.[1];
+const readToken=(name,source=styles)=>source.match(new RegExp('--'+name+':(#[0-9a-f]{6})(?:;|\\s)'))?.[1];
 const luminance=hex=>hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255)
  .map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4).reduce((sum,x,i)=>sum+x*[.2126,.7152,.0722][i],0);
 const contrast=(a,b)=>{const l=[luminance(a),luminance(b)].sort((x,y)=>y-x);return (l[0]+.05)/(l[1]+.05);};
@@ -25,8 +25,11 @@ test('scanner and ledger keep legible status and text over their neutral dark su
  }
  assert.match(styles,/#scanActivitySection \.compact-activity td\.sheet-status\[data-cell-state=accepted\]\{[^}]*background:var\(--recent-surface\)!important;color:var\(--complete-ink\)!important/);
  assert.match(styles,/--tui-dim:var\(--term-dim\);--muted:var\(--term-dim\)/);
- assert.ok(contrast(readSwatch('match'),readToken('recent-surface'))>=4.5);
- assert.ok(contrast('#bdbdbd',readToken('recent-surface'))>=4.5);
+ const dark=styles.slice(styles.indexOf('html[data-theme=dark] .inspection-console'));
+ assert.ok(contrast(readSwatch('match'),readToken('recent-surface',dark))>=4.5);
+ assert.ok(contrast('#bdbdbd',readToken('recent-surface',dark))>=4.5);
+ assert.ok(contrast(mix(readSwatch('match'),'#111111',.28),readToken('recent-surface'))>=4.5);
+ assert.ok(contrast(readToken('term-dim'),readToken('recent-surface'))>=4.5);
 });
 test('screen information colors are sourced from the shared palette, including the order popover',async()=>{
  const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
@@ -36,8 +39,10 @@ test('screen information colors are sourced from the shared palette, including t
   assert.doesNotMatch(live,new RegExp(readSwatch(role),'i'));
  }
  assert.doesNotMatch(live,/--(?:complete|warning|shortage|progress|excess|lemon|coral|beam-error)-(?:bg|ink|fill|edge|alert)\s*:/);
- assert.match(css,/:is\(#orderInfoList,#questPeekList\) \.quest-item\[data-phase=progress\]\{--quest-fill:var\(--shortage-bg\);--quest-ink:var\(--shortage-ink\)/);
- assert.match(css,/:is\(#orderInfoList,#questPeekList\) \.quest-item\[data-phase\]\{\s*color:var\(--quest-ink\);background:var\(--quest-fill\)/);
+ const quantities=await readFile(new URL('../src/features/returns/quantities.css',import.meta.url),'utf8');
+ assert.match(quantities,/quest-item\[data-phase\]\{[^}]*background:transparent/);
+ assert.match(quantities,/\[data-phase=complete\] \.quest-symbol\{color:var\(--complete-ink\)/);
+ assert.match(quantities,/\[data-phase=excess\] \.quest-symbol\{color:var\(--excess-ink\)/);
 });
 
 test('last scan shows a visible quantity, with shortage, equality or surplus spelled out',async()=>{
@@ -77,7 +82,9 @@ test('order identity, order actions and both inspection tables are inside the sa
   assert.match(sheet,new RegExp('id="'+id+'"'));
  }
  assert.match(sheet,/<\/main>\s*<\/div>\s*<\/section>\s*<\/div>/);
- assert.match(css,/#inspectionOrderSurface::before\{\s*content:"";position:absolute;inset:0/);
+ const rail=await readFile(new URL('../src/styles/inspection-rail.css',import.meta.url),'utf8');
+ assert.match(html,/<section id="inspectionOrderSurface"[^>]*inspection-sheet/);
+ assert.match(rail,/\.inspection-sheet\{[\s\S]*?background:var\(--sheet-paper\)/);
 });
 
 test('switching inspection orders never regenerates a second action header',async()=>{
@@ -118,7 +125,7 @@ test('long receipts keep a native scroll track inside the paper and retain their
 
 test('folder and paper positions use the same eased transition after keyboard input, but not during drag',async()=>{
  const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
- assert.match(glass,/@media screen and \(prefers-reduced-motion:no-preference\)\{\s*#beamSearch \.beam-stage:not\(\[data-dragging\]\) \.beam-receipt\{\s*transition:transform 520ms cubic-bezier\(\.28,\.08,\.22,1\)[^}]*!important/);
+ assert.match(glass,/@media screen and \(prefers-reduced-motion:no-preference\)\{\s*#beamSearch \.beam-stage:not\(\[data-dragging\]\) \.beam-receipt:not\(\[data-rebasing\]\)\{\s*transition:transform 520ms cubic-bezier\(\.28,\.08,\.22,1\)[^}]*!important/);
  assert.match(css,/\.beam-stage\[data-dragging\] \.beam-receipt\{[^}]*transition:none!important/);
 });
 

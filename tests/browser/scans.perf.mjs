@@ -7,8 +7,7 @@ for (const mode of ['returns', 'cartons']) {
     const carts = mode === 'cartons';
     if (carts) {
       await loadCartons(page, 'Outbound', cartonWorkload());
-      await chooseCarton(page, 'ASN-00000');
-      await page.locator('#cartonStart').click();
+      await chooseCarton(page, 'BOX-0');
     } else {
       await page.locator('#backup').setInputFiles(returnWorkload());
       await expect(page.locator('#barcode')).toBeEnabled({ timeout: 60_000 });

@@ -34,7 +34,8 @@ export function createBrowserRecovery(api){
    if(!current?.draft)tell('conflict');
    return;
   }
-  active.revision=entry.revision;active.draft=null;savedVersion=started;tell('saved');
+  active.revision=entry.revision;active.draft=null;savedVersion=started;
+  if(version===started)tell('saved');
  }
  async function run(){
   const context=api.context();
@@ -53,7 +54,11 @@ export function createBrowserRecovery(api){
  }
  // One short window per burst, not a trailing debounce: continuous scans
  // still reach durable checkpoints without writing on every keypress.
- function schedule(delay=450){version++;if(timer===null)timer=setTimeout(()=>void flush(),delay);}
+ function schedule(delay=450){
+  version++;
+  if(display.kind==='saved')tell('saving');
+  if(timer===null)timer=setTimeout(()=>void flush(),delay);
+ }
  async function recover(){
   const active=current,draft=active?.draft,started=version;
   if(inflight||acting||!validity(draft)||!still(active.context))return false;

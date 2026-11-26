@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { chooseCarton, enterScan, loadCartons, loadReturnsFixture, openCartons, returnsInspection, test } from './beam-fixture.mjs';
+import { chooseCarton, chooseOutboundCarton, enterScan, loadCartons, loadReturnsFixture, openCartons, returnsInspection, test } from './beam-fixture.mjs';
 
 test('UX-05/06/08/09/10/11 Returns tracking, scanner routing, frozen verdicts and undo', async ({ beam: page }) => {
   await returnsInspection(page, { singleOrder: true });
@@ -26,7 +26,7 @@ test('UX-15/16 Returning to matching reference data after reload restores an act
   await enterScan(page.locator('#barcode'), '0012345678901');
   await expect(page.locator('#beamRecoverySaved')).toContainText('자동 저장됨');
   await page.reload();
-  await expect(page.locator('#beamRecoveryStatus')).toContainText('기준 자료를 먼저');
+  await expect(page.locator('#beamNoticeStrip')).toContainText('기준 자료를 먼저');
   await expect(page.locator('#beamRecoverDraft')).toBeHidden();
   await loadReturnsFixture(page);
   await expect(page.locator('#beamRecoverDraft')).toBeVisible();
@@ -40,12 +40,17 @@ test('UX-17/18/19/21/22 Outbound tracks each carton and uses mapped identity for
   await loadCartons(page, 'Outbound');
   await page.locator('#cartonQuery').fill('BOX-1');
   await page.locator('#cartonQuery').press('Enter');
-  await expect(page.locator('#cartonGroupTitle')).toBeHidden();
-  await chooseCarton(page, 'OUT-1');
-  await page.locator('#cartonStart').click();
+  await expect(page.locator('#cartonInspection')).toBeHidden();
+  await chooseOutboundCarton(page,'OUT-1','BOX-1');
+  await expect(page.locator('#cartonCurrent')).toHaveText('BOX-1');
+  await expect(page.locator('#cartonScopes button')).toHaveCount(0);
+  await expect(page.locator('#availabilityToggle')).toHaveAttribute('aria-checked','true');
   await page.locator('#cartonScan').blur();
-  await page.keyboard.type('0001234567890');
-  await page.keyboard.press('Enter');
+  // Feed one keyboard wedge burst within a frame independent of runner load.
+  await page.evaluate(()=>{
+    const target=document.activeElement;
+    for(const key of [...'0001234567890','Enter'])target.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
+  });
   await expect(page.locator('#cartonCount')).toContainText('1 / 3');
   await expect(page.locator('#cartonHistory [data-result]')).toHaveCount(1);
   await expect(page.locator('#cartonLastBrand')).toHaveText('ACME');
@@ -55,13 +60,12 @@ test('UX-17/18/19/21/22 Outbound tracks each carton and uses mapped identity for
   await page.keyboard.press('Escape');
   await expect(page.locator('#cartonLabelTrigger')).toBeFocused();
   await page.locator('#cartonBack').click();
-  await page.locator('#cartonScopes').getByRole('button', { name: 'BOX-2' }).click();
-  await page.locator('#cartonStart').click();
+  await expect(page.locator('.outbound-carton[title="BOX-1"]').first()).toBeFocused();
+  await chooseCarton(page, 'BOX-2');
   await expect(page.locator('#cartonCount')).toContainText('0 / 2');
   await page.locator('#beamHomeBack').click();
   await openCartons(page, 'Outbound');
-  await chooseCarton(page, 'OUT-1');
-  await page.locator('#cartonStart').click();
+  await chooseOutboundCarton(page,'OUT-1','BOX-1');
   await expect(page.locator('#cartonCount')).toContainText('1 / 3');
 });
 

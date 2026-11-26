@@ -33,8 +33,8 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 
 | ID | Observable behavior |
 | --- | --- |
-| UX-18 | Outbound search keeps orders, cartons and mapped destinations distinct and leaves ambiguous carton matches for selection. |
-| UX-19 | Each outbound carton retains its inspection count when the operator switches scope. |
+| UX-18 | Outbound search keeps orders, cartons, DAS groups and mapped destinations distinct and leaves ambiguous carton matches for selection. |
+| UX-19 | An outbound inspection shows only the selected carton and preserves its counts across navigation. Completion never locks another carton. |
 | UX-20 | Inventory counts by Location or by carton, with the alternate scope view-only until scans in the current scope are undone. |
 | UX-21 | Label previews group products with remaining units, and printing keeps the corresponding copy counts, batch boundaries and mapped barcodes. |
 | UX-22 | Known brands appear in the badge, and the displayed name drops only a delimited leading prefix that matches the mapped brand. |
@@ -46,6 +46,8 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 | UX-28 | Switching between light and dark themes preserves inspection work, information hierarchy and visible status distinctions. |
 | UX-29 | Keyboard focus stays identifiable and Korean and English text stays readable with forced colors and reduced motion or transparency. |
 | UX-30 | Home opens the enabled workflows, and visiting Settings or Help leaves inspection work intact. |
+| UX-35 | Outbound defaults to Single order; linked assignments appear together in DAS without merging inspection scopes. |
+| UX-36 | Outbound defaults to showing eligible mapped picking locations without changing Returns settings. |
 
 ## Print and performance
 

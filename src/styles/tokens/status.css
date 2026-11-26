@@ -15,14 +15,14 @@
   --status-bg-mix:30%;
   --status-fg-mix:28%;
  }
- html[data-theme=dark],html #scanActivitySection {
+ html[data-theme=dark] {
   --status-neutral-ink:#d2d2d2;--status-neutral-bg:#303030;
   --status-bg-base:#1d1d1d;
   --status-fg-base:#f5f5f5;
   --status-bg-mix:15%;
   --status-fg-mix:100%;
  }
- html,html[data-theme=dark],html #scanActivitySection {
+ html,html[data-theme=dark] {
   --complete-ink:color-mix(in srgb,var(--status-match) var(--status-fg-mix),var(--status-fg-base));
   --complete-bg:color-mix(in srgb,var(--status-match) var(--status-bg-mix),var(--status-bg-base));
   --lemon-ink:color-mix(in srgb,var(--status-short) var(--status-fg-mix),var(--status-fg-base));

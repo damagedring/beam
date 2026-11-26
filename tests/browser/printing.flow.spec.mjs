@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { chooseCarton, enterScan, loadCartons, returnsInspection, test } from './beam-fixture.mjs';
+import { chooseOutboundCarton, enterScan, loadCartons, returnsInspection, test } from './beam-fixture.mjs';
 
 async function interceptPrint(page) {
   await page.evaluate(() => {
@@ -21,7 +21,7 @@ test('UX-31 Returns comparison, history and native print retain both identifiers
     await expect.poll(() => page.evaluate(() => window.printRequested)).toBe(true);
     await expect(report.locator('h1')).toHaveText(title);
     await expect(report.locator('[aria-label="Code 128 · DEMO-001"]')).toHaveCount(1);
-    await expect(report.locator('.pr-brand')).toContainText('EX-01');
+    await expect(report.locator('.pr-external-value')).toHaveText('EX-01');
     await expect(report.locator('.pr-label-work')).toContainText('B2B');
     if (action === 'print') {
       await expect(report.locator('tfoot td').nth(3)).toHaveText('5');
@@ -37,7 +37,7 @@ test('UX-31 Returns comparison, history and native print retain both identifiers
 
 test('UX-32/33 Outbound shipment summary stays separate from scoped, rotated A4 labels', async ({ beam: page }, info) => {
   await loadCartons(page, 'Outbound');
-  await chooseCarton(page, 'OUT-1');
+  await chooseOutboundCarton(page,'OUT-1','BOX-1');
   await interceptPrint(page);
   const report = page.locator('#printReport');
   await page.locator('#cartonDispatch').click();
@@ -46,7 +46,6 @@ test('UX-32/33 Outbound shipment summary stays separate from scoped, rotated A4 
   await expect(report.locator('.pr-dispatch-cartons li')).toHaveText(['BOX-1', 'BOX-2']);
   await page.pdf({ path: info.outputPath('shipment.pdf'), preferCSSPageSize: true });
   await page.evaluate(() => { window.printRequested = false; window.dispatchEvent(new Event('afterprint')); });
-  await page.locator('#cartonStart').click();
   await enterScan(page.locator('#cartonScan'), '0001234567890');
   await page.locator('#cartonLabelTrigger').click();
   await page.locator('#productLabelRotate').click();
@@ -68,11 +67,11 @@ test('UX-32/33 Outbound shipment summary stays separate from scoped, rotated A4 
 
 test('UX-32 failed browser print restores the title and permits retry', async ({ beam: page }) => {
   await loadCartons(page, 'Outbound');
-  await chooseCarton(page, 'OUT-1');
+  await chooseOutboundCarton(page,'OUT-1','BOX-1');
   const originalTitle = await page.title();
   await page.evaluate(() => { window.print = () => { throw Error('Fixture printer unavailable'); }; });
   await page.locator('#cartonDispatch').click();
-  await expect(page.locator('#message')).toContainText('Fixture printer unavailable');
+  await expect(page.locator('#beamNoticeStrip')).toContainText('Fixture printer unavailable');
   await expect(page).toHaveTitle(originalTitle);
   await interceptPrint(page);
   await page.locator('#cartonDispatch').click();

@@ -30,3 +30,36 @@
   #beamSearch .beam-stage .beam-receipt[data-folder=true][data-quick=true]:not([data-long-peek=true]) .beam-file-window{inset-inline:8%}
  }
 }
+
+/* The selected document reads first as a unit count, then as a scan target. */
+@media screen {
+ #beamSearch[data-has-receipts=true]{padding-block-start:clamp(5px,1.1vh,14px)}
+ #beamSearch:not([data-pick-phase=search]) .beam-selection-line{margin-block:5px 10px}
+ #beamSearch .beam-stage:not([data-long-peek=true]) .beam-receipt[data-center=true]{top:46%}
+ #beamSearch .beam-stage .beam-receipt[data-center=true] .beam-file{height:clamp(240px,28vw,300px)}
+ #beamSearch .beam-stage .beam-receipt[data-center=true][data-folder=true]:not([data-long-peek=true]) .beam-file-window{inset-block-start:-36px}
+ #beamSearch .beam-stage .beam-receipt[data-center=true] .beam-file-paper .beam-paper-ticket:not(.beam-ticket-quick){zoom:.82}
+ #beamSearch .beam-stage .beam-receipt[data-center=true]:not([data-folder=true]){
+  --return-paper-width:clamp(230px,24vw,316px)
+ }
+ :is(#beamSearch,#receiptBarcodeDialog) .beam-center-paper .beam-paper-ref{font-size:10px}
+ :is(#beamSearch,#receiptBarcodeDialog) .beam-center-paper .beam-paper-party{align-items:baseline;font-size:14px;gap:9px}
+ :is(#beamSearch,#receiptBarcodeDialog) .beam-center-paper .beam-paper-party>b:last-child{
+  font:820 clamp(19px,2vw,26px)/1.03 var(--font-ui);letter-spacing:-.055em;font-variant-numeric:tabular-nums;flex:none;
+ }
+ #beamSearch .beam-receipt[data-center=true] .beam-center-paper .beam-paper-body{min-height:198px}
+ #beamSearch .beam-receipt[data-center=true] .beam-ticket-code-plate,
+ #beamSearch .beam-receipt[data-center=true] .beam-ticket-code-plate svg{height:57px}
+ #beamSearch .beam-receipt[data-center=true] .beam-ticket-code-plate svg{width:100%;max-width:270px}
+ .beam-receipt-stock{display:flex;min-width:0;flex-wrap:wrap;gap:3px 8px;align-items:baseline;
+  color:var(--paper-ink);font:620 10px/1.3 var(--font-ui);padding-block-start:4px;border-block-start:1px solid #18181824}
+ .beam-receipt-stock-label{color:var(--paper-muted);font-weight:550}
+ .beam-receipt-stock-count{display:inline-flex;align-items:baseline;gap:.28em;white-space:nowrap;font-variant-numeric:tabular-nums}
+ @media(max-width:760px){
+  #beamSearch[data-has-receipts=true]{padding-block-start:6px}
+  #beamSearch .beam-stage:not([data-long-peek=true]) .beam-receipt[data-center=true]{top:48%}
+  #beamSearch .beam-stage .beam-receipt[data-center=true] .beam-file{height:238px}
+  #beamSearch .beam-stage .beam-receipt[data-center=true] .beam-file-paper .beam-paper-ticket:not(.beam-ticket-quick){zoom:.73}
+  #beamSearch .beam-stage .beam-receipt[data-center=true]:not([data-folder=true]){--return-paper-width:min(276px,76vw)}
+ }
+}

@@ -47,6 +47,7 @@
 <symbol id="beam-glyph-paste" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6H6.65A1.65 1.65 0 0 0 5 7.65v11.1a1.65 1.65 0 0 0 1.65 1.65h10.7A1.65 1.65 0 0 0 19 18.75V7.65A1.65 1.65 0 0 0 17.35 6H16m-8 7h8m-8 3.8h6"/><rect x="8" y="3.5" width="8" height="4.5" rx="1.5"/></g></symbol>
 <symbol id="beam-glyph-edit" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m5.25 15.5-.7 4 4-.7L19 8.35a1.5 1.5 0 0 0 0-2.12l-1.2-1.2a1.5 1.5 0 0 0-2.12 0Zm8.85-8.85 3.3 3.3"/></g></symbol>
 <symbol id="beam-glyph-columns" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="1.9"/><path d="M4 9.5h16m-10.25.25v9m4.75-9v9"/></g></symbol>
+<symbol id="beam-glyph-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 7.6v4.7l3.1 1.7"/></g></symbol>
 <symbol id="beam-glyph-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path stroke-width="2" d="m4.75 12.35 4.6 4.6 9.9-10"/></g></symbol>
 <symbol id="beam-glyph-prompt" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6.75 5.25 5.25L8 17.25"/></g></symbol>
 </defs></svg>
@@ -131,6 +132,8 @@
  <p data-ko="다음 창에서 Google 계정을 선택한 뒤에만 새 파일을 만들어요." data-en="A new file is created only after you choose a Google account in the next window.">다음 창에서 Google 계정을 선택한 뒤에만 새 파일을 만들어요.</p>
  <button type="button" id="beamDriveProceed" data-ko="저장 창 열기" data-en="Open export window">저장 창 열기</button>
 </dialog>
+<div id="beamNoticeStrip" class="beam-notice-strip" hidden aria-hidden="true"><p></p></div>
+<span id="beamNoticeAnnounce" class="beam-sr" role="status" aria-live="polite"></span>
 <section id="beamRecoveryPanel" hidden aria-label="브라우저 작업 복구">
  <p id="beamRecoveryStatus" role="status" aria-live="polite"></p>
  <button type="button" id="beamRecoverDraft" hidden>작업 복구</button>
@@ -157,18 +160,25 @@
 <main id="cartonWorkspace" aria-labelledby="cartonTitle" tabindex="-1" hidden inert>
  <header class="carton-top">
   <div><h1 id="cartonTitle"></h1><p id="cartonSource"></p></div>
-  <button id="cartonFileButton" type="button" data-ko="기준 파일 연결" data-en="Connect workbook">기준 파일 연결</button>
+  <div class="carton-source-actions"><button id="cartonMapButton" type="button" data-ko="시트·열 연결" data-en="Link sheet and columns" hidden>시트·열 연결</button><button id="cartonFileButton" type="button" data-ko="기준 파일 연결" data-en="Connect workbook">기준 파일 연결</button></div>
   <input id="cartonFile" aria-label="Workbook" type="file" accept=".xlsx,.xlsm" hidden>
  </header>
  <div id="cartonFind">
+ <div id="outboundSearchModes" role="group" aria-label="Outbound search mode" data-ko-label="출고 검색 방식" data-en-label="Outbound search mode" hidden>
+  <button type="button" data-outbound-kind="single" aria-pressed="true" data-ko="단일 오더" data-en="Single order">단일 오더</button>
+  <button type="button" data-outbound-kind="das" aria-pressed="false">DAS</button>
+ </div>
  <form id="cartonSearchForm" class="carton-action-row">
+  <svg class="carton-search-icon beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-search"/></svg>
   <input id="cartonQuery" type="search" aria-label="Order, location, or carton" autocomplete="off" autocapitalize="off" enterkeyhint="search">
-  <button type="submit" data-ko="검색" data-en="Search">검색</button>
+  <button id="cartonSearchButton" type="submit" data-ko="검색" data-en="Search">검색</button>
  </form>
  <p id="cartonSearchNote" role="status" hidden></p>
  <div id="cartonResults"></div>
  <div id="outboundReceiptHost" hidden></div>
  </div>
+ <div id="cartonSheet" class="inspection-sheet" hidden>
+ <div id="cartonScopes" class="inspection-sheet-tabs" role="group" aria-label="Inspection scope"></div>
  <section id="cartonOrder" aria-labelledby="cartonGroupTitle" hidden>
   <div id="cartonOrderMeta" hidden>
    <button id="cartonBack" type="button"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#beam-glyph-arrow-left"/></svg><span></span></button>
@@ -176,10 +186,8 @@
   </div>
   <h2 id="cartonGroupTitle" tabindex="-1"></h2>
   <p id="cartonOrderDetails" hidden></p>
-  <div id="cartonScopes" aria-label="Inspection scope"></div>
-  <button id="cartonStart" type="button" hidden><span data-ko="검수 시작" data-en="Start inspection">검수 시작</span><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#beam-glyph-diagonal"/></svg></button>
  </section>
- <section id="cartonInspection" aria-labelledby="cartonCurrent" hidden>
+ <section id="cartonInspection" class="inspection-console" aria-labelledby="cartonCurrent" hidden>
   <header class="carton-sheet-head">
    <div><h3 id="cartonCurrent"></h3></div>
    <div class="carton-sheet-tools">
@@ -193,27 +201,39 @@
    <progress id="cartonMeter" value="0" max="1" aria-labelledby="cartonCoverageLabel"></progress>
    <span id="cartonCoverageDetails"></span>
   </div>
+  <div class="beam-term-bar"><strong data-ko="검수 콘솔" data-en="INSPECTION CONSOLE">검수 콘솔</strong></div>
   <div class="carton-overview">
   <form id="cartonScanForm" class="carton-action-row">
+   <label class="carton-scan-label" for="cartonScan" data-ko="바코드 / SKU" data-en="Barcode / SKU">바코드 / SKU</label>
    <input id="cartonScan" aria-label="Barcode / SKU" type="text" autocomplete="off" autocapitalize="off" enterkeyhint="done" spellcheck="false">
    <button id="cartonAdd" type="submit" data-ko="스캔" data-en="Scan">스캔</button>
    <button id="cartonUndo" type="button" data-ko="되돌리기" data-en="Undo">되돌리기</button>
   </form>
-  <div class="carton-last-item"><span data-ko="최근 스캔 상품" data-en="Last scanned item">최근 스캔 상품</span><div class="scan-product-identity"><span id="cartonLastBrand" class="scan-brand-badge" hidden></span><output id="cartonLast"></output></div><span id="cartonLastQuantity" hidden></span></div>
+  <div class="carton-last-item" id="cartonLastItem" hidden>
+   <span data-ko="최근 스캔 상품" data-en="Last scanned item">최근 스캔 상품</span><div class="scan-product-identity"><span id="cartonLastBrand" class="scan-brand-badge" hidden></span><output id="cartonLast"></output></div>
+   <p id="cartonLastCode" class="carton-last-code"></p>
+   <div id="cartonLastLocation" class="carton-last-location" hidden><strong lang="en">Location</strong><span id="cartonLastLocationValue"></span></div>
+   <div id="cartonLastProgress" class="last-scanned-progress-group" hidden>
+    <strong id="cartonLastQuantity"></strong><span id="cartonLastPercent"></span>
+    <progress id="cartonLastMeter" max="100" value="0" aria-label="최근 스캔 상품 검수 진행률" data-ko-label="최근 스캔 상품 검수 진행률" data-en-label="Last scanned item progress"></progress>
+    <span id="cartonLastDetail"></span>
+   </div>
+  </div>
   </div>
   <p id="cartonFeedback" role="status"></p>
-  <div class="carton-console">
+  <div class="carton-console inspection-workbench">
+  <details class="carton-history" id="cartonHistoryPanel" open><summary data-ko="최근 입력 5건" data-en="Recent 5">최근 입력 5건</summary><div id="cartonHistory" class="tablewrap"></div></details>
   <section class="carton-comparison" aria-labelledby="cartonComparisonTitle">
   <h4 id="cartonComparisonTitle" data-ko="현재 박스 대조결과" data-en="Carton comparison">현재 박스 대조결과</h4>
   <div class="carton-table"><table>
-   <thead><tr><th data-ko="제품명" data-en="Product">제품명</th><th>SKU / Barcode</th><th data-ko="예정" data-en="Expected">예정</th><th data-ko="실물" data-en="Counted">실물</th><th data-ko="상태" data-en="Status">상태</th></tr></thead>
+   <thead><tr><th data-ko="상태" data-en="Status">상태</th><th>Barcode / SKU</th><th data-ko="제품명" data-en="Product">제품명</th><th data-ko="예정" data-en="Expected">예정</th><th data-ko="실물" data-en="Counted">실물</th><th data-ko="차이" data-en="Delta">차이</th></tr></thead>
    <tbody id="cartonRows"></tbody>
   </table></div>
   <nav class="carton-pages" aria-label="Inventory rows"><button id="cartonPrev" type="button" data-ko="이전" data-en="Previous">이전</button><span id="cartonPage"></span><button id="cartonNext" type="button" data-ko="다음" data-en="Next">다음</button></nav>
   </section>
-  <details class="carton-history" id="cartonHistoryPanel" open><summary data-ko="최근 스캔 기록" data-en="Recent scans">최근 스캔 기록</summary><ol id="cartonHistory"></ol></details>
   </div>
  </section>
+ </div>
 </main>
 <dialog id="cartonImportDialog" class="mapping-dialog" aria-labelledby="cartonImportTitle">
  <h2 id="cartonImportTitle"></h2><div id="cartonImportFields"></div><p id="cartonImportError" class="mapping-error" role="alert"></p>
@@ -325,10 +345,10 @@
 </section>
 </div>
 </div>
-<section id="inspectionOrderSurface" aria-label="선택 주문 검수 시트" data-ko-label="선택 주문 검수 시트" data-en-label="Selected order inspection sheet">
+<section id="inspectionOrderSurface" class="inspection-sheet" aria-label="선택 주문 검수 시트" data-ko-label="선택 주문 검수 시트" data-en-label="Selected order inspection sheet">
 <section id="orderWorkspace" aria-label="현재 작업 안의 ASN">
 <div class="order-workspace-top">
-<div id="orderTabs" role="group" aria-label="오더 시트" data-ko-label="오더 시트" data-en-label="Order sheets"></div>
+<div id="orderTabs" class="inspection-sheet-tabs" role="group" aria-label="오더 시트" data-ko-label="오더 시트" data-en-label="Order sheets"></div>
 <section id="activeOrderSheet" class="overview-asn order-selector" aria-labelledby="overviewAsnLabel">
 <div class="overview-asn-heading">
 <label id="overviewAsnLabel" class="asn-status-accessible" for="receipt">
@@ -345,10 +365,10 @@
 <span id="activeAsnMark">
 </span>
 <button id="newreceipt" class="header-target-lock" hidden type="button" aria-pressed="false">검수 대상 고정</button>
-<button type="button" class="order-sheet-action order-info-button" id="activeOrderInfo" data-order-info="" aria-label="오더 검수 정보" aria-haspopup="dialog" aria-controls="orderInfoPopover">
+<button type="button" class="order-sheet-action order-info-button" id="activeOrderInfo" data-order-info="" aria-expanded="false" aria-label="오더 검수 정보" aria-haspopup="dialog" aria-controls="orderInfoPopover">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-info"/></svg>
 </button>
-<button id="receiptToggle" type="button" aria-label="ASN 목록" aria-haspopup="listbox" aria-controls="receiptList" aria-expanded="false">
+<button id="receiptToggle" type="button" aria-label="ASN 목록" title="ASN 목록" aria-haspopup="listbox" aria-controls="receiptList" aria-expanded="false">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-chevron-down"/></svg>
 </button>
 <button id="receiptBarcode" type="button" aria-label="Order ID PDA 바코드" title="Order ID PDA 바코드" aria-haspopup="dialog" aria-controls="receiptBarcodeDialog" disabled>
@@ -398,7 +418,7 @@
 <main id="orderInspectionPanel">
 <div id="message" role="alert">
 </div>
-<div id="beamTerminal">
+<div id="beamTerminal" class="inspection-console">
 <div class="beam-term-bar">
 <strong data-ko="검수 콘솔" data-en="INSPECTION CONSOLE">검수 콘솔</strong>
 <button id="mobileExpectedQuantities" type="button" hidden aria-haspopup="dialog" aria-expanded="false" aria-controls="mobileQuantityDialog" data-ko="예정 수량" data-en="Expected quantities">예정 수량</button>
@@ -505,10 +525,9 @@
 </div>
 </div>
 </div>
-<aside id="overviewPutaway" hidden aria-label="적치 위치">
+<aside id="overviewPutaway" hidden aria-labelledby="putawayLabel">
 <div class="putaway-label">
-<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-location"/></svg>
-<strong id="putawayLabel">적치 위치</strong>
+<strong id="putawayLabel">예정 Location</strong>
 </div>
 <section id="lastScannedPicking" class="last-scanned-picking" aria-label="피킹 위치 안내">
 </section>
@@ -705,6 +724,7 @@
 <ul id="orderInfoList" tabindex="0" aria-label="오더 예정 상품 목록">
 </ul>
 </section>
+<div class="order-info-veil" aria-hidden="true"></div>
 <aside id="questPeek" class="quest-peek" hidden tabindex="0" aria-label="반품 입고 예정 수량 미리보기">
 <h2 id="questPeekTitle">
 </h2>
@@ -898,9 +918,12 @@
 <p class="small">① 기준 데이터 입력 → ② 매장명 일부 입력 → ③ 상품 스캔 → ④ 결과 내보내기</p>
 <p class="small">작업은 메모리 안에만 있습니다. 닫기 전 반드시 작업파일을 저장하세요. 저장한 JSON을 다시 열면 이어서 검수할 수 있습니다.</p>
 <p class="small">바코드 앞의 0이 Excel에서 사라진 경우 복구할 수 없습니다. 원본 셀을 텍스트로 유지하세요.</p>
-<p class="notice">예정 수량은 ASN + 바코드 기준으로 합산합니다. 원본의 상품명 기준 합산·깨진 참조를 그대로 재현하지 않았습니다. 정보 충돌은 확인 후 처리하세요. WMS에 자동 반영되지 않습니다.</p>
+<p class="notice">반품 예정 수량은 주문과 상품 바코드 기준으로 합산합니다. 정보 충돌은 확인 후 처리하세요. 검수 결과는 WMS에 자동 반영되지 않습니다.</p>
 <details>
-<summary>Font license</summary>
+<summary>Font licenses</summary>
+<p class="small">Geist · <a href="./assets/OFL-Geist.txt">SIL Open Font License 1.1</a></p>
+<p class="small">IBM Plex Sans KR · <a href="./assets/OFL-IBMPlexSansKR.txt">SIL Open Font License 1.1</a></p>
+<p class="small">Source Code Pro · <a href="./assets/OFL-SourceCodePro.txt">SIL Open Font License 1.1</a></p>
 <pre id="fontlicense">Copyright (c) 2021, Kil Hyung-jin (https://github.com/orioncactus/pretendard),
 with Reserved Font Name Pretendard.
 
@@ -1057,7 +1080,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</pre>
 </dialog>
 <article id="printReport">
 </article>
-<footer>로컬 작업 · v0.12</footer>
+<footer id="beamFooter" aria-label="Beam">
+ <div class="beam-footer-word" lang="en">BEAM</div>
+ <span class="beam-footer-kicker" lang="en">Warehouse<br>operations</span>
+</footer>
 <input id="file" type="file" accept=".xlsx,.xlsm" class="hidden">
 <input id="backup" type="file" accept=".json" class="hidden">
 </body></html>

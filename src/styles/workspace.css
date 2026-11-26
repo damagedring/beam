@@ -25,7 +25,7 @@
    --glass-scrim:#0000001d;
   }
   @supports (backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)){
-   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
+   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
     background:var(--glass-rest,var(--glass-control))!important;
     color:var(--glass-ink)!important;
     border-color:transparent!important;
@@ -105,7 +105,7 @@
    --signature-edge:#c6bfb7!important;--signature:#bfb9b1!important;--term-focus:#c4bdb6!important;
   }
   /* No solid brand tint on any action. Receipts remain paper; quantities remain readouts. */
-  body :is(button:not(.beam-receipt,#workSidebarToggle,.metric),input[type=button],input[type=submit]):not([hidden]){
+  body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab),input[type=button],input[type=submit]):not([hidden]){
    background:var(--frost-surface-grain) var(--control-frost,var(--frost-control))!important;
    color:var(--frost-ink)!important;
    border-color:var(--frost-control-edge)!important;
@@ -113,21 +113,21 @@
    backdrop-filter:blur(16px) saturate(.73)!important;
    box-shadow:inset 0 1px 0 var(--frost-hilite),inset 0 0 0 1px var(--frost-control-edge),0 2px 8px var(--frost-depth)!important;
   }
-  body :is(button:not(.beam-receipt,#workSidebarToggle,.metric),input[type=button],input[type=submit]):not(:disabled):hover{
+  body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab),input[type=button],input[type=submit]):not(:disabled):hover{
    --control-frost:var(--frost-hover);
   }
   body button:is(.primary,#beamStart,#beamConnect,#confirmInspection,#confirmDifferenceAccept,#print,#openWorkbook):not(:disabled){
    --control-frost:var(--frost-primary);font-weight:720;
   }
-  body button:is([aria-pressed=true],[aria-checked=true],[aria-current=true],.active,.selected):not(.beam-receipt,.metric,#workSidebarToggle):not(:disabled){
+  body button:is([aria-pressed=true],[aria-checked=true],[aria-current=true],.active,.selected):not(.beam-receipt,.metric,#workSidebarToggle,.inspection-sheet-tab):not(:disabled){
    --control-frost:var(--frost-selected);
    box-shadow:inset 0 1px 4px var(--frost-depth),inset 0 0 0 1px var(--frost-control-edge)!important;
   }
   body button:is(.order-switch-tab,.receipt-option,.store-option,.beam-job-btn):is([aria-selected=true],[aria-current=true],[aria-current=page]){
    --control-frost:var(--frost-selected);
   }
-  body button:not(.beam-receipt,#workSidebarToggle,.metric):not(:disabled):active{--control-frost:var(--frost-selected)}
-  body button:not(.beam-receipt,#workSidebarToggle,.metric):disabled{opacity:.53!important}
+  body button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab):not(:disabled):active{--control-frost:var(--frost-selected)}
+  body button:not(.beam-receipt,#workSidebarToggle,.metric,.inspection-sheet-tab):disabled{opacity:.53!important}
   body :is(#beamQuery,#beamSku){
    background:var(--frost-surface-grain) var(--frost-control)!important;
    backdrop-filter:blur(20px) saturate(.8)!important;
@@ -1007,7 +1007,6 @@ html[data-theme] .count-summary #actual{margin:0!important;font-size:22px!import
  /* The existing selection field becomes the selected sheet; siblings use the same field shell. */
  #orderWorkspace{width:100%;margin:0;padding:10px clamp(12px,3vw,40px);border-bottom:1px solid color-mix(in srgb,var(--muted) 22%,transparent);background:transparent}
  #orderWorkspace .order-workspace-top{display:flex;flex-wrap:nowrap;gap:6px;align-items:stretch;width:100%;overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:5px}
- #orderWorkspace #orderTabs{display:contents}
  #orderWorkspace #activeOrderSheet,#orderWorkspace .order-sheet{flex:0 0 280px;min-width:220px;width:280px;max-width:calc(100vw - 48px);margin:0;padding:0!important;border:1px solid color-mix(in srgb,var(--muted) 22%,transparent);border-radius:7px;background:var(--surface-input);box-shadow:none}
  #orderWorkspace #activeOrderSheet.is-order-active{border-color:var(--signature)}
  #orderWorkspace .overview-asn-heading,#orderWorkspace #selectedInternalLabel,#orderWorkspace #asnNavigationReason{display:none}
@@ -1071,6 +1070,19 @@ header .header-availability #availabilityNote{position:absolute;width:1px;height
 
 /* v1.10: order summaries belong to their sheet, not a repeated Overview block. */
 #orderSummarySource[hidden],#orderInfoPopover[hidden]{display:none!important}
+#orderInfoPopover[data-preview=true]{pointer-events:none}
+#orderInfoPopover[data-preview=true] #orderInfoClose{visibility:hidden}
+.order-info-veil{display:none}
+@media screen and (forced-colors:none) and (not (prefers-reduced-transparency:reduce)){
+ @supports (backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px)){
+  #orderInfoPopover[data-preview=true]:not([hidden])+.order-info-veil{
+   display:block;position:fixed;inset:0;z-index:179;pointer-events:none;
+   background:color-mix(in srgb,var(--surface-panel) 10%,transparent);
+   -webkit-backdrop-filter:blur(8px) saturate(.72);backdrop-filter:blur(8px) saturate(.72);
+  }
+ }
+}
+
 #orderInfoPopover{position:fixed;z-index:180;background:var(--surface-panel);color:var(--ink);border:1px solid var(--line)!important;border-radius:7px;padding:14px;overflow:auto;overscroll-behavior:contain;box-shadow:0 6px 22px #0002!important}
 .order-info-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 #orderInfoTitle{font-size:14px;overflow-wrap:anywhere}
@@ -1445,7 +1457,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
   background:var(--beam-sheet)!important;
   border:0!important;box-shadow:none!important;
  }
- body:has(>#beamSearch:not([hidden]))>footer{display:none}
+
  #beamSearch{
   width:100%;max-width:none;margin:0;min-height:calc(100svh - 62px);
   border:0;box-shadow:none;
@@ -1459,7 +1471,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
 /* Shape tokens: action pills, circular icon controls, unchanged receipt paper. */
 @layer beam-action-shape{
  @media screen{
-  button:not(.beam-receipt), [role="button"]:not(.beam-receipt),
+  button:not(.beam-receipt,.inspection-sheet-tab), [role="button"]:not(.beam-receipt,.inspection-sheet-tab),
   input:is([type="button"],[type="submit"],[type="reset"]){
    border-radius:9999px!important;
    background-clip:padding-box;
@@ -1577,7 +1589,6 @@ body>header{padding-inline:9px!important;gap:4px!important}
 
  body #message.notice-error{background:var(--excess-bg);color:var(--excess-ink);border-left-color:var(--coral-edge)}
  #reset.danger{color:var(--coral-ink)}
- #trackingSearchToast{background:var(--lemon-alert)!important;color:var(--alert-ink)!important;border-color:var(--lemon-edge)!important}
 
  .quest-item[data-phase="progress"] :is(.quest-symbol,.quest-count small),:root #lastScannedProgress[data-phase="progress"]{color:var(--warning-ink)}
  .quest-item[data-phase="progress"] .quest-meter>span{background:var(--lemon-edge)}
@@ -2344,14 +2355,14 @@ body>header{padding-inline:9px!important;gap:4px!important}
  html[data-theme] #workSidebarToggle svg>path{fill:currentColor}
  @media(max-width:420px){#workSidebarToggle svg{width:21px;height:23px}}
  /* Neutral frosted controls. Metric buttons are interactive readouts, not actions. */
- html[data-theme] body button:not(:is(.beam-receipt,.metric,#workSidebarToggle,.order-switch-tab,.order-tab-link,.receipt-option,.store-option,.beam-job-btn,[data-beam-mode])):not([hidden]){
+ html[data-theme] body button:not(:is(.beam-receipt,.metric,#workSidebarToggle,.order-switch-tab,.inspection-sheet-tab,.receipt-option,.store-option,.beam-job-btn,[data-beam-mode])):not([hidden]){
   --button-finish:var(--action-glass);--button-ink:var(--beam-type);
   background:var(--button-finish)!important;color:var(--button-ink)!important;
   border-color:var(--action-edge)!important;
   box-shadow:inset 0 1px 0 var(--action-sheen),0 1px 4px var(--action-depth);
   backdrop-filter:blur(12px);
  }
- html[data-theme] body button:not(:is(.beam-receipt,.metric,#workSidebarToggle,.order-switch-tab,.order-tab-link,.receipt-option,.store-option,.beam-job-btn,[data-beam-mode])):not([hidden]):hover:not(:disabled){
+ html[data-theme] body button:not(:is(.beam-receipt,.metric,#workSidebarToggle,.order-switch-tab,.inspection-sheet-tab,.receipt-option,.store-option,.beam-job-btn,[data-beam-mode])):not([hidden]):hover:not(:disabled){
   --button-finish:var(--action-glass-on);
  }
  html[data-theme] body button:is(.primary,#beamStart,#beamConnect,#confirmInspection,#confirmDifferenceAccept,#copyConfirmation,#asnShareDialog #print):not(:disabled),
@@ -2529,6 +2540,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
  #beamSearch .beam-file-position,#beamSearch .beam-file-arrow{position:absolute;inset-block-end:9px}
  #beamSearch .beam-file-position{inset-inline-start:12px;font:650 10px/1 var(--font-terminal);font-variant-numeric:tabular-nums}
  #beamSearch .beam-file-arrow{inset-inline-end:12px;font-size:20px;line-height:1}
+ #beamSearch .beam-receipt[data-folder=true]:not([data-distance="0"],[data-distance="1"]) .beam-file-caption{visibility:hidden}
  #beamSearch .beam-file-caption{display:grid;justify-items:center;gap:5px;width:100%;min-width:0;text-align:center}
  #beamSearch .beam-file-caption>strong{
   max-width:100%;min-width:0;font:760 clamp(14px,1.6vw,21px)/1.15 var(--font-text);
@@ -2665,7 +2677,7 @@ body>header{padding-inline:9px!important;gap:4px!important}
  #beamHome[hidden],#beamHomeBack[hidden]{display:none!important}
  html[data-theme] body[data-beam-view=home]{background:var(--beam-home-canvas,var(--beam-canvas))!important}
  html[data-theme] body[data-beam-view=home]>header{background:none!important}
- body[data-beam-view=home]>header .beam-modes{display:none}
+ body:is([data-beam-view=home],[data-beam-view=carton])>header .beam-modes{display:none}
  #beamHome{
   width:min(100%,1540px);margin-inline:auto;padding:clamp(28px,8vh,108px) clamp(18px,3vw,48px) 40px;
   outline:0;color:var(--beam-type);box-sizing:border-box
@@ -2679,27 +2691,32 @@ body>header{padding-inline:9px!important;gap:4px!important}
   display:grid;justify-items:center;align-items:start;grid-template-rows:auto 16px;gap:9px;position:absolute;left:50%;top:48%;
   z-index:calc(5 - var(--home-depth,0));opacity:calc(1 - var(--home-depth,0)*.25);
   transform:translate(-50%,-50%) translateX(var(--home-x,0px))
-   rotateY(var(--home-yaw,0deg)) scale(calc(1 - var(--home-depth,0)*.18));
+   rotateY(var(--home-yaw,0deg)) scale(calc(var(--home-fit,1)*(1 - var(--home-depth,0)*.18)));
   transition:transform 520ms cubic-bezier(.28,.08,.22,1),opacity 320ms cubic-bezier(.25,.1,.25,1);
  }
- #beamHome .beam-home-choices small{font:570 12px/1.3 var(--font-ui);letter-spacing:.01em;color:var(--beam-muted)}
+ #beamHome .beam-home-choices>li:is(:not([data-home-slot]),[data-home-slot="2"],[data-home-slot="-2"]){opacity:0;pointer-events:none}
+ #beamHome .beam-home-choices:not([data-home-ready])>li,
+ #beamHome .beam-home-choices[data-settling]>li,
+ #beamHome .beam-home-choices>li[data-rebasing]{transition:none}
+ #beamHome .beam-home-choices>li[data-rebasing]{opacity:0}
+ #beamHome .beam-home-choices small{font:570 12px/1.3 var(--font-display);letter-spacing:.01em;color:var(--beam-muted)}
  html[data-theme] body #beamHome .beam-home-word:not([hidden]){
   display:inline-block;margin:0;padding:.08em .10em;min-width:0;min-height:44px;width:auto;height:auto;
   color:inherit!important;background:none!important;border:0!important;border-radius:0!important;
   box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;text-align:center;white-space:nowrap;
-  font:850 clamp(37px,5.35vw,90px)/1.05 var(--font-ui)!important;letter-spacing:-.065em;
+  font:820 clamp(37px,5.35vw,90px)/1.05 var(--font-display)!important;letter-spacing:-.055em;
  }
  html[data-theme] body #beamHome .beam-home-word:hover{
   background:none!important;box-shadow:none!important;text-decoration:underline;
   text-decoration-thickness:.03em;text-underline-offset:.13em;
  }
- #beamHome .beam-home-ko{font-size:.35em;font-weight:730;letter-spacing:-.035em;margin-inline-start:.18em}
+ #beamHome .beam-home-ko{font-family:var(--font-display-ko);font-size:.35em;font-weight:700;letter-spacing:-.035em;margin-inline-start:.18em}
  html[lang=en] #beamHome .beam-home-ko{display:none}
  @media(max-width:720px){
   #beamHome{padding:20px 14px 35px}
   #beamHome .beam-home-choices{min-height:clamp(354px,61svh,515px);--home-spacing:clamp(69px,11svh,94px)}
   #beamHome .beam-home-choices>li{
-   top:39%;transform:translate(-50%,-50%) translateY(calc(var(--home-offset,0)*var(--home-spacing))) scale(calc(1 - var(--home-depth,0)*.13))
+   top:39%;transform:translate(-50%,-50%) translateY(calc(var(--home-offset,0)*max(var(--home-mobile-step,0px),var(--home-spacing)))) scale(calc(1 - var(--home-depth,0)*.13))
   }
   html[data-theme] body #beamHome .beam-home-word:not([hidden]){font-size:clamp(36px,10vw,67px)!important}
  }
@@ -2776,28 +2793,9 @@ body>header{padding-inline:9px!important;gap:4px!important}
 /* One frosted pane. The selected header owns the actions; other orders are labels only. */
 @media screen{
  html[data-theme] #sheetWorkspace #inspectionOrderSurface{
-  --order-face:#efefef;--order-matte:#f1f1f1d9;--order-lift:#ffffffc7;--order-seam:#ffffff99;--order-shadow:#11111119;
-  --order-corner:22px;
   --order-inset:clamp(12px,2.2vw,27px);
   position:relative;isolation:isolate;min-width:0;
   margin-inline:clamp(8px,1.8vw,24px);color:var(--beam-type);
- }
- html[data-theme=dark] #sheetWorkspace #inspectionOrderSurface{
-  --order-face:#262626;--order-matte:#292929dc;--order-lift:#ffffff13;--order-seam:#ffffff15;--order-shadow:#0005;
- }
- #inspectionOrderSurface::before{
-  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
-  border-radius:var(--order-corner);background:var(--order-face);
-  box-shadow:inset 0 1px var(--order-seam),0 12px 30px -16px var(--order-shadow);
- }
- @supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){
-  #inspectionOrderSurface::before{
-   background:linear-gradient(158deg,var(--order-lift),transparent 58%),var(--order-matte);
-   -webkit-backdrop-filter:blur(20px) saturate(.6);backdrop-filter:blur(20px) saturate(.6);
-  }
- }
- @media(prefers-reduced-transparency:reduce){
-  #inspectionOrderSurface::before{background:var(--order-face);-webkit-backdrop-filter:none;backdrop-filter:none}
  }
  html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace{
   position:relative;z-index:2;padding:8px var(--order-inset) 0;border:0;background:none;
@@ -2819,21 +2817,6 @@ body>header{padding-inline:9px!important;gap:4px!important}
  html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace #currentAsnActions{
   margin-inline-start:auto;max-width:100%;justify-content:flex-end;
  }
- #inspectionOrderSurface #orderWorkspace #orderTabs{
-  display:flex;gap:8px 17px;align-items:center;min-width:0;overflow-x:auto;scrollbar-width:thin;
- }
- #inspectionOrderSurface #orderWorkspace #orderTabs:empty{display:none}
- html[data-theme] body #inspectionOrderSurface #orderTabs .order-tab-link{
-  display:inline-flex;align-items:center;gap:5px;flex:none;margin:0;
-  min-height:36px;padding:0 2px;background:none!important;border:0!important;
-  border-radius:0!important;box-shadow:none!important;color:var(--beam-muted)!important;
-  font:650 12px/1.3 var(--font-ui);
- }
- html[data-theme] body #inspectionOrderSurface #orderTabs .order-tab-link:hover:not(:disabled){
-  color:var(--beam-type)!important;text-decoration:underline;text-underline-offset:4px;
- }
- @media(pointer:coarse){html[data-theme] body #inspectionOrderSurface #orderTabs .order-tab-link{min-height:44px}}
-
  html[data-theme] #sheetWorkspace #inspectionOrderSurface .beam-inspect-identity{
   margin:0;padding:clamp(12px,2.1vw,24px) var(--order-inset) clamp(10px,1.45vw,18px);
  }
@@ -2844,31 +2827,12 @@ body>header{padding-inline:9px!important;gap:4px!important}
   width:100%;padding:0;margin:0;background:none;
  }
  @media(max-width:720px){
-  html[data-theme] #sheetWorkspace #inspectionOrderSurface{--order-corner:15px;--order-inset:10px;margin-inline:7px}
+  html[data-theme] #sheetWorkspace #inspectionOrderSurface{--order-inset:10px;margin-inline:7px}
   html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace #activeOrderSheet #receipt{flex:1 1 105px}
   html[data-theme] #sheetWorkspace #inspectionOrderSurface #orderWorkspace #currentAsnActions{
    justify-content:flex-end;flex-wrap:wrap;gap:4px;
   }
  }
- @media(forced-colors:active){
-  #inspectionOrderSurface::before{outline:1px solid CanvasText;background:Canvas}
-  #inspectionOrderSurface #orderTabs .order-tab-link{color:LinkText!important;text-decoration:underline}
- }
-}
-
-/* Keep order information and the hold-to-view SKU list on the same palette. */
-@media screen{
- :is(#orderInfoList,#questPeekList) .quest-item[data-phase=progress]{--quest-fill:var(--shortage-bg);--quest-ink:var(--shortage-ink)}
- :is(#orderInfoList,#questPeekList) .quest-item[data-phase=complete]{--quest-fill:var(--complete-bg);--quest-ink:var(--complete-ink)}
- :is(#orderInfoList,#questPeekList) .quest-item[data-phase=excess]{--quest-fill:var(--excess-bg);--quest-ink:var(--excess-ink)}
- :is(#orderInfoList,#questPeekList) .quest-item[data-phase=review]{--quest-fill:var(--warning-bg);--quest-ink:var(--warning-ink)}
- html[data-theme] :is(#orderInfoList,#questPeekList) .quest-item[data-phase]{
-  color:var(--quest-ink);background:var(--quest-fill);
- }
- html[data-theme] :is(#orderInfoList,#questPeekList) .quest-item[data-phase] :is(.quest-name,.quest-symbol,.quest-count small){
-  color:var(--quest-ink);
- }
- html[data-theme] :is(#orderInfoList,#questPeekList) .quest-item[data-phase] .quest-meter>span{background:var(--quest-ink)}
 }
 
 /* Phone controls stay within one thumb-reachable composition; desktop shortcuts stay intact. */
@@ -2906,4 +2870,62 @@ body>header{padding-inline:9px!important;gap:4px!important}
 @media screen and (max-width:360px){
  html[data-theme] body[data-beam-view=inspection]>header #beamSaveHint:not([hidden]){min-width:44px}
  html[data-theme] body[data-beam-view=inspection]>header #beamSaveHint .beam-save-full{display:none}
+}
+
+/* The full-width announcement rail; action controls remain in their own surface. */
+@media screen {
+ .beam-notice-strip[hidden]{display:none!important}
+ .beam-notice-strip{
+  --notice-height:28px;--notice-duration:10s;
+  position:relative;block-size:var(--notice-height);inline-size:100%;overflow:hidden;contain:inline-size;
+  color:var(--beam-type);background:var(--beam-stock);transform-origin:top;pointer-events:none;
+ }
+ .beam-notice-strip.is-running{animation:beamNoticeFold 260ms var(--notice-duration) ease-in both}
+ .beam-notice-strip[data-tone=warning]{background:var(--warning-bg);color:var(--warning-ink)}
+ .beam-notice-strip[data-tone=error]{background:var(--excess-bg);color:var(--excess-ink)}
+ .beam-notice-strip>p{
+  position:relative;margin:0;inline-size:max-content;line-height:var(--notice-height);
+  transform:translateX(var(--notice-start,100vw));
+  font-size:13px;font-weight:650;white-space:nowrap;
+ }
+ .beam-notice-strip.is-running>p{animation:beamNoticeTravel var(--notice-duration) linear both}
+ @keyframes beamNoticeTravel{to{transform:translateX(-100%)}}
+ @keyframes beamNoticeFold{from{block-size:var(--notice-height);opacity:1}to{block-size:0;opacity:0}}
+ .beam-notice-source{
+  position:absolute!important;inline-size:1px!important;block-size:1px!important;
+  margin:-1px!important;padding:0!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important;
+ }
+ @media(prefers-reduced-motion:reduce){
+  .beam-notice-strip{block-size:auto;min-block-size:var(--notice-height)}
+  .beam-notice-strip.is-running{animation:beamNoticeHide 1ms 8s both}
+  .beam-notice-strip.is-running>p{position:static;inline-size:auto;padding:5px 12px;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.35;transform:none;animation:none}
+ }
+ @keyframes beamNoticeHide{to{visibility:hidden}}
+}
+@media print{.beam-notice-strip{display:none!important}}
+
+
+/* An editorial end mark, not a persistent utility strip. */
+@media screen{
+ html[data-theme] body>#beamFooter{
+  box-sizing:border-box;position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;
+  align-items:end;gap:clamp(10px,4vw,60px);overflow:clip;
+  margin:clamp(72px,16vh,190px) clamp(12px,3vw,48px) clamp(12px,3vw,48px);height:auto;
+  padding:clamp(22px,4vw,76px) clamp(17px,3vw,54px) clamp(18px,3vw,48px);
+  background:transparent;color:var(--beam-type,var(--ink));text-align:start;
+ }
+ body[data-beam-view=inspection]>#beamFooter,
+ body[data-beam-view=carton]:not(:has(#cartonWorkspace[data-stage=search]))>#beamFooter{display:none!important}
+ #beamFooter .beam-footer-kicker{
+  font:520 clamp(11px,1.1vw,15px)/1.35 var(--font-display);
+  text-transform:uppercase;letter-spacing:.12em;padding-block-end:.2em
+ }
+ #beamFooter .beam-footer-word{
+  position:relative;justify-self:start;
+  font:860 clamp(47px,15vw,245px)/.80 var(--font-display);letter-spacing:-.057em;
+  white-space:nowrap
+ }
+}
+@media (forced-colors:active){
+ #beamFooter{background:Canvas!important;color:CanvasText!important}
 }

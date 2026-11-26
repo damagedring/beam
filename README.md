@@ -8,11 +8,11 @@ A returns check illustrates the workflow: connect a workbook once with a reusabl
 
 ## License
 
-Beam-authored software and tests are available under the [PolyForm Noncommercial License 1.0.0](LICENSE). The packaged app and exporters include a copy as `LICENSE.txt`. The bundled [Pretendard font](src/assets/OFL-Pretendard.txt) and [XML parser dependencies](src/vendor/xml-parser.js) retain their own terms and notices.
+Beam-authored software and tests are available under the [PolyForm Noncommercial License 1.0.0](LICENSE). The packaged app and exporters include a copy as `LICENSE.txt`. The bundled fonts ([Pretendard](src/assets/OFL-Pretendard.txt), [Geist](src/assets/OFL-Geist.txt), [IBM Plex Sans KR](src/assets/OFL-IBMPlexSansKR.txt), and [Source Code Pro](src/assets/OFL-SourceCodePro.txt)) and [XML parser dependencies](src/vendor/xml-parser.js) retain their own terms and notices.
 
 ## Try it
 
-In **Settings → Help & examples**, try the fictional Cry Later example or download its workbook and connection profile. To connect the downloads manually, import the profile JSON before the workbook in **Settings → Reference data**. Review whether you are replacing or appending orders when connecting your own data. Location categories are opt-in and defined by the profile.
+In **Settings → Help & examples**, try the fictional Cry Later example or download its workbook and connection profile. To connect the downloads manually, import the profile JSON before the workbook in **Settings → Reference data**. Review whether you are replacing or appending orders when connecting your own data. Location categories are defined by the profile. Outbound shows eligible picking locations by default; Returns keeps its separate setting.
 
 ## Where data stays
 
@@ -41,7 +41,7 @@ GitHub Pages publishes only the allowlisted static assets from `dist/` after tes
 
 ### Carton inspections and product labels
 
-- **Outbound:** connect a workbook sheet with order ID, carton label ID, product name, expected units, and product barcode and/or SKU. Search by order ID, carton label, or a mapped destination store. Choose the order, then the carton, and start scanning. Each carton keeps a separate count and can print its own comparison PDF. The separate order-level **Shipment summary** can include both order identifiers, the carton count and labels, destination store and country. Choose its print fields under the active reference profile; outbound column choices are saved by header name.
+- **Outbound:** connect a picking-results sheet with the order ID, carton label, picked quantity, product name, and a barcode or SKU. Search by order, destination, or carton label. In the optional **DAS** mode, map the warehouse's assignment ID column to group orders; orders without an assignment stay in **Single order**. Open a carton directly from its receipt. Each carton keeps its own counts, progress, completion and inspection PDF. The separate **Shipment summary** is order-wide; select its print fields in the reference profile.
 - **Inventory:** connect a Location sheet with an optional carton label column, or choose the delimiter between Location and carton in a combined column. Count the entire Location or each carton. Once scanning starts, the other method is view-only until those scans are undone, so the same stock cannot enter both counts.
 - **Unscanned labels:** the selected return order or outbound carton prints one Code 128 product label per remaining unit. The active connection profile can hold several stock dimensions in mm. A4 remains available even when custom sizes are configured. Use actual-size printing and the matching stock in the printer driver. Sheet formats and barcode scanning should be verified on the target printer before use in production.
 - Outbound and Inventory scans stay in the current tab while switching workflows. They are separate from Returns browser recovery and are not restored on reload.

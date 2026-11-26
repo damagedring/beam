@@ -1,10 +1,14 @@
 import { productIdentityMarkup } from '../product-identity/view.js';
 import { encodeReceiptCode128 } from '../../domain/code128.js';
+import { scannedProductLabel } from '../../domain/product-identity.js';
 
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const isBlank=value=>value==null||value==='';
 const show=value=>isBlank(value)?'—':value;
 const signed=count=>count>0?'+'+count:String(count);
+const displayBrand=row=>row.status==='conflict'||row.status==='정보 충돌'?null:row.brand;
+// Explicit locales keep the report's order independent of the browser language.
+const reportProductOrder=new Intl.Collator(['en','ko'],{numeric:true,sensitivity:'base'});
 const englishStatus=new Map([
  ['일치','Matched'],['부족','Short'],['초과','Excess'],['예정 외','Unexpected'],['정보 충돌','Data conflict'],['식별자 없음','Missing identifier'],
  ['matched','Matched'],['short','Short'],['excess','Excess'],['unexpected','Unexpected'],['conflict','Data conflict'],['unidentified','Missing identifier'],
@@ -30,18 +34,19 @@ function orderBarcode(orderId,label='Order No.'){
 
 // The label is shared by comparison and history so the selected order never
 // gets replaced by an external reference or lost when printing scan history.
-export function renderInspectionHeader({mode,orderId,externalId='',party='',work='',history=false}){
+export function renderInspectionHeader({mode,orderId,externalId='',party='',partyLabel=mode==='outbound'?'Destination Store':'Store',work='',history=false}){
  if(!['return','outbound'].includes(mode))throw TypeError('Unsupported inspection workflow');
  const title=(mode==='return'?'Return':'Outbound')+(history?' Inspection Scan History':' Inspection Report');
- const barcode=orderBarcode(orderId,history?'Selected Order No.':'Order No.');
- const markup='<div class="pr-label"><div class="pr-label-top">'+
-  '<div class="pr-label-mark" aria-hidden="true">B</div><div class="pr-label-head">'+
-  '<p class="pr-brand"><b>BEAM</b>'+(externalId&&externalId!==orderId?
-   '<span>External Order No. '+escape(externalId)+'</span>':'')+'</p>'+
+ const barcode=orderBarcode(orderId,'Internal Order No.');
+ // Avoid a bare <header>: the screen toolbar's global header layout also
+ // applies in print and clips receipt content on narrower page widths.
+ const markup='<div class="pr-label pr-receipt"><div class="pr-label-head">'+
+  '<p class="pr-brand"><b>BEAM</b>'+(work?'<span class="pr-label-work">'+escape(work)+'</span>':'')+'</p>'+
   '<h1>'+escape(title)+'</h1>'+
-  (party?'<p class="pr-label-party">'+escape(party)+'</p>':'')+
-  (work?'<p class="pr-label-work">'+escape(work)+'</p>':'')+'</div></div>'+
-  barcode.markup+'</div>';
+  '<dl class="pr-reference">'+
+  '<div><dt>'+escape(partyLabel)+'</dt><dd class="pr-label-party">'+escape(show(party))+'</dd></div>'+
+  '<div><dt>External Order No.</dt><dd class="pr-external-value">'+escape(show(externalId))+'</dd></div>'+
+  '</dl></div>'+barcode.markup+'</div>';
  return {markup,paper:barcode.paper,title};
 }
 
@@ -50,9 +55,11 @@ export function renderInspectionReport({rows=[],...context}){
  const columns=['Status','Barcode / SKU','Product','Expected','Checked','Difference'];
  const widths=[16,25,35,8,8,8];
  const cells=(tag,values,product=null)=>values.map((v,i)=>'<'+tag+(tag==='th'?' scope="col"':'')+
-  (i>=columns.length-3?' class="pr-number"':'')+'>'+(i===2&&product?productIdentityMarkup(product.name,product.status==='conflict'||product.status==='정보 충돌'?null:product.brand):escape(v))+'</'+tag+'>').join('');
+  (i>=columns.length-3?' class="pr-number"':'')+'>'+(i===2&&product?productIdentityMarkup(product.name,displayBrand(product)):escape(v))+'</'+tag+'>').join('');
  let expected=0,actual=0;
- const body=rows.map(r=>{
+ const sorted=rows.map(row=>({row,name:scannedProductLabel(row.name,displayBrand(row)).name}));
+ sorted.sort((a,b)=>reportProductOrder.compare(a.name,b.name));
+ const body=sorted.map(({row:r})=>{
   expected+=r.expected;actual+=r.actual;
   return '<tr>'+cells('td',[(englishStatus.get(r.status)||'Review')+(r.held?' · Held':''),[r.barcode,r.sku].filter(Boolean).join(' / '),r.name,
    r.expected,r.actual,signed(r.actual-r.expected)],r)+'</tr>';

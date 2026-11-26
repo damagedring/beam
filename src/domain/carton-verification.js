@@ -1,6 +1,7 @@
+import { quantityOutcome } from './reconcile.js';
 import { mergeProductBrands } from './product-identity.js';
 const LIMIT=200000;
-export const fields=['receipt','id','external','store','country','barcode','sku','name','brand','qty'];
+export const fields=['receipt','id','external','store','country','barcode','sku','name','brand','qty','das'];
 export const aliases={
  receipt:['orderid','originalorderid','outboundorderid','location','주문번호','오더번호','로케이션'],
  id:['boxlabelid','cartonlabelid','cartonid','boxid','cartonlpn','박스라벨번호','박스번호'],
@@ -8,8 +9,14 @@ export const aliases={
  store:['destinationstore','store','storename','shiptostore','도착매장','매장명'],
  country:['destinationcountry','country','shiptocountry','countrycode','도착국가','국가'],
  barcode:['scancode','barcode','productbarcode','상품바코드','바코드'],
+ das:['dasorderid','dasid','dasbatchid','dasassignmentid','das오더번호','das오더id','das할당번호','das식별자'],
  sku:['sku','상품코드'],brand:['brand','brandname','브랜드','브랜드명'],name:['productname','name','상품명','제품명'],qty:['expectedunits','plannedunits','onhand','quantity','qty','예정수량','수량']
 };
+export const pickedUnitsAliases=['pickedunits','pickedqty','pickedquantity','actualpickedunits','actualpickedquantity','피킹수량','실피킹수량'];
+export const cartonHeaderKey=value=>codeKey(value).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'');
+export function cartonQuantityAliases(mode,headers){
+ return mode==='outbound'&&headers.some(v=>pickedUnitsAliases.includes(cartonHeaderKey(v)))?pickedUnitsAliases:aliases.qty;
+}
 export const codeKey=value=>String(value??'').trim();
 export function cartonLocation(value,box,separator){
  const full=codeKey(value);
@@ -40,11 +47,14 @@ export function cartonAdapter(mode,separator=''){
    const external=read(r,'external'),sku=read(r,'sku'),barcode=read(r,'barcode'),name=read(r,'name'),brand=read(r,'brand'),store=inventory?'':read(r,'store'),country=inventory?'':read(r,'country');
    let group=read(r,'receipt'),box=read(r,'id');
    if(inventory)[group,box]=cartonLocation(group,box,mapping.columns.id===undefined?separator:'');
-   const qty=Number(read(r,'qty'));
-   if(!group||(!inventory&&!box)||!(sku||barcode)||!name||!Number.isSafeInteger(qty)||qty<0||!read(r,'qty')||[group,box,external,sku,barcode].some(v=>v.length>200)||name.length>1000||store.length>300||country.length>100)
+   const das=inventory?'':read(r,'das');
+   const picked=read(r,'qty'),qty=Number(picked);
+   // Exports can include unpicked request rows. They are not evidence of a carton.
+   if(!inventory&&!box&&(!picked||qty===0))return null;
+   if(!group||(!inventory&&!box)||!(sku||barcode)||!name||!Number.isSafeInteger(qty)||qty<0||!read(r,'qty')||[group,box,external,sku,barcode,das].some(v=>v.length>200)||name.length>1000||store.length>300||country.length>100)
     throw Error((i+2)+'행: Verify group, carton, item, and expected quantity.');
-   return {group,box,external,sku,barcode,name,qty,...(brand?{brand}:{}),...(store?{store}:{}),...(country?{country}:{})};
-  }).filter(r=>r.qty>0);
+   return {group,box,external,sku,barcode,name,qty,...(das?{das}:{}),...(brand?{brand}:{}),...(store?{store}:{}),...(country?{country}:{})};
+  }).filter(r=>r&&r.qty>0);
  }
  return {validateColumns,table};
 }
@@ -57,6 +67,10 @@ export function createCartonIndex(lines){
   if(!group){group={id:line.group,external:line.external,boxes:new Map(),totals:new Map(),stores:new Set(),countries:new Set(),qty:0};groups.set(line.group,group);}
   if(line.external&&group.external&&line.external!==group.external)throw Error('Conflicting External order IDs: '+line.group);
   if(line.external)group.external=line.external;
+  if(line.das){
+   if(group.das&&group.das!==line.das)throw Error('한 주문의 DAS 식별자가 여러 개입니다. / Conflicting DAS IDs for order: '+line.group);
+   group.das=line.das;
+  }
   if(line.store)group.stores.add(line.store);
   if(line.country)group.countries.add(line.country);
   if(!group.boxes.has(line.box))group.boxes.set(line.box,new Map());
@@ -103,14 +117,14 @@ export function matchCartonScan(group,box,input,actual=0){
  const r=barcodes.has(value)?barcodes.get(value):skus.get(value);
  if(r===null)return {status:'conflict'};
  if(!r)return {status:'unexpected',key:null,value};
- return {status:actual>=r.expected?'excess':'accepted',key:r.key,value,name:r.name,...(r.brand?{brand:r.brand}:{}),expected:r.expected};
+ return {status:quantityOutcome(actual,r.expected),key:r.key,value,name:r.name,sku:r.sku,barcode:r.barcode,...(r.brand?{brand:r.brand}:{}),expected:r.expected};
 }
 export function cartonSearch(index,query){
  const value=codeKey(query).toLocaleLowerCase();
  if(!value)return [];
  const selected=[];
  for(const g of index.groups.values()){
-  if(![g.id,g.external,...g.stores].some(x=>x.toLocaleLowerCase().includes(value))&&![...g.boxes.keys()].some(x=>x&&x.toLocaleLowerCase().includes(value)))continue;
+  if(![g.id,g.external,g.das||'',...g.stores].some(x=>x.toLocaleLowerCase().includes(value))&&![...g.boxes.keys()].some(x=>x&&x.toLocaleLowerCase().includes(value)))continue;
   selected.push(g);if(selected.length>=50)break;
  }
  return selected;
@@ -120,6 +134,8 @@ export function cartonSearch(index,query){
 // label narrows the list but cannot choose which order owns the scan.
 export function outboundCandidates(index,query){
  const value=codeKey(query);
+ const batch=index.dasBatches?.get(value);
+ if(batch)return {groups:batch,exact:null,carton:''};
  const order=index.groups.get(value);
  if(order)return {groups:[order],exact:order,carton:''};
  const cartonOrders=index.boxes.get(value);
@@ -129,6 +145,33 @@ export function outboundCandidates(index,query){
  }
  const matches=cartonSearch(index,value);
  return {groups:matches,exact:matches.length===1?matches[0]:null,carton:''};
+}
+
+// Search projections share the original orders and carton scopes; changing search
+// mode never creates a new inspection identity or combines item quantities.
+const outboundScopes=new WeakMap();
+export function outboundSearchScope(index, kind){
+ if(!index)return null;
+ let scopes=outboundScopes.get(index);
+ if(!scopes){
+  const create=()=>({groups:new Map(),boxes:new Map()});
+  const single=create(),das={...create(),dasBatches:new Map()};
+  for(const order of index.groups.values()){
+   const scope=order.das?das:single;
+   scope.groups.set(order.id,order);
+   for(const key of order.boxes.keys()){
+    if(!key)continue;
+    if(!scope.boxes.has(key))scope.boxes.set(key,new Set());
+    scope.boxes.get(key).add(order.id);
+   }
+   if(order.das){
+    if(!das.dasBatches.has(order.das))das.dasBatches.set(order.das,[]);
+    das.dasBatches.get(order.das).push(order);
+   }
+  }
+  scopes={single,das};outboundScopes.set(index,scopes);
+ }
+ return scopes[kind];
 }
 
 export function outboundDispatch(group){
@@ -162,5 +205,14 @@ export function outboundFolders(groups){
   folders.get(key).orders.push(order);
  }
  return [...folders.values()];
+}
+export function dasFolders(groups){
+ const batches=new Map();
+ for(const order of groups){
+  if(!order.das)continue;
+  if(!batches.has(order.das))batches.set(order.das,{key:JSON.stringify(['das',order.das]),label:order.das,orders:[]});
+  batches.get(order.das).orders.push(order);
+ }
+ return [...batches.values()];
 }
 export function wrapOutboundIndex(index,step,count){return count?((index+step)%count+count)%count:0;}

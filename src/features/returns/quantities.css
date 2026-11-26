@@ -31,3 +31,20 @@
  #mobileQuantityList [data-phase=review]{background:var(--warning-bg);color:var(--warning-ink)}
 }
 @media print{#mobileQuantityDialog,#mobileExpectedQuantities{display:none!important}}
+
+/* Counts and symbols, not row tint, convey the order's quantity state. */
+@media screen{
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item[data-phase]{
+  color:var(--beam-type,var(--ink));background:transparent;border-bottom:1px solid var(--beam-rule,var(--line));
+ }
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item .quest-product :is(strong,.product-name){
+  color:inherit;
+ }
+ :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item .quest-symbol{
+  display:grid;place-items:center;color:var(--beam-muted,var(--muted));font:650 16px/1 var(--font-terminal);
+ }
+ :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item .quest-symbol svg{width:17px;height:17px}
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item[data-phase=complete] .quest-symbol{color:var(--complete-ink)}
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item[data-phase=excess] .quest-symbol{color:var(--excess-ink)}
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item .quest-count small{color:var(--beam-muted,var(--muted))}
+}

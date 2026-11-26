@@ -49,7 +49,6 @@ test('UX-08 Returns scanner ignores ordinary, modified, composing, repeating and
 
 test('UX-08 Inventory scanner leaves the editable search field and ignored bursts alone', async ({ beam: page }) => {
   await loadCartons(page, 'Inventory');
-  await chooseCarton(page, 'LOC-1');
   const field = page.locator('#cartonScan');
   const entries = page.locator('#cartonHistory [data-result]');
   const code = '0001234567890';
@@ -60,7 +59,9 @@ test('UX-08 Inventory scanner leaves the editable search field and ignored burst
   await expect(query).toHaveValue(code);
   await expect(entries).toHaveCount(0);
 
-  await query.blur();
+  await chooseCarton(page, 'LOC-1');
+  await expect(query).toBeHidden();
+  await field.blur();
   await expectIgnoredBursts(page, code, entries);
 
   await wedge(page, code);

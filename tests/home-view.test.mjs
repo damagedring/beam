@@ -39,7 +39,7 @@ test('home ↔ returns toggles inert regions and does not write inspection or re
 });
 test('home labels avoid the global glass finish and have independently padded, understated capsules',async()=>{
  const [glass,workspace,reels]=await Promise.all(['glass','workspace','touch-reels'].map(name=>readFile(new URL(`../src/styles/${name}.css`,import.meta.url),'utf8')));
- const glassFinishes=glass.split('button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.order-tab-link),input[type=button],input[type=submit]');
+ const glassFinishes=glass.split('button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.inspection-sheet-tab),input[type=button],input[type=submit]');
  assert.equal(glassFinishes.length,3,'satin finish and reduced-transparency fallback exclude bare home labels');
  const homeFinish=workspace.match(/#beamHome \.beam-home-word:not\(\[hidden\]\)\{([^}]+)/)?.[1]??'';
  for(const declaration of ['background:none','border-radius:0','box-shadow:none','-webkit-backdrop-filter:none','backdrop-filter:none']){

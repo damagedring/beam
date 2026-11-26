@@ -24,7 +24,8 @@
             "address": "Area",
             "memo": "Notes",
             "customerName": "Customer Name",
-            "customerPhone": "Customer Phone"
+            "customerPhone": "Customer Phone",
+            "expectedInventoryStatus": "Expected Inventory Status"
           },
           "signature": [
             "Account",
@@ -35,12 +36,14 @@
             "Customer Name",
             "Customer Phone",
             "Demo Tag ID",
+            "Expected Inventory Status",
             "Expected Units",
             "Notes",
             "Original Line",
             "Original Order ID",
             "Product Name",
             "Request Date",
+            "Return Condition Notes",
             "Return Order ID",
             "Return Reason",
             "Return Reference",
@@ -152,6 +155,36 @@
           "PICK_FACE"
         ],
         "zoneSeparator": ""
+      },
+      "cartonMappings": {
+        "outbound": {
+          "sheet": "Picking Results",
+          "headers": {
+            "receipt": "Order ID",
+            "id": "Carton Label ID",
+            "external": "External Order ID",
+            "store": "Destination Store",
+            "country": "Destination Country",
+            "sku": "SKU",
+            "barcode": "Product Barcode",
+            "name": "Product Name",
+            "qty": "Picked Units",
+            "brand": "Brand",
+            "das": "DAS Order ID"
+          }
+        },
+        "inventory": {
+          "sheet": "Inventory Cartons",
+          "headers": {
+            "receipt": "Location",
+            "sku": "SKU",
+            "barcode": "Product Barcode",
+            "name": "Product Name",
+            "qty": "Expected Units",
+            "brand": "Brand"
+          },
+          "separator": "|"
+        }
       }
     }
   }

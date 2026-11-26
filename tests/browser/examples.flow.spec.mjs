@@ -1,7 +1,8 @@
 import { expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { buffer } from 'node:stream/consumers';
-import { enterScan, returnsInspection, test } from './beam-fixture.mjs';
+import { enterScan, openCartons, returnsInspection, test } from './beam-fixture.mjs';
 
 const demoAsset = '**/features/examples/cry-later-assets.js?*';
 const demoButtonName = 'Cry Later 예제 체험';
@@ -91,16 +92,18 @@ test('Cry Later example loads fictional B2B and B2C orders and preserves the act
 test('Cry Later downloads preserve the supplied files and reconnect in the normal reference importer', async ({ beam: page }) => {
   const help = await openHelp(page);
   const files = [];
-  for (const [button, name, mimeType, hash] of [
-    ['Cry Later 프로필 JSON 다운로드', 'Cry-Later-Profile.json', 'application/json', 'f58bc1e45755f75e2f5a1e5497dc83cce814118b2b62feb2aa63851a3c105a0a'],
-    ['Cry Later XLSX 다운로드', 'Cry-Later-Demo.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'aab5f90102cc5c07723fdb6160c8fdb73be8adab4fe2cd042583e3664c0ba910'],
+  for (const [button, name, mimeType, sourceName] of [
+    ['Cry Later 프로필 JSON 다운로드', 'Cry-Later-Profile.json', 'application/json', 'cry-later-profile.json'],
+    ['Cry Later XLSX 다운로드', 'Cry-Later-Demo.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'cry-later-demo.xlsx'],
   ]) {
     const pending = page.waitForEvent('download');
     await help.getByRole('button', { name: button, exact: true }).click();
     const file = await pending;
     expect(file.suggestedFilename()).toBe(name);
     const bytes = await buffer(await file.createReadStream());
-    expect(createHash('sha256').update(bytes).digest('hex')).toBe(hash);
+    const expected=await readFile(new URL('../../src/features/examples/'+sourceName,import.meta.url));
+    const digest=data=>createHash('sha256').update(data).digest('hex');
+    expect(digest(bytes)).toBe(digest(expected));
     files.push({ name, mimeType, buffer: bytes });
   }
   await help.getByRole('button', { name: '닫기', exact: true }).click();
@@ -110,7 +113,7 @@ test('Cry Later downloads preserve the supplied files and reconnect in the norma
   await chooseReference(page, reference, files[0]);
   await expect(reference.getByText('프로필 적용 완료 · 저장된 Excel 시트 4개', { exact: true })).toBeVisible();
   await chooseReference(page, reference, files[1]);
-  await expect(page.locator('#beamRawAnnounce')).toHaveText('RAW 연결 완료 · 반품 예정 472행');
+  await expect(page.locator('#beamRawAnnounce')).toHaveText('RAW 연결 완료 · 반품 예정 571행');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await scanCryLaterOrder(page, { tracking: '0003-0001-7001', code: 'CLB00602', progress: /1\s*\/\s*6/ });
 });
@@ -158,4 +161,34 @@ test('Closing Help during Cry Later loading cancels the pending example', async 
   expect(await savedProfile(page)).toBe(profileBefore);
   await openHelp(page);
   await expect(page.locator('#demoStatus')).toBeHidden();
+});
+
+test('UX-35/36 DAS groups assigned orders, restores its carton focus, and keeps eligibility by workflow', async ({beam:page})=>{
+  const help=await openHelp(page);
+  await help.getByRole('button',{name:demoButtonName}).click();
+  await expect(help.getByRole('status')).toHaveText('Cry Later 예제를 불러왔습니다.');
+  await help.getByRole('button',{name:'닫기',exact:true}).click();
+  await page.locator('#beamHomeBack').click();
+  await openCartons(page,'Outbound');
+  await expect(page.getByRole('button',{name:'단일 오더',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#availabilityToggle')).toHaveAttribute('aria-checked','true');
+  await page.getByRole('button',{name:'DAS',exact:true}).click();
+  const query=page.locator('#cartonQuery');
+  await query.fill('CL-DAS-0001');
+  await query.press('Enter');
+  await expect(page.locator('.outbound-order-flyers-list .outbound-cartons')).toHaveCount(4);
+  const slip=page.getByRole('button',{name:/^CL-SHIP-B2C-0002 BOX 01 ·/});
+  await slip.click();
+  await expect(page.locator('#cartonCurrent')).toHaveText('CL-SHIP-B2C-0002 BOX 01');
+  await expect(page.locator('#cartonScopes button')).toHaveCount(0);
+  await expect(page.locator('#cartonOrderDetails')).toContainText('DAS · CL-DAS-0001');
+  const code=await page.locator('#cartonRows .primary-code').first().innerText();
+  await enterScan(page.locator('#cartonScan'),code);
+  await expect(page.locator('#cartonLastLocation')).toBeVisible();
+  await page.locator('#availabilityToggle').click();
+  await expect(page.locator('#cartonLastLocation')).toBeHidden();
+  await page.locator('#cartonBack').click();
+  await expect(slip).toBeFocused();
+  await page.locator('#beamHomeBack').click();
+  await expect(page.locator('#availabilityToggle')).toHaveAttribute('aria-checked','false');
 });

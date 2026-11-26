@@ -3,8 +3,8 @@
  html[data-theme] body #beamHome .beam-home-word:not([hidden]){
   position:relative;isolation:isolate;padding:.17em .42em;
  }
- #beamHome .beam-home-en{letter-spacing:-.041em;font-weight:820}
- #beamHome .beam-home-ko{letter-spacing:-.018em;margin-inline-start:.32em;vertical-align:.045em}
+ #beamHome .beam-home-en{letter-spacing:-.055em;font-weight:820}
+ #beamHome .beam-home-ko{letter-spacing:-.025em;margin-inline-start:.32em;vertical-align:.045em}
  #beamHome .beam-home-word::before{
   content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:999px;
   background:color-mix(in srgb,currentColor 5%,transparent);

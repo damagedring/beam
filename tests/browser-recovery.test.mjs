@@ -86,3 +86,17 @@ test('unavailable browser storage or corrupt recovery leaves current work untouc
  await bad.flush();assert.equal(bad.painted().kind,'offer');assert.equal(await bad.recovery.recover(),false);
  assert.equal(bad.painted().kind,'restore-error');assert.equal(bad.read().scans.length,0);
 });
+
+test('an earlier saved indicator clears as soon as the next inspection change is pending',async()=>{
+ const store=database(),client=setup(store,normal());
+ client.use({...normal(),receipt:'EX-A'},true);
+ await client.flush();
+ assert.equal(client.painted().kind,'saved');
+ client.use({...client.read(),scans:[entry]},true);
+ client.recovery.schedule(60000);
+ assert.equal(client.painted().kind,'saving');
+ assert.deepEqual(JSON.parse([...store.records.values()][0].text).work.scans,[]);
+ await client.recovery.flush();
+ assert.equal(client.painted().kind,'saved');
+ assert.equal(JSON.parse([...store.records.values()][0].text).work.scans[0].id,entry.id);
+});

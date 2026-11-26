@@ -1,5 +1,7 @@
 import { cartonRows, codeKey, matchCartonScan } from '../../domain/carton-verification.js';
 
+import { quantityOutcome } from '../../domain/reconcile.js';
+
 const methodFor = box => box === null ? 'whole' : 'box';
 const emptyCounts = () => ({ counts: new Map(), unknown: new Map() });
 
@@ -41,9 +43,9 @@ export function createCartonWork(now = Date.now) {
     if (!current.scopes.has(box)) current.scopes.set(box, { ...emptyCounts(), unknownCount: 0, events: [] });
     const active = current.scopes.get(box);
     const count = (match.key === null ? active.unknownCount : active.counts.get(match.key) || 0) + 1;
-    const result = match.key === null ? 'unexpected' : count > match.expected ? 'excess' : 'accepted';
+    const result = match.key === null ? 'unexpected' : quantityOutcome(count-1,match.expected);
     const event = { box, key: match.key, value: match.value, result, at: now(), name: match.name,
-      brand: match.brand, count, expected: match.expected };
+      brand: match.brand, sku: match.sku, barcode: match.barcode, count, expected: match.expected };
     active.events.push(event);
     current.events.push(event);
     if (event.key === null) active.unknownCount++;

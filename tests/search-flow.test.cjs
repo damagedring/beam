@@ -1,5 +1,6 @@
 const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
 const html=fs.readFileSync(__dirname+'/../dist/index.html','utf8').replace(/>\s+</g,'><'),js=fs.readFileSync(__dirname+'/../dist/app.js','utf8');
+const {summarizeExpectedInventoryStatus}=require('../dist/domain/expected-inventory-status.js');
 const {mergeProductBrands}=require('../dist/domain/product-identity.js');
 const {productIdentityMarkup}=require('../dist/components/product-identity/view.js');
 const searchKeys=fs.readFileSync(__dirname+'/../dist/domain/search-keys.js','utf8').replace(/^export /gm,'');
@@ -33,7 +34,7 @@ const entered=[],deferred={},turns=[]; let reduced=true;
 let inspecting=false;
 const navigation={isInspection:()=>inspecting};
 El.prototype.firstElementChild={animate(frames,options){turns.push({frames,options});return {cancel(){}};}};
-const c=vm.createContext({$,navigation,productIdentityMarkup,mergeProductBrands,document:{querySelector:()=>modes,querySelectorAll:()=>[],createElement:()=>new El()},window:{matchMedia:()=>({matches:reduced})},uiIndex:()=>ix,isB2C:()=>false,asnStoreKey:id=>({A1:'a',A2:'a',B1:'b'})[id]||'',rawRows:id=>orderRows.get(id)||[],receiptDisplay:id=>'Ext-'+id,receiptBarcodeValue:id=>id,encodeReceiptCode128:()=>({runs:[2,1,2],modules:25}),esc:x=>String(x??'').replace(/[&<>"']/g,'X'),customerLookupKey:v=>v.trim().toLowerCase(),trackingMatches:(q,filter)=>[...orderRows.keys()].filter(id=>filter(id)&&q.replaceAll('-','')===orderRows.get(id)[0].returnTracking?.replaceAll('-','')),looksLikeTracking:q=>/^[0-9-]{10,}$/.test(q),Engine:{masterInfo:()=>({})},state:{data:{raw:[...orderRows.values()].flat()}},language:'ko',dataImportBusy:false,entered,performance,printL:(a)=>a});
+const c=vm.createContext({$,navigation,productIdentityMarkup,mergeProductBrands,summarizeExpectedInventoryStatus,document:{querySelector:()=>modes,querySelectorAll:()=>[],createElement:()=>new El()},window:{matchMedia:()=>({matches:reduced})},uiIndex:()=>ix,isB2C:()=>false,asnStoreKey:id=>({A1:'a',A2:'a',B1:'b'})[id]||'',rawRows:id=>orderRows.get(id)||[],receiptDisplay:id=>'Ext-'+id,receiptBarcodeValue:id=>id,encodeReceiptCode128:()=>({runs:[2,1,2],modules:25}),esc:x=>String(x??'').replace(/[&<>"']/g,'X'),customerLookupKey:v=>v.trim().toLowerCase(),trackingMatches:(q,filter)=>[...orderRows.keys()].filter(id=>filter(id)&&q.replaceAll('-','')===orderRows.get(id)[0].returnTracking?.replaceAll('-','')),looksLikeTracking:q=>/^[0-9-]{10,}$/.test(q),Engine:{masterInfo:()=>({})},state:{data:{raw:[...orderRows.values()].flat()}},language:'ko',dataImportBusy:false,entered,performance,printL:(a)=>a});
 vm.runInContext(searchKeys+'\n'+slice('function beamPhoneUI()', 'function audit(')+'\n'+slice('const beam={mode:', 'function beamView(')+`\nfunction beamEnter(){entered.push(beam.candidate);} \$('beamStart').onclick=beamAdvance; globalThis.R={beam,beamRender,beamFolderItems,beamOpenFolderReceipt,beamTicketFace};`,c);
 const beam=c.R.beam;
 function ev(key,target,more={}){return {key,target,preventDefault(){this.defaultPrevented=true},stopPropagation(){},...more};}
@@ -202,6 +203,7 @@ c.document.querySelector=()=>({open:true});c.escInspection(ev('Escape',$('barcod
 c.document.querySelector=()=>null;c.escInspection(ev('Escape',$('barcode'),{isComposing:true}));assert.equal(returned.length,0);
 c.escInspection(ev('Escape',$('barcode')));assert.deepEqual(returned,[{search:true,animate:true}]);assert.equal(beam.query,'성수');
 inspecting=false;c.escInspection(ev('Escape',$('beamQuery')));assert.equal(returned.length,1);
+c.noticeStrips={show(){}};
 vm.runInContext(slice('let beamRawProgressAt=', 'async function runCombinedWorkbook(')+`\nglobalThis.status=beamRawStatus;`,c);
 c.status('read','Loading');assert.equal($('beamRawStatus').hidden,false);assert.equal($('beamRawProgress').hidden,false);
 c.status('review','Review',false);assert.equal($('beamRawStatus').hidden,false);assert.equal($('beamRawProgress').hidden,true);

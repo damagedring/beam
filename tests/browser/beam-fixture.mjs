@@ -52,9 +52,11 @@ export async function enterScan(field, value) {
 }
 
 export async function openCartons(page, workflow) {
-  const entry = page.getByRole('button', { name: new RegExp(workflow) });
-  await entry.click();
-  if (!await page.locator('#cartonWorkspace').isVisible()) await entry.click();
+  const current=page.locator('.beam-home-word[aria-current=true]');
+  const wanted='beamHome'+workflow;
+  for(let i=0;i<4&&(await current.getAttribute('id'))!==wanted;i++)await current.press('ArrowRight');
+  await expect(current).toHaveAttribute('id',wanted);
+  await current.press('Enter');
   await expect(page.locator('#cartonWorkspace')).toBeVisible();
 }
 
@@ -75,4 +77,13 @@ export async function chooseCarton(page, query) {
   await page.locator('#cartonQuery').fill(query);
   await page.locator('#cartonQuery').press('Enter');
   await expect(page.locator('#cartonGroupTitle')).toBeVisible();
+}
+
+export async function chooseOutboundCarton(page, orderId, label) {
+  const query=page.locator('#cartonQuery');
+  await query.fill(orderId);
+  await query.press('Enter');
+  const receipt=page.locator('.outbound-cartons').filter({has:page.getByRole('img',{name:'Code 128 · '+orderId,exact:true})});
+  await receipt.locator('.outbound-carton').filter({hasText:label}).click();
+  await expect(page.locator('#cartonCurrent')).toHaveText(label);
 }
