@@ -3745,24 +3745,26 @@ void browserRecovery.flush();
    crosses the boundary. The main app never loads GIS or contacts Drive. */
 (()=>{
  const trigger=$('beamDriveExport'),status=$('beamDriveExportStatus'),link=$('beamDriveResult');
- let origin;
+ let origin='';
  try{
   const value=trigger.dataset.exportOrigin,url=new URL(value);
-  if(url.origin!==value||url.protocol!=='https:'||url.origin===location.origin||location.protocol!=='https:')return;
-  origin=url.origin;
- }catch{return;}
- trigger.hidden=false;
+  if(url.origin===value&&url.protocol==='https:'&&url.origin!==location.origin&&location.protocol==='https:')origin=url.origin;
+ }catch{}
  const report=(ko,en)=>{status.textContent=beamL(ko,en);status.parentElement.hidden=false;};
- const consent=$('beamDriveConsent'),dismiss=$('beamDriveDismiss'),proceed=$('beamDriveProceed');
+ const consent=$('beamDriveConsent'),dismiss=$('beamDriveDismiss'),proceed=$('beamDriveProceed'),connect=$('beamDriveConnect');
  dismiss.onclick=()=>consent.close();
  consent.addEventListener('close',()=>$('fileMenuButton').focus({preventScroll:true}));
  trigger.onclick=()=>{
   closeFileMenu(true);if(trigger.disabled)return;
-  if(!state.data.raw.length){report('기준 자료를 먼저 연결하세요.','Connect reference data first.');return;}
+  connect.disabled=!origin;proceed.disabled=!origin||!state.data.raw.length;
+  $('beamDriveSetupStatus').textContent=!origin?beamL('이 버전에는 Google 연결이 설정되어 있지 않아요.','Google Drive connection is not configured in this build.'):
+   !state.data.raw.length?beamL('계정 연결은 확인할 수 있어요. 수동 저장은 기준 자료 연결 후 가능해요.','You can check the account connection. Manual save needs connected reference data.'):'';
   consent.showModal();dismiss.focus({preventScroll:true});
  };
- proceed.onclick=()=>{
-  consent.close();if(trigger.disabled||!state.data.raw.length)return;
+ connect.onclick=()=>launch(true);
+ proceed.onclick=()=>launch(false);
+ function launch(connectOnly){
+  consent.close();if(!origin||trigger.disabled||(!connectOnly&&!state.data.raw.length))return;
   link.hidden=true;link.removeAttribute('href');
   if(!globalThis.crypto?.getRandomValues||typeof MessageChannel!=='function'){
    report('이 브라우저에서 분리된 저장 창을 연결할 수 없어요.','This browser cannot connect to the isolated export window.');return;
@@ -3790,7 +3792,9 @@ void browserRecovery.flush();
    port.onmessage=e=>{
     const message=e.data;if(ended||message?.nonce!==nonce)return;
     const {type,id}=message;
-    if(type==='beam-drive/complete'&&sent&&typeof id==='string'&&/^[A-Za-z0-9_-]{1,180}$/.test(id)){
+    if(type==='beam-drive/connected'&&connectOnly&&!sent){
+     report('Google Drive 접근을 확인했어요. 작업 데이터는 전송하지 않았어요.','Google Drive access verified. No work data was sent.');stop();
+    }else if(type==='beam-drive/complete'&&!connectOnly&&sent&&typeof id==='string'&&/^[A-Za-z0-9_-]{1,180}$/.test(id)){
      link.href='https://drive.google.com/open?id='+encodeURIComponent(id);link.hidden=false;
      report('검수 기록을 Google Drive에 저장했어요.','Inspection records saved to Google Drive.');stop();
     }else if(type==='beam-drive/uncertain'){
@@ -3802,6 +3806,10 @@ void browserRecovery.flush();
    port.start();
    try{
     popup.postMessage({type:'beam-drive/handoff',nonce},origin,[channel.port2]);
+    if(connectOnly){
+     port.postMessage({type:'beam-drive/connect',nonce});
+     report('별도 창에서 Google 계정을 선택하세요.','Choose your Google account in the separate window.');return;
+    }
     const prepared=await WorkDelta.prepareSave({compact:true});
     if(ended)return;
     prepared.assertCurrent();

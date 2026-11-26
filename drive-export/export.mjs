@@ -10,7 +10,7 @@ if(location.hash)history.replaceState(null,'',location.pathname);
 const expire=8*60_000;
 const status=document.getElementById('status'),authorize=document.getElementById('authorize'),abortButton=document.getElementById('cancel'),result=document.getElementById('open-result');
 const destinations=document.getElementById('destination-choices'),folderConfirmation=document.getElementById('folder-confirmation'),folderName=document.getElementById('folder-name'),writeFolder=document.getElementById('write-folder');
-let openerWindow=window.opener,port=null,packet=null,client=null,ended=false,uploading=false,controller=null,initialTimer=null,folderFlow=false,folderToken='',folder=null,pickerWindow=null;
+let connectOnly=false,openerWindow=window.opener,port=null,packet=null,client=null,ended=false,uploading=false,controller=null,initialTimer=null,folderFlow=false,folderToken='',folder=null,pickerWindow=null;
 function release(closePort=true){
  clearTimeout(initialTimer);window.removeEventListener('message',acceptHandoff);
  if(closePort){port?.close();port=null;}
@@ -30,11 +30,12 @@ function waitForScript(src='https://accounts.google.com/gsi/client'){
  });
 }
 async function onToken(response){
- if(ended||!packet||uploading)return;
+ if(ended||(!packet&&!connectOnly)||uploading)return;
  const oauth=globalThis.google?.accounts?.oauth2;
  if(response?.error||typeof response?.access_token!=='string'||!oauth?.hasGrantedAllScopes(response,scope)){
   fail('Google Drive 저장 권한을 받지 못했어요. Beam에서 다시 시도할 수 있어요.');return;
  }
+ if(connectOnly){finish('beam-drive/connected','Google Drive 접근을 확인했어요. 작업 데이터를 받거나 저장하지 않았어요.');return;}
  if(folderFlow){folderToken=response.access_token;void chooseFolder();return;}
  void upload(response.access_token,null);
 }
@@ -93,8 +94,9 @@ async function prepareAuthorization(){
    client_id:oauthClient,scope,include_granted_scopes:false,callback:response=>void onToken(response),
    error_callback:()=>fail('Google 계정 선택 창이 닫혔거나 열리지 않았어요. 팝업을 허용한 뒤 Beam에서 다시 시도하세요.'),
   });
-  status.textContent=packet.name+' · Google 계정을 선택해 주세요.';
-  destinations.hidden=!pickerConfigured;authorize.disabled=false;
+  status.textContent=connectOnly?'저장 없이 Google Drive 접근만 확인합니다.':packet.name+' · Google 계정을 선택해 주세요.';
+  if(connectOnly)authorize.textContent='Google 계정 연결 확인';
+  destinations.hidden=connectOnly||!pickerConfigured;authorize.disabled=false;
  }catch{fail('Google 계정 선택 모듈을 불러오지 못했어요.');}
 }
 function acceptHandoff(event){
@@ -104,7 +106,9 @@ function acceptHandoff(event){
  port.onmessage=message=>{
   if(ended||message.data?.nonce!==nonce)return;
   if(message.data.type===cancel){if(uploading){controller?.abort();finish(uncertain,'저장 결과를 확인하지 못했어요. Drive에서 먼저 확인하세요.');}else finish(cancel,'Beam에서 저장을 취소했어요.');return;}
-  if(packet||message.data.type!==payload)return;
+  if(packet||connectOnly)return;
+  if(message.data.type==='beam-drive/connect'){connectOnly=true;void prepareAuthorization();return;}
+  if(message.data.type!==payload)return;
   try{packet=decodeWorkPacket(message.data,nonce);}
   catch{fail('지원하지 않는 검수 기록이에요. 저장하지 않았어요.');return;}
   void prepareAuthorization();
@@ -113,8 +117,8 @@ function acceptHandoff(event){
 }
 destinations.onchange=()=>{authorize.textContent=document.querySelector('input[name=destination]:checked')?.value==='folder'?'Google 계정 선택 후 폴더 고르기':'Google 계정 선택 후 저장';};
 authorize.onclick=()=>{
- if(ended||!client||!packet||uploading)return;
- folderFlow=pickerConfigured&&document.querySelector('input[name=destination]:checked')?.value==='folder';
+ if(ended||!client||(!packet&&!connectOnly)||uploading)return;
+ folderFlow=!connectOnly&&pickerConfigured&&document.querySelector('input[name=destination]:checked')?.value==='folder';
  destinations.disabled=true;authorize.disabled=true;status.textContent='Google 계정 확인 중…';
  try{client.requestAccessToken({prompt:'consent select_account'});}
  catch{fail('Google 계정 선택을 열지 못했어요.');}

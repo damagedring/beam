@@ -62,12 +62,12 @@ test('a large export sends bytes only to a pinned Drive session URI, with no ret
  let n=0;await assert.rejects(createDriveWorkFile({accessToken:'probe',packet,request:async()=>{n++;return new Response(null,{headers:{Location:evil}});}}),/invalid-session/);
  assert.equal(n,1);
 });
-test('default build hides the exporter and does not move Google services into the local app',async()=>{
+test('default build leaves login and sync unavailable and does not move Google services into the local app',async()=>{
  const html=await readFile(new URL('../dist/index.html',import.meta.url),'utf8');
  assert.match(html,/connect-src 'none'/);
  assert.doesNotMatch(html,/accounts\.google\.com\/gsi|www\.googleapis\.com/);
  const expected=process.env.BEAM_DRIVE_EXPORTER_ORIGIN||'';
- assert.ok(html.includes('id="beamDriveExport" type="button" data-export-origin="'+expected+'" aria-haspopup="dialog" hidden'));
+ assert.ok(html.includes('id="beamDriveExport" type="button" data-export-origin="'+expected+'" aria-haspopup="dialog" aria-controls="beamDriveConsent"'));
  const script=await readFile(new URL('../drive-export/export.mjs',import.meta.url),'utf8');
  assert.match(script,/include_granted_scopes:false/);
  assert.doesNotMatch(script,/localStorage|sessionStorage|indexedDB/);
@@ -100,4 +100,12 @@ test('a shared folder must be explicitly chosen, writable, and checked by the ve
  ]){
   await assert.rejects(verifyDriveFolder({id,accessToken:auth,request:async()=>new Response(JSON.stringify(check))}),/folder-not-writable/);
  }
+});
+
+
+test('settings checks scoped auth without entering the export path or enabling sync',async()=>{
+ const [app,markup,exporter]=await Promise.all(['src/app.js','src/index.html','drive-export/export.mjs'].map(path=>readFile(new URL('../'+path,import.meta.url),'utf8')));
+ assert.match(markup,/role="switch" aria-checked="false" aria-describedby="beamDriveSyncNote" disabled/);
+ assert.match(app,/if\(connectOnly\)\{[\s\S]+?beam-drive\/connect[\s\S]+?return;\s*\}\s*const prepared=await WorkDelta\.prepareSave/);
+ assert.match(exporter,/if\(connectOnly\)\{finish\('beam-drive\/connected',[\s\S]+?return;\}/);
 });

@@ -124,8 +124,8 @@
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-folder"/></svg>작업 불러오기</button>
 <button id="save" class="primary">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-download"/></svg>작업파일 저장</button>
-<button id="beamDriveExport" type="button" data-export-origin="" aria-haspopup="dialog" hidden>
-<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-upload"/></svg><span data-ko="Google Drive에 저장" data-en="Save to Google Drive">Google Drive에 저장</span>
+<button id="beamDriveExport" type="button" data-export-origin="" aria-haspopup="dialog" aria-controls="beamDriveConsent">
+<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-upload"/></svg><span data-ko="Google Drive 설정" data-en="Google Drive settings">Google Drive 설정</span>
 </button>
 <button id="beamOneDriveExport" type="button" data-one-drive-origin="" hidden aria-label="OneDrive에 검수 기록 저장">
 <svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-upload"/></svg><span data-ko="OneDrive에 저장" data-en="Save to OneDrive">OneDrive에 저장</span>
@@ -148,12 +148,17 @@
 <section id="beamOneDriveNotice" hidden aria-label="OneDrive 저장"><span id="beamOneDriveExportStatus" role="status" aria-live="polite"></span></section>
 <dialog id="beamDriveConsent" aria-labelledby="beamDriveConsentTitle">
  <div class="dialog-heading">
-  <h2 id="beamDriveConsentTitle" data-ko="Google Drive에 검수 기록 저장" data-en="Save inspection records to Google Drive">Google Drive에 검수 기록 저장</h2>
+  <h2 id="beamDriveConsentTitle" data-ko="Google Drive 설정" data-en="Google Drive settings">Google Drive 설정</h2>
   <button type="button" id="beamDriveDismiss" aria-label="닫기"><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-close"/></svg></button>
  </div>
- <p data-ko="검수 기록만 분리된 Google Drive 저장 창으로 전달합니다. 기준 RAW, 고객명 조회 목록, 파일 출처는 포함하지 않지만 검수 기록에는 오더 번호와 상품 코드 등이 들어갈 수 있어요." data-en="Only inspection records are sent to the separate export window. Raw reference data, customer lookup lists, and source labels are excluded, but records may include order and product identifiers.">검수 기록만 분리된 Google Drive 저장 창으로 전달합니다. 기준 RAW, 고객명 조회 목록, 파일 출처는 포함하지 않지만 검수 기록에는 오더 번호와 상품 코드 등이 들어갈 수 있어요.</p>
- <p data-ko="다음 창에서 Google 계정을 선택한 뒤에만 새 파일을 만들어요." data-en="A new file is created only after you choose a Google account in the next window.">다음 창에서 Google 계정을 선택한 뒤에만 새 파일을 만들어요.</p>
- <button type="button" id="beamDriveProceed" data-ko="저장 창 열기" data-en="Open export window">저장 창 열기</button>
+ <p id="beamDriveSetupStatus" role="status"></p>
+ <div class="beam-recovery-dialog-actions">
+  <button type="button" id="beamDriveConnect" data-ko="Google 계정 연결 확인" data-en="Check Google account connection" disabled>Google 계정 연결 확인</button>
+  <button type="button" id="beamDriveProceed" data-ko="수동 저장" data-en="Save manually" disabled>수동 저장</button>
+ </div>
+ <p data-ko="연결 확인은 작업 데이터를 보내지 않아요. 수동 저장은 RAW를 제외한 검수 기록만 선택한 곳에 저장해요." data-en="The connection check sends no work data. Manual save only exports inspection records, not reference workbooks.">연결 확인은 작업 데이터를 보내지 않아요. 수동 저장은 RAW를 제외한 검수 기록만 선택한 곳에 저장해요.</p>
+ <button type="button" role="switch" aria-checked="false" aria-describedby="beamDriveSyncNote" disabled><span data-ko="자동 동기화" data-en="Automatic sync">자동 동기화</span> · OFF</button>
+ <p id="beamDriveSyncNote" data-ko="자동 동기화는 아직 사용할 수 없어요. 브라우저 자동 저장은 그대로예요." data-en="Automatic sync is not available yet. Browser autosave is unchanged.">자동 동기화는 아직 사용할 수 없어요. 브라우저 자동 저장은 그대로예요.</p>
 </dialog>
 <span id="beamRecoverySaved" class="beam-sr" role="status" aria-live="polite"></span>
 <aside hidden inert id="beamSidebar" aria-labelledby="beamJobsTitle">

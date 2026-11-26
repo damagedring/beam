@@ -22,7 +22,7 @@ npm run build
 node tools/build-drive-exporter.mjs
 ```
 
-Deploy `dist/` only to the Beam app. Deploy `dist-drive-export/` separately at the **root of the exporter origin**. Never copy exporter files into `dist/`. If not configured, the Drive menu item is hidden; a standalone visit to the exporter is inert. Publish both outputs using the same configured pair.
+Deploy `dist/` only to the Beam app. Deploy `dist-drive-export/` separately at the **root of the exporter origin**. Never copy exporter files into `dist/`. If not configured, Google Drive settings explain why connection and manual save are unavailable. A standalone visit to the exporter is inert. Publish both outputs using the same configured pair.
 
 Before enabling for actual work, verify with synthetic RAW and a test Google account in the real staging browser:
 - The **main app** still has `connect-src 'none'`; it never loads GIS or speaks to Google APIs. Existing manual work downloads and local browser recovery remain available.
@@ -59,3 +59,8 @@ Validate actual Google Picker CSP requirements and workflow before production. T
 - [Shared drive support and request parameters](https://developers.google.com/workspace/drive/api/guides/enable-shareddrives)
 - [Drive file capabilities and parent fields](https://developers.google.com/workspace/drive/api/reference/rest/v3/files)
 - [Drive link-sharing resource keys](https://developers.google.com/workspace/drive/api/guides/resource-keys)
+
+
+## Settings and sync
+
+The Settings entry can open a connection check separately from manual save. The check requests the same limited Drive permission in the isolated window, sends no inspection payload, writes no file and discards the token when finished. It is not a persistent sign-in. Automatic synchronization stays off and unavailable in this build. Before enabling it, add an explicitly approved destination, authorized save scope and a tested way to stop queued writes; do not relax the main application's offline policy.
