@@ -15,7 +15,7 @@ import { validateCartonMappings, prepareCartonReferences } from "./features/cart
 import { validateLabelPapers } from "./domain/product-labels.js";
 import { attachProductLabels } from "./components/product-labels/view.js";
 import { latestScanEvent, recentScanEvents, scanHistoryPage } from "./domain/scan-history.js";
-import { createBrowserRecovery } from "./features/returns/recovery.js";
+import { createBrowserRecovery, hasRecoveryRecords, offerRecoveryDraft } from "./features/returns/recovery.js";
 import { createIndexedRecoveryStore } from "./platform/indexed-recovery.js";
 import { createReferenceFingerprint } from "./platform/reference-fingerprint.js";
 import { createInspectionInput } from "./platform/inspection-input.js";
@@ -3661,9 +3661,7 @@ function openRestoredWork(){
  else beamNewSearch(true);
 }
 
-function hasBrowserRecoveryWork(){
- return [state,...(state.workSheets||[])].some(w=>w.receipt||['scans','pending','archivedScans','archivedPending','confirmations','confirmationCommitments'].some(key=>w[key]?.length)||w.audit?.some(entry=>entry.events?.length));
-}
+function hasBrowserRecoveryWork(){return hasRecoveryRecords(state);}
 let lastRecoveryNotice='';
 function paintBrowserRecovery({kind,draft}){
  const panel=$('beamRecoveryPanel'),message=$('beamRecoveryStatus'),restore=$('beamRecoverDraft'),keep=$('beamKeepDraft'),discard=$('beamDiscardDraft'),connect=$('beamRecoveryConnect'),saved=$('beamRecoverySaved');
@@ -3717,7 +3715,7 @@ browserRecovery=createBrowserRecovery({
  store:createIndexedRecoveryStore(),
  context:()=>state.data.raw.length?{reference:ReferenceFingerprint.request(),names:state.customerNames}:null,
  reference:WorkDelta.recoveryReference,
- hasWork:hasBrowserRecoveryWork,
+ hasWork:hasBrowserRecoveryWork,shouldOffer:offerRecoveryDraft,
  prepare:()=>WorkDelta.prepareSave({compact:true}),
  prepareRestore:WorkDelta.prepareRestore,
  confirmRestore:()=>!hasBrowserRecoveryWork()||uiConfirm(beamL('복구본으로 현재 검수 기록을 바꿀까요? 기준 자료는 유지됩니다.','Replace the current inspection records with this recovery? Reference data is kept.')),

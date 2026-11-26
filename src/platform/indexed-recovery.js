@@ -30,18 +30,23 @@ export function createIndexedRecoveryStore(getIndexedDB=()=>globalThis.indexedDB
  }
  return {
   read:key=>operate('readonly',(s,finish)=>{const req=s.get(key);req.onsuccess=()=>finish(req.result??null);}),
-  hasDraft:()=>operate('readonly',(s,finish)=>{const req=s.openKeyCursor();req.onsuccess=()=>finish(!!req.result);}),
-  inspectDrafts:()=>operate('readonly',(s,finish)=>{
-   const cursor=s.openKeyCursor();let key;
+  hasDraft:(offer=()=>true)=>operate('readonly',(s,finish)=>{
+   const cursor=s.openCursor();cursor.onsuccess=()=>{
+    if(!cursor.result){finish(false);return;}
+    if(offer(cursor.result.value)){finish(true);return;}
+    cursor.result.continue();
+   };
+  }),
+  inspectDrafts:(offer=()=>true)=>operate('readonly',(s,finish)=>{
+   const cursor=s.openCursor();let entry=null;
    cursor.onsuccess=()=>{
-    if(cursor.result){
-     if(key!==undefined){finish({exists:true,entry:null});return;}
-     key=cursor.result.primaryKey;cursor.result.continue();return;
+    if(!cursor.result){finish({exists:!!entry,entry});return;}
+    const draft=cursor.result.value;
+    if(offer(draft)){
+     if(entry){finish({exists:true,entry:null});return;}
+     entry={key:cursor.result.primaryKey,revision:draft.revision,savedAt:draft.savedAt};
     }
-    if(key===undefined){finish({exists:false,entry:null});return;}
-    const req=s.get(key);req.onsuccess=()=>{
-     const draft=req.result;finish({exists:true,entry:draft?{key,revision:draft.revision,savedAt:draft.savedAt}:null});
-    };
+    cursor.result.continue();
    };
   }),
   discard:(key,revision)=>operate('readwrite',(s,finish)=>{

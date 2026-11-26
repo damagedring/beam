@@ -1,4 +1,4 @@
-import { createBrowserRecovery } from '../src/features/returns/recovery.js';
+import { createBrowserRecovery, hasRecoveryRecords, offerRecoveryDraft } from '../src/features/returns/recovery.js';
 import { createReferenceFingerprint } from '../src/platform/reference-fingerprint.js';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
@@ -150,4 +150,17 @@ test('the in-app discard dialog makes no write until accepted and rejects a revi
  const accept=fresh.recovery.discard();
  answer(true);assert.equal(await accept,true);
  assert.equal(store.records.size,0);
+});
+
+test('viewing or switching an order is not recoverable work; inspections and previous sheets still are',()=>{
+ const opened={receipt:'EX-A',orderTabs:['EX-A','EX-B'],currentBatch:'ONE',audit:[]};
+ assert.equal(hasRecoveryRecords(opened),false);
+ for(const work of [
+  {...opened,scans:[entry]}, {...opened,pending:[entry]}, {...opened,audit:[{events:[entry]}]},
+  {...opened,confirmationCommitments:[{}]}, {...opened,workSheets:[{confirmations:[{}]}]},
+ ])assert.equal(hasRecoveryRecords(work),true);
+ const draft=work=>({text:JSON.stringify({format:'logistics-work-delta',version:1,work})});
+ assert.equal(offerRecoveryDraft(draft(opened)),false);
+ assert.equal(offerRecoveryDraft(draft({...opened,scans:[entry]})),true);
+ assert.equal(offerRecoveryDraft({text:'not json'}),true);
 });

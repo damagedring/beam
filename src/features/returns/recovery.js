@@ -1,5 +1,27 @@
+const checkpointFields=['scans','pending','archivedScans','archivedPending','confirmations','confirmationCommitments'];
+
+export function hasRecoveryRecords(work){
+ return [work,...(Array.isArray(work?.workSheets)?work.workSheets:[])].some(sheet=>
+  checkpointFields.some(key=>Array.isArray(sheet?.[key])&&sheet[key].length)||
+  (Array.isArray(sheet?.audit)&&sheet.audit.some(entry=>entry?.events?.length)));
+}
+
+export function offerRecoveryDraft(draft){
+ if(draft?.hasRecords===true)return true;
+ if(typeof draft?.text!=='string'||draft.text.length>50e6)return true;
+ try{
+  const envelope=JSON.parse(draft.text),work=envelope?.work;
+  if(envelope?.format!=='logistics-work-delta'||envelope.version!==1||!work||typeof work!=='object'||Array.isArray(work))return true;
+  for(const sheet of [work,...(Array.isArray(work.workSheets)?work.workSheets:[])]){
+   if(!sheet||typeof sheet!=='object'||[...checkpointFields,'audit','workSheets'].some(k=>Object.hasOwn(sheet,k)&&!Array.isArray(sheet[k])))return true;
+  }
+  return hasRecoveryRecords(work);
+ }catch{return true;}
+}
+
 /* Fingerprint-scoped Returns checkpoints, with storage and view effects supplied by the app. */
 export function createBrowserRecovery(api){
+ const shouldOffer=api.shouldOffer||(()=>true);
  let current=null,timer=null,inflight=null,rerun=false,version=0,savedVersion=-1,display={kind:'hidden'},stopped=false,acting=false;
  const same=(a,b)=>a?.reference===b?.reference&&a?.names===b?.names;
  const still=(context)=>same(context,api.context());
@@ -12,10 +34,11 @@ export function createBrowserRecovery(api){
   const key='v1:'+reference.root+':'+reference.customerRoot;
   const draft=await api.store.read(key);
   if(!still(context))return null;
-  current={context,key,revision:draft?.revision??null,draft:draft||null};
+  const offered=draft&&shouldOffer(draft)?draft:null;
+  current={context,key,revision:draft?.revision??null,draft:offered};
   savedVersion=-1;
-  if(draft)tell(validity(draft)?'offer':'invalid',draft);
-  else if(await api.store.hasDraft()&&still(context))tell('other');
+  if(offered)tell(validity(offered)?'offer':'invalid',offered);
+  else if(await api.store.hasDraft(shouldOffer)&&still(context))tell('other');
   else if(still(context))tell('hidden');
   return current;
  }
@@ -26,7 +49,7 @@ export function createBrowserRecovery(api){
   const prepared=await api.prepare();
   if(!still(active.context)||current!==active)return;
   prepared.assertCurrent();
-  const entry={key:active.key,revision:api.id(),savedAt:api.now(),text:prepared.text};
+  const entry={key:active.key,revision:api.id(),savedAt:api.now(),text:prepared.text,hasRecords:true};
   const committed=await api.store.write(entry,active.revision);
   if(!still(active.context)||current!==active)return;
   if(!committed){
@@ -42,7 +65,7 @@ export function createBrowserRecovery(api){
   try{
    if(!context){
     current=null;
-    const {exists,entry}=await api.store.inspectDrafts();
+    const {exists,entry}=await api.store.inspectDrafts(shouldOffer);
     if(!api.context())tell(exists?'needs-raw':'hidden',entry);
     return;
    }
@@ -103,7 +126,7 @@ export function createBrowserRecovery(api){
    if(active&&current===active){active.draft=null;active.revision=null;}
    tell('discarded');
    if(api.context()&&api.hasWork())rerun=true;
-   else if(!api.context()&&await api.store.hasDraft())rerun=true;
+   else if(!api.context()&&await api.store.hasDraft(shouldOffer))rerun=true;
    return true;
   }catch{
    tell('discard-error',offered);
