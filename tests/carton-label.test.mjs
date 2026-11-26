@@ -190,3 +190,22 @@ test('piece evidence distinguishes grouping for the same counts, ignores excepti
  alternating.undo('outbound',group,'A');
  assert.deepEqual(alternating.outboundPieceEvidence(group,'A'),{pieceScans:5,distinctSku:3,repeatedSkuRuns:2});
 });
+
+test('completed scans can be rehydrated for one scope without rewriting timestamps or locking another carton',()=>{
+ const index=createCartonIndex([first,second]),order=index.groups.get('ORDER');
+ const active=createCartonWork(()=>2400);active.connect('outbound','sample',index);
+ assert.deepEqual(active.completionSnapshot('outbound',order,'BOX 01'),[]);
+ active.scan('outbound',order,'BOX 01',first.barcode);
+ const snapshot=active.completionSnapshot('outbound',order,'BOX 01');
+ active.finish('outbound',order,'BOX 01');
+ assert.equal(active.hasScans(),false);
+ const fresh=createCartonWork(()=>8000);fresh.connect('outbound','sample',index);
+ assert.equal(fresh.restoreCompletion('outbound',order,'BOX 01',[...snapshot,{value:'',at:3999}]),false);
+ assert.equal(fresh.rows('outbound',order,'BOX 01')[0].actual,0);
+ assert.equal(fresh.restoreCompletion('outbound',order,'BOX 01',snapshot),true);
+ assert.equal(fresh.latest('outbound',order,'BOX 01').at,2400);
+ assert.equal(fresh.locked('outbound',order,'BOX 01'),true);
+ assert.equal(fresh.locked('outbound',order,'BOX 02'),false);
+ assert.equal(fresh.undo('outbound',order,'BOX 01'),false);
+ assert.deepEqual(fresh.outboundOrderProgress(order),{covered:1,excess:0,unverified:0});
+});

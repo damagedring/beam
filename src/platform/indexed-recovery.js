@@ -1,6 +1,6 @@
 /* Local work-only checkpoints with optimistic revision checks. */
-const databaseName='beam-work-recovery',storeName='drafts';
-export function createIndexedRecoveryStore(getIndexedDB=()=>globalThis.indexedDB){
+const storeName='drafts';
+export function createIndexedRecoveryStore(getIndexedDB=()=>globalThis.indexedDB,databaseName='beam-work-recovery'){
  let opening;
  function open(){
   if(opening)return opening;

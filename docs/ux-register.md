@@ -27,7 +27,7 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 | UX-14 | Accepted, excess and unknown scans have their respective sounds, and scans still record when audio is unavailable. |
 | UX-15 | Returns offers recovery only for matching reference and customer lookup data, and a newer draft takes precedence over a stale tab’s write. |
 | UX-16 | Returns restores valid drafts and compatible saved work and keeps the active session usable if browser storage fails. |
-| UX-17 | Outbound and Inventory keep separate work when switching workflows within a tab, and a reload starts a fresh carton inspection session. |
+| UX-17 | Outbound and Inventory keep separate work when switching workflows within a tab, and completed carton inspections can be reopened after reconnecting the exact same workbook. |
 
 ## Workflow and presentation
 
@@ -64,3 +64,5 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 Picking profiles can optionally map `Verification Unit`, `Units per Case` and `Case Barcode`. The carton header shows the declared unit, not a claim about what was physically checked. An omitted or inconsistent unit stays unspecified. Case metadata does not turn a scan into a quantity multiplier or change completion. Existing profiles remain valid.
 
 Grouped piece verification records are scoped to one outbound carton and use only surviving, accepted scans on explicitly each-verified lines. Returning to an already seen SKU is observable; physical grouping, effort and causes of shipment errors are not proven by scan order. These signals are not scores and are not sent or used for worker evaluation.
+
+Completed outbound cartons and inventory scopes write a per-scope completion record with the scan replay to Beam's IndexedDB. The exact workbook and mapped scope must match to reopen it. Opening a scope reads but never creates a completion record. Concurrent windows cannot replace an already saved completion, and failure to save does not mark work complete. No WMS or Drive updates are part of this path.

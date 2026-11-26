@@ -1,3 +1,4 @@
+import { createIndexedRecoveryStore } from '../../platform/indexed-recovery.js';
 import { attachProgressMarkers, coverageReadout } from '../../components/inspection-progress/view.js';
 import { inspectionCoverage } from '../../domain/reconcile.js';
 import { createCartonWork } from './model.js';
@@ -26,6 +27,41 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   const unknown=rows.reduce((total,r)=>total+(r.unregistered||r.conflict?r.actual:0),0);
   writeCoverage(['cartonCount','cartonPercent','cartonMeter','cartonCoverageDetails'],boxCoverage,{unverified:unknown,locked:locked()});
   markers.update(scopeKey(),{events:work.outboundOverages(group,box),expected:boxCoverage.expected});
+ }
+ const completions=createIndexedRecoveryStore(undefined,'beam-inspection-completions');
+ const workbookFingerprints=new WeakMap(),sourceFiles=new WeakMap();
+ let statusCheck=null,statusSave=null,loadedStatus=null;
+ const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',value)),b=>b.toString(16).padStart(2,'0')).join('');
+ async function completionKey(source,kind,g,carton){
+  const file=sourceFiles.get(source);
+  if(!file||!globalThis.crypto?.subtle)throw Error('No completion fingerprint');
+  if(!workbookFingerprints.has(file))workbookFingerprints.set(file,file.arrayBuffer().then(digest));
+  const manifest=JSON.stringify([...((carton===null?g.totals:g.boxes.get(carton))||[])].map(([key,r])=>[key,r.expected]));
+  return JSON.stringify(['v1',kind,await workbookFingerprints.get(file),g.id,carton,await digest(new TextEncoder().encode(manifest))]);
+ }
+ function selection(){return {mode,group,box,source:view()};}
+ const matchesSelection=s=>s.mode===mode&&s.group===group&&s.box===box&&s.source===view()&&inspectionActive();
+ async function checkCompletion(){
+  const s=selection();
+  if(!s.group||locked())return;
+  statusCheck=s;loadedStatus=null;render();
+  try{
+   const key=await completionKey(s.source,s.mode,s.group,s.box);
+   const record=await completions.read(key);
+   if(statusCheck!==s||!matchesSelection(s))return;
+   loadedStatus={selection:s,key};
+   if(record?.status==='complete'&&!work.restoreCompletion(s.mode,s.group,s.box,record.events)&&!work.locked(s.mode,s.group,s.box)){
+    loadedStatus=null;
+    warn(l('저장된 완료 기록을 확인할 수 없어요.','The saved completion could not be verified.'));
+   }
+  }catch{if(statusCheck===s&&matchesSelection(s))warn(l('완료 상태 저장소에 연결할 수 없어요.','Completion storage is unavailable.'));}
+  finally{if(statusCheck===s){
+   statusCheck=null;
+   if(matchesSelection(s)){
+    render();
+    if(!$('cartonScan').disabled&&matchMedia('(pointer:fine)').matches&&[document.body,$('cartonGroupTitle')].includes(document.activeElement))focusStage('cartonScan');
+   }
+  }}
  }
  let combinedFile=null;
  const receiptPicker=createOutboundReceipts($('outboundReceiptHost'),{l,onChoose:select,onDispatch:g=>openDispatch(dispatchContext(g)),isComplete:(g,key)=>work.locked('outbound',g,key)});
@@ -162,7 +198,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    },{Engine:engine,language:isEnglish()?'en':'ko'});
    const index=createCartonIndex(cartonLines);
    if(!index.groups.size)throw Error(l('검수할 예정 수량이 없습니다.','There are no positive expected quantities.'));
-   work.connect(target,file.name,index);combinedStatus.set(target,'ready');if(mode===target){group=null;box=null;stage='search';$('cartonQuery').value='';render();}
+   work.connect(target,file.name,index);sourceFiles.set(work.reference(target),file);combinedStatus.set(target,'ready');if(mode===target){group=null;box=null;stage='search';$('cartonQuery').value='';render();}
    if(savedMapping)saveCartonMapping(prefs.id,target,savedMapping);
    notice(l('검수 기준 연결 완료','Inspection reference connected'));
   }catch(e){if(e.name!=='AbortError')notice(e.message,'error');}
@@ -182,7 +218,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  function select(g,boxMatch){
   if(mode==='outbound'&&(!boxMatch||!g.boxes.has(boxMatch)))return;
   group=g;box=boxMatch??null;
-  showStage('inspection');
+  showStage('inspection');void checkCompletion();
  }
  function back(){
   if(stage==='inspection'){
@@ -253,7 +289,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    button.setAttribute('aria-pressed',String(choice===box));
    if(work.locked(mode,group,choice))button.append(make('span',' ✓'));
    button.onclick=()=>{
-    box=choice;page=0;warn('');$('cartonScan').value='';render();
+    box=choice;page=0;warn('');$('cartonScan').value='';render();void checkCompletion();
     if(!$('cartonScan').disabled&&matchMedia('(pointer:fine)').matches)focusStage('cartonScan');
    };
    scopes.append(button);
@@ -313,10 +349,10 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    bar.value=Math.min(100,last.count/last.expected*100);
    bar.setAttribute('aria-valuetext',label.quantity+' · '+label.detail);
   }
-  const allowed=scopeAllowed();
-  for(const id of ['cartonScan','cartonAdd'])$(id).disabled=!allowed||locked();
-  $('cartonUndo').disabled=!allowed||locked()||!last;
-  $('cartonFinish').disabled=!allowed||locked()||!last;
+  const allowed=scopeAllowed(),verifying=!!statusCheck&&matchesSelection(statusCheck),saving=!!statusSave&&matchesSelection(statusSave);
+  for(const id of ['cartonScan','cartonAdd'])$(id).disabled=!allowed||locked()||verifying||saving;
+  $('cartonUndo').disabled=!allowed||locked()||!last||verifying||saving;
+  $('cartonFinish').disabled=!allowed||locked()||!last||verifying||saving;
   $('cartonLabelTrigger').hidden=mode==='inventory';$('cartonReport').hidden=mode==='inventory';
   if(!allowed)warn(l('중복 집계를 막기 위해 먼저 시작한 실사 방식에서만 입력할 수 있어요. 그 스캔을 모두 취소하면 방식을 바꿀 수 있어요.','To prevent double counting, use the counting method already started. Undo its scans to switch methods.'));
   else if(locked())warn(l('검수를 완료했어요.','Inspection complete.'));
@@ -384,11 +420,22 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  $('cartonFileButton').onclick=()=>$('cartonFile').click();
  $('cartonMapButton').onclick=()=>load(combinedFile);
  $('cartonFile').onchange=e=>{const file=e.currentTarget.files[0];e.currentTarget.value='';load(file);};
- $('cartonUndo').onclick=()=>{if(group&&work.undo(mode,group,box)){warn('');render();}};
- $('cartonFinish').onclick=()=>{
-  const rows=rowList(),hasDifference=rows.some(r=>r.conflict||r.expected!==r.actual);
+ $('cartonUndo').onclick=()=>{if(group&&!$('cartonUndo').disabled&&work.undo(mode,group,box)){warn('');render();}};
+ $('cartonFinish').onclick=async()=>{
+  if($('cartonFinish').disabled||!inspectionActive())return;
+  const s=selection(),rows=rowList(),hasDifference=rows.some(r=>r.conflict||r.expected!==r.actual);
   if(hasDifference&&!window.confirm(l('차이가 남아 있습니다. 이 범위의 검수를 완료할까요?','Differences remain. Finish inspection for this scope?')))return;
-  work.finish(mode,group,box);render();
+  statusSave=s;render();
+  try{
+   const key=loadedStatus&&matchesSelection(loadedStatus.selection)?loadedStatus.key:await completionKey(s.source,s.mode,s.group,s.box);
+   if(!matchesSelection(s))return;
+   const events=work.completionSnapshot(s.mode,s.group,s.box);
+   if(!events.length||events.length>200000)throw Error('Unsupported completion size');
+   const committed=await completions.write({key,revision:'v1',status:'complete',completedAt:new Date().toISOString(),outcome:hasDifference?'difference':'matched',events},null);
+   if(committed){if(s.source===work.reference(s.mode))work.finish(s.mode,s.group,s.box);}
+   else if(matchesSelection(s))warn(l('다른 창에서 이미 완료 상태를 저장했어요. 기록은 덮어쓰지 않았어요.','Another tab already saved completion. Nothing was overwritten.'));
+  }catch{if(matchesSelection(s))warn(l('완료 상태를 저장하지 못했어요. 검수 기록은 그대로예요.','Completion could not be saved. Your scans are unchanged.'));}
+  finally{if(statusSave===s)statusSave=null;if(matchesSelection(s))render();}
  };
  $('cartonPrev').onclick=()=>{page--;render();};$('cartonNext').onclick=()=>{page++;render();};
  $('cartonReport').onclick=()=>{if(mode==='outbound'&&inspectionActive())openReport(inspectionContext());};
@@ -409,7 +456,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
     if(result.status!=='ready'){if(work.reference(kind))retained.push(kind);continue;}
     // A new combined workbook never implicitly discards this workflow's scans.
     if(work.hasJobs(kind)){combinedStatus.set(kind,'preserved');retained.push(kind);continue;}
-    work.connect(kind,file.name,result.index);
+    work.connect(kind,file.name,result.index);sourceFiles.set(work.reference(kind),file);
     if(mode===kind){group=null;box=null;stage='search';$('cartonQuery').value='';}
    }
    if(!root.hidden)render();

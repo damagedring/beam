@@ -34,7 +34,7 @@ export function createCartonWork(now = Date.now) {
   function locked(mode, group, box) {
     return !!job(mode, group)?.done.has(box);
   }
-  function scan(mode, group, box, input) {
+  function scan(mode, group, box, input, time = now()) {
     const value = codeKey(input);
     if (!value || value.length > 200 || !canScan(mode, group, box) || locked(mode, group, box)) return null;
     const jobs = sources.get(mode).jobs;
@@ -50,7 +50,7 @@ export function createCartonWork(now = Date.now) {
     const active = current.scopes.get(box);
     const count = (match.key === null ? active.unknownCount : active.counts.get(match.key) || 0) + 1;
     const result = match.key === null ? 'unexpected' : quantityOutcome(count-1,match.expected);
-    const event = { box, key: match.key, value: match.value, result, at: now(), name: match.name,
+    const event = { box, key: match.key, value: match.value, result, at: time, name: match.name,
       brand: match.brand, sku: match.sku, barcode: match.barcode, count, expected: match.expected, coverageEligible: match.coverageEligible };
     active.events.push(event);
     current.events.push(event);
@@ -88,11 +88,23 @@ export function createCartonWork(now = Date.now) {
     }
     return true;
   }
+  function completionSnapshot(mode,group,box){
+    const active=scope(mode,group,box);
+    return active?.events.map(({value,at})=>({value,at}))||[];
+  }
+  function restoreCompletion(mode,group,box,events){
+    if(!Array.isArray(events)||!events.length||events.length>200000||scope(mode,group,box)?.events.length||!canScan(mode,group,box))return false;
+    if(events.some(e=>!e||typeof e.value!=='string'||!e.value.trim()||e.value.length>200||!Number.isFinite(e.at)||Math.abs(e.at)>8.64e15||
+      ['empty','conflict'].includes(matchCartonScan(group,box,e.value).status)))return false;
+    for(const {value,at} of events)scan(mode,group,box,value,at);
+    job(mode,group).done.add(box);
+    return true;
+  }
   return {
-    connect, canScan, locked, scan, undo,
+    connect, canScan, locked, scan, undo, completionSnapshot, restoreCompletion,
     reference: mode => sources.get(mode)?.reference,
     hasJobs: mode => !!sources.get(mode)?.jobs.size,
-    hasScans: () => [...sources.values()].some(source => [...source.jobs.values()].some(work => work.events.length)),
+    hasScans: () => [...sources.values()].some(source => [...source.jobs.values()].some(work => work.events.some(event=>!work.done.has(event.box)))),
     finish: (mode, group, box) => job(mode, group)?.done.add(box),
     outboundOrderProgress: group => job('outbound', group)?.progress || emptyProgress(),
     outboundPieceEvidence: (group, box) => pieceVerificationEvidence(group, box, scope('outbound', group, box)?.events || []),
