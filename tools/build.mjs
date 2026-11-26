@@ -1,17 +1,25 @@
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, posix, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { versionModule } from './module-graph.mjs';
+import { checkStyleReferences } from './style-metrics.mjs';
+import { copyBeamLicense } from './copy-license.mjs';
 
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const source = join(root, 'src');
 const destination = join(root, 'dist');
+const exampleModule = 'features/examples/cry-later-assets.js';
 const files = Object.freeze([
-  'index.html', 'app.js', 'import/workbook.js', 'domain/code128.js', 'domain/inspection-report.js',
-  'domain/browser-recovery.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
+  'index.html', 'app.js', exampleModule, 'app/navigation.js', 'import/workbook.js', 'import/mapping/profiles.js', 'domain/code128.js', 'domain/product-identity.js', 'domain/product-labels.js', 'components/product-labels/view.js', 'features/cartons/workspace.js', 'features/cartons/model.js', 'features/cartons/outbound-receipts.js', 'domain/carton-verification.js', 'domain/expected-inventory-status.js', 'features/cartons/outbound-cartons.js', 'features/cartons/reference.js', 'ui/notice-strip.js',
+  'components/product-identity/view.js', 'components/print/barcode.js', 'components/print/inspection-report.js',
+  'features/returns/quantities.js', 'features/returns/recovery.js', 'features/returns/scan-commands.js', 'platform/indexed-recovery.js', 'platform/inspection-input.js', 'platform/print.js', 'platform/scan-audio.js', 'platform/reference-fingerprint.js', 'domain/search-keys.js', 'domain/reconcile.js', 'domain/scan-history.js', 'domain/scanner-input.js', 'ui/translations.js', 'vendor/xml-parser.js',
   'assets/pretendard-variable.woff2', 'assets/OFL-Pretendard.txt',
+  'assets/geist-variable.woff2', 'assets/OFL-Geist.txt',
+  'assets/ibm-plex-sans-kr-bold.woff2', 'assets/OFL-IBMPlexSansKR.txt',
+  'assets/source-code-pro.woff2', 'assets/OFL-SourceCodePro.txt',
 ]);
-const styles = ['styles/status-colors.css', 'styles/glass.css', 'styles/workspace.css', 'styles/inspection-print.css'];
+const styles = ['styles/layers.css', 'styles/tokens/status.css', 'styles/tokens/typography.css', 'styles/tokens/controls.css', 'styles/glass.css', 'styles/workspace.css', 'features/returns/console.css', 'styles/receipt-paper.css', 'features/returns/quantities.css', 'components/print/inspection-report.css', 'components/product-labels/view.css', 'features/cartons/workspace.css', 'styles/touch-reels.css', 'styles/inspection-rail.css', 'features/returns/receipts.css', 'components/product-identity/view.css', 'features/cartons/outbound-receipts.css'];
 
 async function readSource(relative) {
   const file = join(source, relative);
@@ -22,22 +30,23 @@ async function readSource(relative) {
   return readFile(file);
 }
 
-const jsSources=new Map(await Promise.all(files.filter(name=>name.endsWith('.js')).map(async name=>[name,await readSource(name)])));
+// Bundle the exact example files as a lazy script so the default CSP can keep connections disabled.
+const [exampleWorkbook, exampleProfile] = await Promise.all([
+  readSource('features/examples/cry-later-demo.xlsx'),
+  readSource('features/examples/cry-later-profile.json'),
+]);
+const exampleBytes = Buffer.from(
+  'export const workbookBase64 = ' + JSON.stringify(exampleWorkbook.toString('base64')) + ';\n' +
+  'export const profileText = ' + JSON.stringify(exampleProfile.toString('utf8')) + ';\n',
+);
+const jsSources=new Map(await Promise.all(files.filter(name=>name.endsWith('.js')).map(async name=>[
+  name, name===exampleModule ? exampleBytes : await readSource(name),
+])));
 const moduleDigest=createHash('sha256');
 for(const [name,bytes] of jsSources){
   moduleDigest.update(JSON.stringify([name,bytes.length])).update(bytes);
 }
 const moduleRevision=moduleDigest.digest('hex').slice(0,12);
-
-function versionModule(relative,bytes){
-  return bytes.toString('utf8').replace(/^(import[^\r\n]+ from ["'])(\.\.?\/[^"'?#]+)(["'];?)/gm,
-    (_,before,specifier,after)=>{
-      // Module specifiers and the manifest use URL slash semantics on every OS.
-      const target=posix.normalize(posix.join(posix.dirname(relative),specifier));
-      if(!jsSources.has(target))throw Error('Missing local module: '+specifier);
-      return before+specifier+'?v='+moduleRevision+after;
-    });
-}
 
 const stage = await mkdtemp(join(root, '.beam-dist-'));
 try {
@@ -45,9 +54,11 @@ try {
     if (relative === 'index.html') continue;
     const file = join(stage, relative);
     await mkdir(dirname(file), { recursive: true });
-    await writeFile(file, jsSources.has(relative) ? versionModule(relative,jsSources.get(relative)) : await readSource(relative));
+    const modules = jsSources.get(relative);
+    await writeFile(file, modules ? versionModule(relative, modules.toString('utf8'), jsSources, moduleRevision) : await readSource(relative));
   }
   const css = await Promise.all(styles.map(readSource));
+  checkStyleReferences(new Map(styles.map((name, i) => [name, css[i].toString('utf8')])));
   const stylesheet = Buffer.concat(css.flatMap((data) => [data, Buffer.from('\n')]));
   const revision = createHash('sha256').update(stylesheet).digest('hex').slice(0, 12);
   let markup = (await readSource('index.html')).toString('utf8');
@@ -76,9 +87,10 @@ try {
   await writeFile(join(stage, 'index.html'), markup.replace(stylesheetHref, `href="./app.css?v=${revision}"`));
   await writeFile(join(stage, 'app.css'), stylesheet);
   await writeFile(join(stage, '.nojekyll'), '');
+  await copyBeamLicense(stage);
   await rm(destination, { recursive: true, force: true });
   await rename(stage, destination);
-  console.log(`Built ${files.length + 2} allowlisted files in dist/.`);
+  console.log(`Built ${files.length + 3} allowlisted files in dist/.`);
 } finally {
   await rm(stage, { recursive: true, force: true });
 }

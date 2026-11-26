@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "active": "cry-later-demo",
+  "profiles": {
+    "cry-later-demo": {
+      "name": "Cry Later · Demo",
+      "file": {
+        "raw": {
+          "version": 1,
+          "kind": "raw",
+          "sheetName": "Return Orders",
+          "headerNames": {
+            "receipt": "Return Order ID",
+            "external": "Return Reference",
+            "returnChannel": "Channel Code",
+            "returnTracking": "Return Tracking",
+            "date": "Request Date",
+            "sku": "SKU",
+            "barcode": "Scan Code",
+            "name": "Product Name",
+            "qty": "Expected Units",
+            "seller": "Store",
+            "company": "Account",
+            "address": "Area",
+            "memo": "Notes",
+            "customerName": "Customer Name",
+            "customerPhone": "Customer Phone",
+            "expectedInventoryStatus": "Expected Inventory Status"
+          },
+          "signature": [
+            "Account",
+            "Area",
+            "Brand",
+            "Carton LPN",
+            "Channel Code",
+            "Customer Name",
+            "Customer Phone",
+            "Demo Tag ID",
+            "Expected Inventory Status",
+            "Expected Units",
+            "Notes",
+            "Original Line",
+            "Original Order ID",
+            "Product Name",
+            "Request Date",
+            "Return Condition Notes",
+            "Return Order ID",
+            "Return Reason",
+            "Return Reference",
+            "Return Tracking",
+            "SKU",
+            "Scan Code",
+            "Store"
+          ],
+          "returnChannelReviewed": true,
+          "returnChannelValues": {
+            "b2b": [
+              "STORE",
+              "WHOLESALE"
+            ],
+            "b2c": [
+              "ONLINE_KR",
+              "ONLINE_INTL"
+            ],
+            "exact": true
+          }
+        },
+        "phoneOrders": {
+          "version": 1,
+          "kind": "phoneOrders",
+          "sheetName": "B2C Original Outbound",
+          "headerNames": {
+            "id": "Original Order ID",
+            "phone": "Customer Phone",
+            "sku": "SKU",
+            "barcode": "Scan Code",
+            "date": "Order Date",
+            "name": "Product Name"
+          },
+          "signature": [
+            "Channel",
+            "Channel Code",
+            "Country",
+            "Customer Name",
+            "Customer Phone",
+            "Order Date",
+            "Order Line",
+            "Original Order ID",
+            "Product Name",
+            "SKU",
+            "Scan Code",
+            "Ship To",
+            "Shipment ID",
+            "Shipped Units",
+            "Status",
+            "Store ID"
+          ]
+        },
+        "sku": {
+          "version": 1,
+          "kind": "sku",
+          "sheetName": "Product Catalog",
+          "headerNames": {
+            "sku": "SKU",
+            "barcode": "Scan Code",
+            "name": "Product Name"
+          },
+          "signature": [
+            "Brand",
+            "Category",
+            "Code Source",
+            "Code Type",
+            "Color",
+            "Product",
+            "Product Name",
+            "Product Source",
+            "Public Product Code",
+            "SKU",
+            "Scan Code",
+            "Variant"
+          ]
+        },
+        "loc": {
+          "version": 1,
+          "kind": "loc",
+          "sheetName": "Inventory by Location",
+          "headerNames": {
+            "sku": "SKU",
+            "barcode": "Scan Code",
+            "loc": "Location",
+            "locationType": "Location Type",
+            "zone": "Zone",
+            "warehouse": "Warehouse"
+          },
+          "signature": [
+            "Allocated",
+            "Available",
+            "Inventory Status",
+            "Location",
+            "Location Type",
+            "Lot ID",
+            "On Hand",
+            "SKU",
+            "Scan Code",
+            "Snapshot Date",
+            "Warehouse",
+            "Zone",
+            "Zone Class"
+          ]
+        }
+      },
+      "paste": {},
+      "locationRules": {
+        "eligibleTypes": [
+          "PICK_FACE"
+        ],
+        "zoneSeparator": ""
+      },
+      "cartonMappings": {
+        "outbound": {
+          "sheet": "Picking Results",
+          "headers": {
+            "receipt": "Order ID",
+            "id": "Carton Label ID",
+            "external": "External Order ID",
+            "store": "Destination Store",
+            "country": "Destination Country",
+            "sku": "SKU",
+            "barcode": "Product Barcode",
+            "name": "Product Name",
+            "qty": "Picked Units",
+            "brand": "Brand",
+            "das": "DAS Order ID"
+          }
+        },
+        "inventory": {
+          "sheet": "Inventory Cartons",
+          "headers": {
+            "receipt": "Location",
+            "sku": "SKU",
+            "barcode": "Product Barcode",
+            "name": "Product Name",
+            "qty": "Expected Units",
+            "brand": "Brand"
+          },
+          "separator": "|"
+        }
+      }
+    }
+  }
+}

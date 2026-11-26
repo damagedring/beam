@@ -4,9 +4,10 @@ import {test} from 'node:test';
 import {runInNewContext} from 'node:vm';
 
 const css=await readFile(new URL('../src/styles/workspace.css',import.meta.url),'utf8');
-const palette=await readFile(new URL('../src/styles/status-colors.css',import.meta.url),'utf8');
-const styles=css.slice(css.indexOf('/* Inspection glass: neutral outer material'));
-const readToken=name=>styles.match(new RegExp('--'+name+':(#[0-9a-f]{6})(?:;|\\s)'))?.[1];
+const consoleCss=await readFile(new URL('../src/features/returns/console.css',import.meta.url),'utf8');
+const palette=await readFile(new URL('../src/styles/tokens/status.css',import.meta.url),'utf8');
+const styles=consoleCss.slice(consoleCss.indexOf('/* Inspection glass: neutral outer material'));
+const readToken=(name,source=styles)=>source.match(new RegExp('--'+name+':(#[0-9a-f]{6})(?:;|\\s)'))?.[1];
 const luminance=hex=>hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255)
  .map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4).reduce((sum,x,i)=>sum+x*[.2126,.7152,.0722][i],0);
 const contrast=(a,b)=>{const l=[luminance(a),luminance(b)].sort((x,y)=>y-x);return (l[0]+.05)/(l[1]+.05);};
@@ -24,19 +25,24 @@ test('scanner and ledger keep legible status and text over their neutral dark su
  }
  assert.match(styles,/#scanActivitySection \.compact-activity td\.sheet-status\[data-cell-state=accepted\]\{[^}]*background:var\(--recent-surface\)!important;color:var\(--complete-ink\)!important/);
  assert.match(styles,/--tui-dim:var\(--term-dim\);--muted:var\(--term-dim\)/);
- assert.ok(contrast(readSwatch('match'),readToken('recent-surface'))>=4.5);
- assert.ok(contrast('#bdbdbd',readToken('recent-surface'))>=4.5);
+ const dark=styles.slice(styles.indexOf('html[data-theme=dark] .inspection-console'));
+ assert.ok(contrast(readSwatch('match'),readToken('recent-surface',dark))>=4.5);
+ assert.ok(contrast('#bdbdbd',readToken('recent-surface',dark))>=4.5);
+ assert.ok(contrast(mix(readSwatch('match'),'#111111',.28),readToken('recent-surface'))>=4.5);
+ assert.ok(contrast(readToken('term-dim'),readToken('recent-surface'))>=4.5);
 });
 test('screen information colors are sourced from the shared palette, including the order popover',async()=>{
  const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
- const live=css+'\n'+glass;
+ const live=css+'\n'+glass+'\n'+consoleCss;
  for(const role of ['match','short','over','info']){
   assert.equal([...palette.matchAll(new RegExp('--status-'+role+':','g'))].length,1);
   assert.doesNotMatch(live,new RegExp(readSwatch(role),'i'));
  }
  assert.doesNotMatch(live,/--(?:complete|warning|shortage|progress|excess|lemon|coral|beam-error)-(?:bg|ink|fill|edge|alert)\s*:/);
- assert.match(css,/:is\(#orderInfoList,#questPeekList\) \.quest-item\[data-phase=progress\]\{--quest-fill:var\(--shortage-bg\);--quest-ink:var\(--shortage-ink\)/);
- assert.match(css,/:is\(#orderInfoList,#questPeekList\) \.quest-item\[data-phase\]\{\s*color:var\(--quest-ink\);background:var\(--quest-fill\)/);
+ const quantities=await readFile(new URL('../src/features/returns/quantities.css',import.meta.url),'utf8');
+ assert.match(quantities,/quest-item\[data-phase\]\{[^}]*background:transparent/);
+ assert.match(quantities,/\[data-phase=complete\] \.quest-symbol\{color:var\(--complete-ink\)/);
+ assert.match(quantities,/\[data-phase=excess\] \.quest-symbol\{color:var\(--excess-ink\)/);
 });
 
 test('last scan shows a visible quantity, with shortage, equality or surplus spelled out',async()=>{
@@ -53,7 +59,7 @@ test('last scan shows a visible quantity, with shortage, equality or surplus spe
 
 test('normal displays do not paint focus glows while forced contrast and selected cards stay supported',async()=>{
  const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
- const joined=css+'\n'+glass;
+ const joined=css+'\n'+glass+'\n'+consoleCss;
  assert.doesNotMatch(joined,/:focus(?:-visible|-within)?[^{}]*\{[^{}]*(?:box-shadow|filter):\s*(?!none)[^{}]*drop-shadow/);
  assert.match(css,/\(forced-colors:none\)\{\s*html\[data-theme\] body :focus\{outline:none!important/);
  assert.match(css,/\(forced-colors:active\)[^\n]*Highlight/);
@@ -76,7 +82,9 @@ test('order identity, order actions and both inspection tables are inside the sa
   assert.match(sheet,new RegExp('id="'+id+'"'));
  }
  assert.match(sheet,/<\/main>\s*<\/div>\s*<\/section>\s*<\/div>/);
- assert.match(css,/#inspectionOrderSurface::before\{\s*content:"";position:absolute;inset:0/);
+ const rail=await readFile(new URL('../src/styles/inspection-rail.css',import.meta.url),'utf8');
+ assert.match(html,/<section id="inspectionOrderSurface"[^>]*inspection-sheet/);
+ assert.match(rail,/\.inspection-sheet\{[\s\S]*?background:var\(--sheet-paper\)/);
 });
 
 test('switching inspection orders never regenerates a second action header',async()=>{
@@ -91,13 +99,14 @@ test('switching inspection orders never regenerates a second action header',asyn
  const state={data:{},orderTabs:['i-1','i-2'],currentBatch:'b',scans:[{batch:'b',receipt:'i-1'}],pending:[],receipt:'i-1'};
  const ctx={$,state,language:'en',lastBarcode:'',selectedWorkStoreKey:()=>'s',Engine:{getIndex:()=>({rawByReceipt:orders})},
   workReceiptGate:()=>id=>orders.has(id),workAllowsReceipt:id=>orders.has(id),isB2C:()=>false,asnStoreKey:()=>'s',
-  uiIndex:()=>({orderSearch:new Map()}),receiptDisplay:id=>'Ext-'+id,completionMark:()=>'',esc:String,changed(){}};
+  uiIndex:()=>({orderSearch:new Map()}),receiptDisplay:id=>'Ext-'+id,completionMark:()=>'',esc:String,changed(){},focusBeamInput:id=>$(id).focus()};
  const api=runInNewContext(workspace+'\nfunction draw(){drawOrderWorkspace()}\n({drawOrderWorkspace,switchOrderTab})',ctx);
  const originalScan=state.scans[0];
  for(const [id,other] of [['i-1','i-2'],['i-2','i-1'],['i-1','i-2']]){
   assert.equal(api.switchOrderTab(id),true);
   assert.equal($('activeOrderInfo').dataset.orderInfo,id);
-  assert.equal(($('orderTabs').innerHTML.match(/<button/g)||[]).length,1);
+  assert.equal(($('orderTabs').innerHTML.match(/<button/g)||[]).length,2);
+  assert.match($('orderTabs').innerHTML,new RegExp('data-order-tab="'+id+'"[^>]*aria-current="true"'));
   assert.match($('orderTabs').innerHTML,new RegExp('data-order-tab="'+other+'"'));
   assert.doesNotMatch($('orderTabs').innerHTML,/data-order-info|data-order-open|data-order-barcode|<svg|type="text"/);
   assert.strictEqual(state.scans[0],originalScan);
@@ -116,15 +125,37 @@ test('long receipts keep a native scroll track inside the paper and retain their
 
 test('folder and paper positions use the same eased transition after keyboard input, but not during drag',async()=>{
  const glass=await readFile(new URL('../src/styles/glass.css',import.meta.url),'utf8');
- assert.match(glass,/@media screen and \(prefers-reduced-motion:no-preference\)\{\s*#beamSearch \.beam-stage:not\(\[data-dragging\]\) \.beam-receipt\{\s*transition:transform 520ms cubic-bezier\(\.28,\.08,\.22,1\)[^}]*!important/);
+ assert.match(glass,/@media screen and \(prefers-reduced-motion:no-preference\)\{\s*#beamSearch \.beam-stage:not\(\[data-dragging\]\) \.beam-receipt:not\(\[data-rebasing\]\)\{\s*transition:transform 520ms cubic-bezier\(\.28,\.08,\.22,1\)[^}]*!important/);
  assert.match(css,/\.beam-stage\[data-dragging\] \.beam-receipt\{[^}]*transition:none!important/);
 });
 
 test('the scanner well never paints its containing console in either theme',()=>{
  const well=styles.match(/([^{}]+)\{\s*background:var\(--scan-well\)!important/)?.[1]?.trim();
  assert.equal(well,'html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode');
- assert.match(css,/#beamTerminal #overviewStatus \.scan\{[^}]*background:transparent!important/);
+ assert.match(consoleCss,/#beamTerminal #overviewStatus \.scan\{[^}]*background:transparent!important/);
  assert.match(styles,/#beamTerminal #scanform \.beam-scan-prompt\{color:var\(--status-info\)\}/);
  assert.ok(contrast('#505050','#f4f4f4')>=4.5);
  assert.ok(contrast('#bdbdbd','#252525')>=4.5);
+});
+
+
+test('overall progress cannot trade extra units of one SKU for missing units of another',async()=>{
+ const app=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
+ const source=app.slice(app.indexOf('function drawAsnProgress()'),app.indexOf('const $=id=>',app.indexOf('function drawAsnProgress()')));
+ const map=new Map(),$=id=>{if(!map.has(id))map.set(id,{dataset:{},setAttribute(k,v){this[k]=v;}});return map.get(id);};
+ const data={expected:6,actual:8,covered:5,percent:116,excess:2,phase:'excess',batch:8,unassigned:0,complete:false};
+ runInNewContext(source+'\ndrawAsnProgress()',{$,state:{receipt:'ORD',scans:[]},language:'ko',tr:x=>x,setUI(){},Engine:{asnProgress:()=>data},isInspectionConfirmed:()=>false});
+ assert.equal($('asnCoverageQuantity').textContent,'5 / 6 EA');
+ assert.equal($('asnCoverage').textContent,'116%');
+ assert.equal($('asnCoverageDetails').textContent,'1개 남음 · 2개 초과');
+ assert.ok($('asnProgressBar').value<100);
+});
+
+test('order progress is a single full-width sibling immediately beneath the order sheet controls',async()=>{
+ const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8');
+ const rail=await readFile(new URL('../src/styles/inspection-rail.css',import.meta.url),'utf8');
+ assert.match(html,/id="orderWorkspaceHint">\s*<\/span>\s*<\/div>\s*<\/section>\s*<section id="orderCoverage"/);
+ assert.match(html,/id="orderCoverage"[\s\S]*?id="asnProgressBar"[\s\S]*?id="beamTerminal"[\s\S]*?id="lastScannedBar"/);
+ assert.equal(html.match(/id="asnProgressBar"/g).length,1);
+ assert.match(rail,/#orderCoverage\{[\s\S]*?margin:8px var\(--order-inset\) 0/);
 });

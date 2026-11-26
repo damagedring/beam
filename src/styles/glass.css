@@ -1,4 +1,3 @@
-@layer beam-folder, beam-console, beam-workrail, beam-profile-shelf, beam-data-entry, beam-scrollbar, beam-satin, beam-clear-frost, beam-matte;
 @layer beam-data-entry{
  @media screen{
   #dataDialog{width:min(482px,calc(100vw - 28px))!important;padding:clamp(16px,3vw,26px);max-height:calc(100dvh - 32px)}
@@ -98,7 +97,7 @@
      the search field. This ordering is also needed in Safari's compositor. */
   #beamSearch .beam-input>svg{z-index:1}
   @supports (backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px)){
-   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.order-tab-link),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
+   body :is(button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.inspection-sheet-tab),input[type=button],input[type=submit],#beamQuery,#beamSku):not([hidden]){
     background:radial-gradient(ellipse 86% 115% at 30% -10%,var(--satin-polish),transparent 92%),var(--satin-state,var(--satin-body))!important;
     border-color:transparent!important;
     -webkit-backdrop-filter:blur(10px) saturate(.45)!important;
@@ -146,7 +145,7 @@
     /* Drop only the satin material; the earlier opaque accessibility
        colours and keyboard focus treatments remain in the cascade. */
     html[data-theme] body :is(
-     button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.order-tab-link),input[type=button],input[type=submit],
+     button:not(.beam-receipt,#workSidebarToggle,.metric,.beam-home-word,.inspection-sheet-tab),input[type=button],input[type=submit],
      #beamQuery,#beamSku,dialog[open],#fileMenuPanel,#receiptList,#storeList,#beamSidebar,
      #discrepancyPopover,#orderInfoPopover,#questPeek,#availabilityNote,.beam-empty,
      #fileMenuPanel>button,dialog[open] :is(select,input:not([type]),input[type=text],input[type=search],input[type=number],textarea)
@@ -177,10 +176,10 @@
   #dataDialog .profile-shelf-heading {display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 3px 4px}
   #dataDialog .profile-shelf-heading h3 {font-size:12px;line-height:1.35;margin:0;font-weight:680}
   #dataDialog .profile-shelf-page {font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted)}
-  #dataDialog .profile-shelf-row {display:grid;grid-template-columns:40px minmax(0,1fr) 40px;align-items:center;min-width:0;gap:2px}
+  #dataDialog .profile-shelf-row {display:grid;grid-template-columns:40px minmax(0,1fr) 40px;align-items:center;min-width:0;gap:2px;touch-action:pan-y pinch-zoom}
   #dataDialog .profile-shelf-row[data-count="1"] {grid-template-columns:minmax(0,1fr)}
   #dataDialog .profile-shelf-row [hidden] {display:none!important}
-  #dataDialog .profile-documents {display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:1px;min-width:0;touch-action:pan-y}
+  #dataDialog .profile-documents {display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:1px;min-width:0}
   #dataDialog .profile-document-slot {min-width:0;text-align:center}
   #dataDialog .profile-shelf :is(.profile-document,.profile-shelf-arrow) {
    background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;margin:0;outline:none;color:inherit;border-radius:12px;
@@ -275,23 +274,6 @@
  }
 }
 
-@layer beam-console {
- @media screen and (forced-colors:none) {
-  html[data-theme] #sheetWorkspace #beamTerminal :is(#scanbutton,#undo,#activityMinimize,#activityExpand,#reset,#asnPrevious,#asnNext,#overviewDetailsToggle){
-   background:var(--term-side)!important;color:var(--term-ink)!important;
-   border:0!important;border-radius:5px!important;box-shadow:none!important;
-   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
-  }
-  html[data-theme] #sheetWorkspace #beamTerminal #scanbutton:not(:disabled){
-   background:var(--console-go)!important;color:var(--console-go-ink)!important;
-  }
-  html[data-theme] #sheetWorkspace #beamTerminal :is(#undo,#activityMinimize,#activityExpand,#reset,#asnPrevious,#asnNext,#overviewDetailsToggle):hover{
-   background:var(--term-select)!important;
-  }
-
- }
-}
-
 @layer beam-folder {
  @media screen {
   #beamSearch .beam-receipt[data-folder=true]{box-shadow:none!important}
@@ -314,7 +296,7 @@
 /* The control baseline disables transitions. Both paper and file pass
    through the same reel positions; direct dragging still follows the pointer. */
 @media screen and (prefers-reduced-motion:no-preference){
- #beamSearch .beam-stage:not([data-dragging]) .beam-receipt{
+ #beamSearch .beam-stage:not([data-dragging]) .beam-receipt:not([data-rebasing]){
   transition:transform 520ms cubic-bezier(.28,.08,.22,1),opacity 320ms cubic-bezier(.25,.1,.25,1)!important;
  }
  #beamSearch .beam-stage:not([data-dragging]) .beam-file-caption>strong{
@@ -333,13 +315,4 @@
    color:#262320!important;background:#26232012!important;
   }
  }
-}
-
-@layer beam-console {
- html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressBar::-webkit-progress-value {background:var(--excess-ink)!important}
- html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressBar::-moz-progress-bar {background:var(--excess-ink)!important}
- html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressStatus {color:var(--excess-ink)!important}
- html[data-theme] body #sheetWorkspace .activity-sheet .sheet-status[data-cell-state="unknown"] {background:var(--warning-bg)!important;color:var(--warning-ink)!important}
- .beam-scan-sound {display:flex;align-items:center;gap:8px;font-size:.85rem;margin-block:8px}
- .beam-scan-sound input {inline-size:auto;margin:0}
 }

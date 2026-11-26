@@ -1,4 +1,5 @@
-import { BrowserRecovery } from '../src/domain/browser-recovery.js';
+import { createBrowserRecovery } from '../src/features/returns/recovery.js';
+import { createReferenceFingerprint } from '../src/platform/reference-fingerprint.js';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -7,7 +8,6 @@ import vm from 'node:vm';
 
 const app=readFileSync(new URL('../dist/app.js',import.meta.url),'utf8');
 const source=(from,to)=>app.slice(app.indexOf(from),app.indexOf(to,app.indexOf(from)+from.length));
-const fingerprint=source('const ReferenceFingerprint=(()=>{','// Exact legacy JSON token comparison');
 const delta=source('const WorkDelta=(()=>{',"\n$('save').onclick");
 const normal=(id='EX-A')=>({
  version:1,data:{raw:[{receipt:id,sku:'ITEM-A',qty:2}],sku:[],loc:[]},scans:[],pending:[],audit:[],
@@ -20,10 +20,11 @@ function setup(store,start){
   Engine:{getIndex(data){if(!cache.has(data))cache.set(data,{});return cache.get(data);},validateSession(){}},
   MappingCore:{checkedCustomerNames:names=>names||{}},workFields:[],checkedWorkJSONSize(){},
  });
- vm.runInContext(fingerprint+delta+`
+ c.ReferenceFingerprint=createReferenceFingerprint({currentData:()=>c.state.data,getIndex:c.Engine.getIndex,refresh(){}});
+ vm.runInContext(delta+`
   function awaitReferenceFingerprint(){return ReferenceFingerprint.wait();}
   globalThis.f=ReferenceFingerprint;globalThis.delta=WorkDelta;`,c);
- const recovery=BrowserRecovery.create({
+ const recovery=createBrowserRecovery({
   context:()=>value.data.raw.length?{reference:c.f.request(),names:value.customerNames}:null,
   reference:c.delta.recoveryReference,prepare:()=>c.delta.prepareSave({compact:true}),
   hasWork:()=>work,store,paint:x=>{painted=x},id:()=>String(++ids)+'@'+tag,now:()=>entry.at,
@@ -84,4 +85,18 @@ test('unavailable browser storage or corrupt recovery leaves current work untouc
  const bad=setup({read:async()=>({revision:'r1',savedAt:entry.at,text:'not JSON'}),hasDraft:async()=>true},normal());
  await bad.flush();assert.equal(bad.painted().kind,'offer');assert.equal(await bad.recovery.recover(),false);
  assert.equal(bad.painted().kind,'restore-error');assert.equal(bad.read().scans.length,0);
+});
+
+test('an earlier saved indicator clears as soon as the next inspection change is pending',async()=>{
+ const store=database(),client=setup(store,normal());
+ client.use({...normal(),receipt:'EX-A'},true);
+ await client.flush();
+ assert.equal(client.painted().kind,'saved');
+ client.use({...client.read(),scans:[entry]},true);
+ client.recovery.schedule(60000);
+ assert.equal(client.painted().kind,'saving');
+ assert.deepEqual(JSON.parse([...store.records.values()][0].text).work.scans,[]);
+ await client.recovery.flush();
+ assert.equal(client.painted().kind,'saved');
+ assert.equal(JSON.parse([...store.records.values()][0].text).work.scans[0].id,entry.id);
 });

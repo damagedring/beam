@@ -1,0 +1,50 @@
+#mobileQuantityDialog:not([open]),#mobileExpectedQuantities{display:none!important}
+@media screen and (max-width:760px){
+ #beamTerminal #mobileExpectedQuantities:not([hidden]){
+  display:inline-flex!important;align-items:center;justify-content:center;min-block-size:var(--touch-target-size);
+  padding:4px 11px;font:650 12px/1.2 var(--font-ui);white-space:nowrap;
+ }
+ #mobileQuantityDialog[open]{
+  display:grid;grid-template-rows:auto minmax(0,1fr);gap:9px;box-sizing:border-box;
+  inset:auto 0 0;margin:0;inline-size:100%;max-inline-size:none;
+  max-block-size:min(80vh,650px);max-block-size:min(80dvh,650px);
+  overflow:hidden;padding:13px 14px max(12px,env(safe-area-inset-bottom));
+  border-radius:23px 23px 0 0;color:var(--beam-type);background:var(--beam-float-fill);
+ }
+ #mobileQuantityDialog>header{display:flex;align-items:start;gap:12px;justify-content:space-between}
+ #mobileQuantityDialog :is(h2,p){margin:0}
+ #mobileQuantityDialog h2{font:750 17px/1.35 var(--font-ui)}
+ #mobileQuantitySummary{font-size:13px;color:var(--beam-muted)}
+ #mobileQuantityClose{min-inline-size:var(--touch-target-size);min-block-size:var(--touch-target-size);padding:0;display:grid;place-items:center}
+ #mobileQuantityList{list-style:none;margin:0;padding:0;overflow:auto;overscroll-behavior:contain;min-block-size:0}
+ #mobileQuantityList .quest-item{
+  display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:8px;
+  box-sizing:border-box;block-size:64px;padding-inline:7px;font-size:13px;
+ }
+ #mobileQuantityList .quest-item .quest-product{min-inline-size:0;overflow:hidden}
+ #mobileQuantityList .quest-item .quest-product strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.2;overflow-wrap:anywhere}
+ #mobileQuantityList .quest-item .quest-product small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ #mobileQuantityList .quest-count{text-align:end;white-space:nowrap}
+ #mobileQuantityList [data-phase=progress]{background:var(--shortage-bg);color:var(--shortage-ink)}
+ #mobileQuantityList [data-phase=complete]{background:var(--complete-bg);color:var(--complete-ink)}
+ #mobileQuantityList [data-phase=excess]{background:var(--excess-bg);color:var(--excess-ink)}
+ #mobileQuantityList [data-phase=review]{background:var(--warning-bg);color:var(--warning-ink)}
+}
+@media print{#mobileQuantityDialog,#mobileExpectedQuantities{display:none!important}}
+
+/* Counts and symbols, not row tint, convey the order's quantity state. */
+@media screen{
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item[data-phase]{
+  color:var(--beam-type,var(--ink));background:transparent;border-bottom:1px solid var(--beam-rule,var(--line));
+ }
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item .quest-product :is(strong,.product-name){
+  color:inherit;
+ }
+ :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item .quest-symbol{
+  display:grid;place-items:center;color:var(--beam-muted,var(--muted));font:650 16px/1 var(--font-terminal);
+ }
+ :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item .quest-symbol svg{width:17px;height:17px}
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item[data-phase=complete] .quest-symbol{color:var(--complete-ink)}
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item[data-phase=excess] .quest-symbol{color:var(--excess-ink)}
+ html[data-theme] :is(#orderInfoList,#questPeekList,#mobileQuantityList) .quest-item .quest-count small{color:var(--beam-muted,var(--muted))}
+}

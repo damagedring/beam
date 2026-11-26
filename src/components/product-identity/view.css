@@ -1,0 +1,25 @@
+.scan-brand-badge:not([hidden]){
+ display:inline-block;max-inline-size:100%;box-sizing:border-box;padding:var(--brand-badge-padding,3px 6px 2px);
+ border:var(--brand-badge-border,0);border-radius:0;background:var(--brand-badge-bg,#f2f2f2);color:#161616;
+ font:760 var(--brand-badge-size,11px)/1.16 var(--font-ui);letter-spacing:.035em;text-transform:uppercase;overflow-wrap:anywhere;
+ }
+@media screen{
+ .scan-product-identity{display:grid;align-content:start;justify-items:start;gap:5px;min-inline-size:0}
+ .scan-product-identity #lastScannedName{min-inline-size:0;max-inline-size:100%}
+ .carton-last-item .scan-product-identity{margin-block-start:8px}
+ .carton-last-item .scan-product-identity #cartonLast{margin:0}
+ #cartonLastQuantity:not([hidden]){display:block;margin-block-start:5px;font:650 12px/1.25 var(--font-terminal)}
+}
+
+.product-brand-inline{
+ --brand-badge-size:8px;--brand-badge-padding:2px 4px;--brand-badge-border:1px solid #aaa;
+ --brand-badge-bg:#fafafa;margin:0 .42em .12em 0;vertical-align:.12em;white-space:normal;
+}
+.beam-ticket-item .product-brand-inline{--brand-badge-padding:1px 3px;--brand-badge-size:8px}
+@media print{.product-brand-inline{--brand-badge-bg:#fff;--brand-badge-size:6.5pt;--brand-badge-border:.15mm solid #777}}
+
+@media screen{
+ html:not([data-theme=dark]) .scan-brand-badge:not([hidden]){
+  --brand-badge-bg:#171717;--brand-badge-border:0;color:#fff;
+ }
+}

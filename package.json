@@ -1,6 +1,6 @@
 {
   "name": "beam",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,6 +9,14 @@
   "scripts": {
     "build": "node tools/build.mjs",
     "serve": "node tools/serve.mjs",
-    "test": "node tools/build.mjs && node --test"
+    "test": "npm run build && npm run test:unit && playwright test",
+    "test:unit": "node --test tests/*.test.mjs tests/*.test.cjs",
+    "test:flow": "playwright test flow.spec.mjs",
+    "test:visual": "playwright test appearance.visual.spec.mjs",
+    "test:perf": "playwright test --config playwright.perf.config.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "es-module-lexer": "3.0.5"
   }
 }

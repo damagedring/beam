@@ -26,13 +26,14 @@ function boot(profiles,active){
  document.body=document.createElement('body');
  let state=JSON.stringify({version:1,profiles,active});
  const retries=[];
- const c=vm.createContext({document,language:'ko',localStorage:{getItem:()=>state,setItem:(_,value)=>{state=value;}},performance:{now:()=>0},returnChannelValues:()=>undefined,
+ const c=vm.createContext({document,language:'ko',localStorage:{getItem:()=>state,setItem:(_,value)=>{state=value;}},performance:{now:()=>0},
    Uint8Array,TextDecoder,returnChannelInputLimit:256,returnChannelFormText:(_,fallback)=>fallback,uiConfirm:()=>true,runCombinedWorkbook:(file,options)=>retries.push({file,options}),
  });
  const source=js.slice(js.indexOf('const MappingUI=(()=>{'),js.indexOf('Object.assign(translations,',js.indexOf('const MappingUI=(()=>{')));
  assert.ok(source.includes('function chooseProfile'));
- const core=js.slice(js.indexOf('const MappingCore=(()=>{'),js.indexOf('const Engine=(()=>{'));
- vm.runInContext(core+source+'\nMappingUI.init(); globalThis.api=MappingUI;',c);
+ const {MappingCore,returnChannelExact,returnChannelKey,returnChannelValues}=require('../dist/import/mapping/profiles.js');
+ Object.assign(c,{MappingCore,returnChannelExact,returnChannelKey,returnChannelValues});
+ vm.runInContext(source+'\nMappingUI.init(); globalThis.api=MappingUI;',c);
  return {document,c,retries,read:()=>JSON.parse(state),shelf:elements.get('profileShelf'),details:elements.get('dataProfileDetails')};
 }
 
@@ -55,14 +56,14 @@ test('profile documents switch the next workbook mapping and keep expanded profi
  assert.equal(next.disabled,true);prev.onclick();assert.equal(read().active,'b');
  const sheets=await transaction.hooks.selectSheets({sheets:[{name:'A SKU',index:1},{name:'B SKU',index:2}],wantedKind:'sku'});
  assert.deepEqual(JSON.parse(JSON.stringify(sheets)),[{kind:'sku',sheetIndex:2}]);transaction.abort();
- current(shelf).focus();row.dispatch('keydown',{key:'ArrowRight'});assert.equal(read().active,'c');
+ current(shelf).focus();document.getElementById('dataDialog').dispatch('keydown',{key:'ArrowRight'});assert.equal(read().active,'c');
  assert.equal(document.activeElement,current(shelf));next.onclick();assert.equal(read().active,'c');
- row.dispatch('keydown',{key:'Home'});assert.equal(read().active,'a');
- rail.dispatch('pointerdown',{pointerType:'touch',isPrimary:true,pointerId:8,clientX:120,clientY:30});
- rail.dispatch('pointerup',{pointerId:8,clientX:35,clientY:31});
+ document.getElementById('dataDialog').dispatch('keydown',{key:'Home'});assert.equal(read().active,'a');
+ row.dispatch('pointerdown',{pointerType:'touch',isPrimary:true,pointerId:8,clientX:120,clientY:30});
+ row.dispatch('pointerup',{pointerId:8,clientX:35,clientY:31});
  assert.equal(read().active,'b');
- rail.dispatch('pointerdown',{pointerType:'touch',isPrimary:true,pointerId:8,clientX:120,clientY:30});
- rail.dispatch('pointerup',{pointerId:8,clientX:70,clientY:140});
+ row.dispatch('pointerdown',{pointerType:'touch',isPrimary:true,pointerId:8,clientX:120,clientY:30});
+ row.dispatch('pointerup',{pointerId:8,clientX:70,clientY:140});
  assert.equal(read().active,'b');
 });
 
@@ -196,4 +197,26 @@ test('the shared import handler dispatches only JSON and supported workbook exte
  });
  for(const name of ['setup.JSON','daily.XLSX','data.xlsm','old.xls','text.txt'])handle({name});
  assert.deepEqual(actions,[['profile','setup.JSON'],['workbook','daily.XLSX'],['workbook','data.xlsm'],['invalid'],['invalid']]);
+});
+
+test('profile arrows work from import button, but preserve editable controls and vertical scroll',()=>{
+ const {shelf,read,document}=boot({a:profile('Alpha'),b:profile('Beta'),c:profile('Gamma')},'a');
+ const dialog=document.getElementById('dataDialog'),importButton=document.getElementById('openWorkbook'),row=byClass(shelf,'profile-shelf-row');
+ importButton.focus();
+ dialog.dispatch('keydown',{key:'ArrowRight',target:importButton});
+ assert.equal(read().active,'b');
+ assert.equal(document.activeElement,importButton);
+ dialog.dispatch('keydown',{key:'ArrowRight',target:{closest:()=>true}});
+ dialog.dispatch('keydown',{key:'ArrowRight',isComposing:true});
+ assert.equal(read().active,'b');
+ const wheel=(p)=>{let prevented=false;row.dispatch('wheel',{deltaX:0,deltaY:0,deltaMode:0,cancelable:true,...p,preventDefault(){prevented=true;}});return prevented;};
+ assert.equal(wheel({timeStamp:10,deltaY:72}),false);
+ assert.equal(read().active,'b');
+ assert.equal(wheel({timeStamp:12,deltaX:24}),true);
+ wheel({timeStamp:17,deltaX:16});assert.equal(read().active,'c');
+ wheel({timeStamp:26,deltaX:-65});assert.equal(read().active,'c');
+ wheel({timeStamp:250,deltaX:-72});assert.equal(read().active,'b');
+ row.dispatch('pointerdown',{pointerType:'touch',isPrimary:true,pointerId:1,clientX:30,clientY:80});
+ row.dispatch('pointercancel',{pointerId:1});
+ row.dispatch('pointerup',{pointerId:1,clientX:100,clientY:80});assert.equal(read().active,'b');
 });

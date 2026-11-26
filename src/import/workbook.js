@@ -1,12 +1,15 @@
+import { optionalBrandColumn } from '../domain/product-identity.js';
 import { XlsxSaxesParser } from "../vendor/xml-parser.js";
 
 export async function readWorkbook(file,wantedKind=null,onProgress=null,hooks=null,{Engine, MappingCore, PhoneOrderCore, returnChannelExact, language='ko', MetadataParser=globalThis.DOMParser}={}){
  if(!hooks||typeof hooks.selectSheets!=='function'||typeof hooks.selectColumns!=='function')throw Error('시트와 열 연결 설정이 필요합니다.');
  const lookupAdapter=hooks.referenceAdapter;
  if(lookupAdapter&&(!Array.isArray(lookupAdapter.kinds)||lookupAdapter.kinds.length!==2||lookupAdapter.kinds[0]!=='phoneReturns'||lookupAdapter.kinds[1]!=='phoneOrders'||lookupAdapter.phoneField!=='phone'||JSON.stringify(lookupAdapter.identifierFields)!==JSON.stringify(['id','sku','barcode'])||typeof lookupAdapter.validateColumns!=='function'||typeof lookupAdapter.table!=='function'))throw Error('조회 전용 변환 설정이 올바르지 않습니다.');
- const workbookKinds=lookupAdapter?lookupAdapter.kinds:['raw','sku','loc','phoneOrders'];
- const workbookValidate=lookupAdapter?lookupAdapter.validateColumns:MappingCore.validateColumns;
- const workbookTable=lookupAdapter?lookupAdapter.table:Engine.table;
+ const carton=hooks.cartonAdapter;
+ if(carton&&(lookupAdapter||wantedKind!=="cartonLines"||typeof carton.validateColumns!=="function"||typeof carton.table!=="function"))throw Error("Invalid carton workbook adapter.");
+ const workbookKinds=carton?["cartonLines"]:lookupAdapter?lookupAdapter.kinds:['raw','sku','loc','phoneOrders'];
+ const workbookValidate=carton?carton.validateColumns:lookupAdapter?lookupAdapter.validateColumns:MappingCore.validateColumns;
+ const workbookTable=carton?carton.table:lookupAdapter?lookupAdapter.table:Engine.table;
 
  if(file.size>30*1024*1024)throw Error('파일은 30MB 이하로 나누어 주세요.');
  const bytes=new Uint8Array(await file.arrayBuffer()),view=new DataView(bytes.buffer);let e=-1;
@@ -69,7 +72,7 @@ export async function readWorkbook(file,wantedKind=null,onProgress=null,hooks=nu
   let lastYield=0;for await(const part of xmlChunks(path)){sinceRecord+=part.length;if(sinceRecord>8e6)throw Error('XML 레코드가 너무 큽니다.');for(let offset=0;offset<part.length;offset+=16384){parser.write(part.slice(offset,offset+16384));if(afterChunk)await afterChunk(false);}if(seen-lastYield>=256){lastYield=seen;if(typeof onProgress==='function')onProgress({phase:recordTag==='row'?'sheet':'sharedStrings',sheet:sheetName||'',rowsProcessed:seen});await new Promise(r=>setTimeout(r,0));}}
   parser.close();if(afterChunk)await afterChunk(true);if(!rootSeen||depth)throw badXml();if(typeof onProgress==='function')onProgress({phase:recordTag==='row'?'sheet':'sharedStrings',sheet:sheetName||'',rowsProcessed:seen});
  }
- const wb=await xml('xl/workbook.xml'),rels=await xml('xl/_rels/workbook.xml.rels');if(!wb||!rels)throw Error('Excel 통합문서를 찾지 못했습니다.');const relationship=new Map(nodes(rels,'Relationship',new Set([packageRelNs])).filter(r=>r.getAttribute('TargetMode')!=='External').map(r=>[r.getAttribute('Id'),r.getAttribute('Target')]));const strings=[];if(entries.has('xl/sharedStrings.xml'))await visitXml('xl/sharedStrings.xml','si',s=>strings.push(s.map(t=>t.value).join('')));const result={};
+ const wb=await xml('xl/workbook.xml'),rels=await xml('xl/_rels/workbook.xml.rels');if(!wb||!rels)throw Error('Excel 통합문서를 찾지 못했습니다.');const relationship=new Map(nodes(rels,'Relationship',new Set([packageRelNs])).filter(r=>r.getAttribute('TargetMode')!=='External').map(r=>[r.getAttribute('Id'),r.getAttribute('Target')]));const strings=[];const result={};
  const styleDoc=await xml('xl/styles.xml'),formats=new Map([[0,'General'],[1,'0'],[2,'0.00'],[3,'#,##0'],[4,'#,##0.00'],[11,'0.00E+00'],[48,'##0.0E+0'],[49,'@']]);
  if(styleDoc)for(const f of nodes(styleDoc,'numFmt'))formats.set(+f.getAttribute('numFmtId'),f.getAttribute('formatCode'));
  const cellStyles=nodes(styleDoc,'cellXfs')[0];const numberFormats=cellStyles?nodes(cellStyles,'xf').map(x=>formats.get(+x.getAttribute('numFmtId'))||'unsupported'):['General'];
@@ -78,6 +81,7 @@ export async function readWorkbook(file,wantedKind=null,onProgress=null,hooks=nu
  const selection=await hooks.selectSheets({sheets:sheets.map((s,index)=>({index,name:s.getAttribute('name')||''})),wantedKind});
  if(!Array.isArray(selection)||!selection.length)throw Error('가져올 시트를 선택하세요.');
  const kinds=new Set(),sheetIds=new Set();for(const item of selection){if(!item||!workbookKinds.includes(item.kind)||wantedKind&&item.kind!==wantedKind||!Number.isInteger(item.sheetIndex)||item.sheetIndex<0||item.sheetIndex>=sheets.length||kinds.has(item.kind)||sheetIds.has(item.sheetIndex))throw Error('시트 역할이 중복되거나 올바르지 않습니다.');kinds.add(item.kind);sheetIds.add(item.sheetIndex);}
+ if(entries.has('xl/sharedStrings.xml'))await visitXml('xl/sharedStrings.xml','si',s=>strings.push(s.map(t=>t.value).join('')));
  for(const choice of selection){const kind=choice.kind,sheet=sheets[choice.sheetIndex],name=sheet.getAttribute('name')||'';
  const id=[...relNamespaces].map(ns=>sheet.getAttributeNS(ns,'id')).find(Boolean),target=relationship.get(id);if(!target)throw Error('선택한 시트 연결 정보가 없거나 손상되었습니다.');const path=target.startsWith('/')?target.slice(1):'xl/'+target.replace(/^\.\//,'');if(path.includes('..'))throw Error('지원하지 않는 파일 경로입니다.');if(!entries.has(path))throw Error('선택한 시트 데이터가 파일에 없습니다.');
  const inspection=typeof hooks.inspectColumn==='function',inspectionCodes=new Set(),inspectionDone={};let inspectSummary=null;
@@ -112,11 +116,11 @@ export async function readWorkbook(file,wantedKind=null,onProgress=null,hooks=nu
    }catch(error){throw Error(item.number+'행 '+columnLetter(c.col)+'열: '+error.message);}
   }
   if(!hasMapped)return;
-  dataRows++;rows.push(values);rowIds.push(item.number);if(rows.length>=256)flushRows();
+  dataRows++;if(kind==="cartonLines"&&dataRows>200000)throw Error("Maximum 200,000 inspection lines.");rows.push(values);rowIds.push(item.number);if(rows.length>=256)flushRows();
  }
- const columnRoles=new Map(),phoneFields=new Set(['customerPhone','phone']),codeFields=new Set(['receipt','external','returnTracking','sku','barcode','id','loc','zone','putawayZone','warehouse']);
+ const columnRoles=new Map(),phoneFields=new Set(['customerPhone','phone']),codeFields=new Set(['receipt','external','returnTracking','sku','barcode','id','das','loc','zone','putawayZone','warehouse']);
  function columnLetter(n){let label='';for(n++;n;n=Math.floor((n-1)/26))label=String.fromCharCode(65+(n-1)%26)+label;return label;}
- async function resolvePreview(final){if(mapping||!final&&preview.length<100)return;const shown=preview.slice(0,100);if(!shown.length)throw Error('시트에 제목 행이 없습니다.');const selected=await hooks.selectColumns({kind,sheetName:name,rows:shown.map(x=>x.values.slice()),rowNumbers:shown.map(x=>x.number)});if(!selected||!Number.isInteger(selected.headerRow)||selected.headerRow<0||selected.headerRow>=shown.length)throw Error('제목 행을 선택하세요.');headerRow=shown[selected.headerRow].values.slice();if(inspection){inspectSummary={header:headerRow,codes:inspectionCodes};const col=hooks.inspectColumn({header:headerRow,headerRow:selected.headerRow});if(col===null)throw inspectionDone;if(!Number.isInteger(col)||col<0||col>=headerRow.length)throw Error('구분 열을 다시 선택하세요.');mapping={headerRow:selected.headerRow};columnRoles.set(col,'returnChannel');for(const item of preview)consume(item);preview.length=0;return;}mapping={headerRow:selected.headerRow,columns:workbookValidate(kind,headerRow,selected.columns),returnChannelValues:selected.returnChannelValues};workbookTable(kind,[headerRow],{...mapping,headerRow:0});for(const [field,col] of Object.entries(mapping.columns))columnRoles.set(col,field);for(const item of preview)consume(item);preview.length=0;}
+ async function resolvePreview(final){if(mapping||!final&&preview.length<100)return;const shown=preview.slice(0,100);if(!shown.length)throw Error('시트에 제목 행이 없습니다.');const selected=await hooks.selectColumns({kind,sheetName:name,rows:shown.map(x=>x.values.slice()),rowNumbers:shown.map(x=>x.number)});if(!selected||!Number.isInteger(selected.headerRow)||selected.headerRow<0||selected.headerRow>=shown.length)throw Error('제목 행을 선택하세요.');headerRow=shown[selected.headerRow].values.slice();if(inspection){inspectSummary={header:headerRow,codes:inspectionCodes};const col=hooks.inspectColumn({header:headerRow,headerRow:selected.headerRow});if(col===null)throw inspectionDone;if(!Number.isInteger(col)||col<0||col>=headerRow.length)throw Error('구분 열을 다시 선택하세요.');mapping={headerRow:selected.headerRow};columnRoles.set(col,'returnChannel');for(const item of preview)consume(item);preview.length=0;return;}mapping={headerRow:selected.headerRow,columns:workbookValidate(kind,headerRow,selected.columns),returnChannelValues:selected.returnChannelValues};if(kind==='raw'||kind==='sku'){const brand=optionalBrandColumn(headerRow,mapping.columns);if(brand!==undefined)mapping.columns.brand=brand;}workbookTable(kind,[headerRow],{...mapping,headerRow:0});for(const [field,col] of Object.entries(mapping.columns))columnRoles.set(col,field);for(const item of preview)consume(item);preview.length=0;}
  try{await visitXml(path,'row',cells=>{const index=processed++,number=Number.isSafeInteger(cells.rowNumber)&&cells.rowNumber>0?cells.rowNumber:index+1,item={index,number,cells,values:unpack(cells)};if(mapping)consume(item);else preview.push(item);},name,resolvePreview);}catch(error){if(error!==inspectionDone)throw error;}
  if(inspection)return {header:inspectSummary.header,codes:[...inspectionCodes]};
  flushRows();

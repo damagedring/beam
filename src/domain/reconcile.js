@@ -1,3 +1,4 @@
+import { mergeProductBrands } from './product-identity.js';
 const key=r=>r.barcode?'B:'+r.barcode:r.sku?'S:'+r.sku:'U:'+r.unresolvedId;
 const units=s=>s.qty??1;
 const eventCode=s=>s.kind==='sku'?s.sku:s.barcode;
@@ -32,7 +33,8 @@ function masterInfo(data,event){
  const skus=new Set(),names=new Set(),keys=event.kind==='code'?new Set():null;
  for(const r of candidates){if(r.sku)skus.add(r.sku);if(r.name)names.add(r.name);if(keys)keys.add(key(r));}
  const conflict=skus.size>1||names.size>1||(keys&&keys.size>1)||false;
- const info={found:!!candidates.length,conflict,sku:!conflict&&skus.size===1?[...skus][0]:'',name:!conflict&&names.size===1?[...names][0]:''};
+ const brand=!conflict&&mergeProductBrands(candidates.map(r=>r.brand));
+ const info={found:!!candidates.length,conflict,...(brand?{brand}:{}),sku:!conflict&&skus.size===1?[...skus][0]:'',name:!conflict&&names.size===1?[...names][0]:''};
  if(ix.masterCache.size===4096)ix.masterCache.delete(ix.masterCache.keys().next().value);
  ix.masterCache.set(cacheKey,info);
  return info;
@@ -40,7 +42,7 @@ function masterInfo(data,event){
 function receiptTemplate(ix,receipt){
  if(ix.templates.has(receipt))return ix.templates.get(receipt);
  const found=new Map(),raw=ix.rawByReceipt.get(receipt)||[];
- for(const [i,r]of raw.entries()){const k=key({...r,unresolvedId:r.unresolvedId||'row-'+i});if(!found.has(k))found.set(k,{...r,key:k,expected:0,actual:0,conflict:!r.barcode&&!r.sku,unresolved:!r.barcode&&!r.sku});const a=found.get(k);a.expected+=r.qty;if(!Number.isSafeInteger(a.expected))throw Error('합산 예정 수량이 너무 큽니다.');if(a.sku&&r.sku&&a.sku!==r.sku)a.conflict=true;if(a.name&&r.name&&a.name!==r.name)a.conflict=true;}
+ for(const [i,r]of raw.entries()){const k=key({...r,unresolvedId:r.unresolvedId||'row-'+i});if(!found.has(k)){const {expectedInventoryStatus:declared,...product}=r;found.set(k,{...product,key:k,expected:0,actual:0,conflict:!r.barcode&&!r.sku,unresolved:!r.barcode&&!r.sku});}const a=found.get(k);a.expected+=r.qty;if(!Number.isSafeInteger(a.expected))throw Error('합산 예정 수량이 너무 큽니다.');if(a.sku&&r.sku&&a.sku!==r.sku)a.conflict=true;if(a.name&&r.name&&a.name!==r.name)a.conflict=true;if(r.brand)a.brand=mergeProductBrands([a.brand,r.brand]);}
  const byBarcode=new Map(),bySku=new Map(),skuOnly=new Map();for(const r of found.values()){addIndex(byBarcode,r.barcode,r);addIndex(bySku,r.sku,r);if(!r.barcode&&r.sku)addIndex(skuOnly,r.sku,r);}
  const template={rows:[...found.values()],byBarcode,bySku,skuOnly};
  // Keep reference-sized templates only for used receipts, bounded for very fragmented imports.
@@ -123,7 +125,7 @@ function entryOutcome(data,receipt,scans,event){
  const {row,actual,ambiguous}=inspectEntry(data,receipt,scans,event);
  if(ambiguous||row?.conflict||row?.unresolved||(!row&&masterInfo(data,event).conflict))return 'conflict';
  if(!row)return 'unknown';
- return actual+units(event)>row.expected?'excess':'accepted';
+ return quantityOutcome(actual,row.expected,units(event));
 }
 
 // A reassignment may only consume whole latest events within each SKU's excess.
@@ -158,22 +160,34 @@ function reconcile(data,receipt,scans){
  const ix=getIndex(data),template=receiptTemplate(ix,receipt),agg=scanAggregate(data,receipt,scans,ix,template);
  if(agg.rows)return agg.rows;
  const rows=[...template.rows,...agg.outside.values()].map(r=>({...r,actual:agg.counts.get(r.key)||0}));
- return agg.rows=rows.map(r=>{const master=r.unregistered&&!r.conflict?masterInfo(data,{kind:r.inputKind,barcode:r.barcode,sku:r.sku}):{conflict:false,sku:'',name:''},conflict=r.conflict||master.conflict;const locations=[...(ix.locations.get('B:'+r.barcode)||ix.locations.get('S:'+r.sku)||[])];return {...r,name:r.unregistered?(master.name||'상품 정보 없음'):(r.name||'ASN 상품명 없음'),sku:r.unregistered?(r.sku||master.sku):(r.sku||''),locations,location:locations.join(', '),missing:Math.max(0,r.expected-r.actual),excess:Math.max(0,r.actual-r.expected),status:r.unresolved?'식별자 없음':conflict?'정보 충돌':r.unregistered?'예정 외':r.expected===r.actual?'일치':r.actual>r.expected?'초과':'부족'};});
+ return agg.rows=rows.map(r=>{const master=r.unregistered&&!r.conflict?masterInfo(data,{kind:r.inputKind,barcode:r.barcode,sku:r.sku}):{conflict:false,sku:'',name:''},conflict=r.conflict||master.conflict;const locations=[...(ix.locations.get('B:'+r.barcode)||ix.locations.get('S:'+r.sku)||[])];return {...r,...(r.unregistered&&master.brand&&!conflict?{brand:master.brand}:{}),name:r.unregistered?(master.name||'상품 정보 없음'):(r.name||'ASN 상품명 없음'),sku:r.unregistered?(r.sku||master.sku):(r.sku||''),locations,location:locations.join(', '),missing:Math.max(0,r.expected-r.actual),excess:Math.max(0,r.actual-r.expected),status:r.unresolved?'식별자 없음':conflict?'정보 충돌':r.unregistered?'예정 외':r.expected===r.actual?'일치':r.actual>r.expected?'초과':'부족'};});
+}
+// Shared quantity rules; reference selection and event ownership stay with each workflow.
+export function quantityOutcome(actual,expected,added=1){
+ return actual+added>expected?'excess':'accepted';
+}
+export function inspectionCoverage(rows,{known=true,unassigned=0}={}){
+ let expected=0,covered=0,excess=0,needsReview=!!unassigned,allMatched=true;
+ for(const row of rows){
+  expected+=row.expected;
+  if(row.unregistered||row.unresolved||row.conflict||row.status==='정보 충돌'){
+   needsReview=true;allMatched=false;continue;
+  }
+  covered+=Math.min(row.actual,row.expected);
+  excess+=Math.max(0,row.actual-row.expected);
+  if(row.actual!==row.expected)allMatched=false;
+ }
+ const complete=known&&expected>0&&!needsReview&&allMatched;
+ const verifiedActual=covered+excess;
+ const percent=known&&expected>0?(verifiedActual>expected?Math.max(101,Math.floor(verifiedActual/expected*100)):Math.floor(covered/expected*100)):null;
+ return {expected,covered,excess,remaining:Math.max(0,expected-covered),needsReview:known&&(needsReview||!expected),complete,percent,phase:!known?'waiting':excess?'excess':needsReview||!expected?'warning':complete?'complete':'progress'};
 }
 function asnProgress(data,receipt,scans,pending=[],currentBatch=''){
  const rows=reconcile(data,receipt,scans),agg=scanAggregate(data,receipt,scans);
- const expected=rows.reduce((sum,row)=>sum+row.expected,0),actual=agg.total,batch=currentBatch?(agg.byBatch.get(currentBatch)||0):0;
+ const batch=currentBatch?(agg.byBatch.get(currentBatch)||0):0;
  const unassigned=pending.reduce((sum,event)=>sum+units(event),0),known=!!receipt&&getIndex(data).rawByReceipt.has(receipt);
- const eligible=rows.filter(r=>!r.unregistered&&!r.unresolved&&r.status!=='정보 충돌');
- const excess=eligible.reduce((sum,r)=>sum+r.excess,0);
- const covered=eligible.reduce((sum,r)=>sum+Math.min(r.actual,r.expected),0);
- const complete=known&&expected>0&&rows.length>0&&!unassigned&&rows.every(r=>r.status==='일치');
- const warning=!!unassigned||expected===0||rows.some(r=>r.unregistered||r.unresolved||r.status==='정보 충돌');
- // Verified surplus is independent from shortages in another SKU. Unknown
- // and ambiguous scans never inflate a valid ASN's progress percentage.
- const verifiedActual=covered+excess;
- const percent=known&&expected>0?(verifiedActual>expected?Math.max(101,Math.floor(verifiedActual/expected*100)):Math.floor(covered/expected*100)):null;
- return {expected,actual,batch,unassigned,complete,covered,percent,excess,phase:!known?'waiting':excess?'excess':warning?'warning':complete?'complete':'progress'};
+ const {expected,covered,excess,complete,percent,phase}=inspectionCoverage(rows,{known,unassigned});
+ return {expected,actual:agg.total,batch,unassigned,complete,covered,percent,excess,phase};
 }
 function storeMatches(r,query){const normalize=x=>String(x||'').toLowerCase().replace(/\s+/g,'');const hay=normalize([r.seller,r.company,r.address].filter(Boolean).join(' '));return String(query||'').trim().split(/\s+/).filter(Boolean).every(token=>hay.includes(normalize(token)));}
 

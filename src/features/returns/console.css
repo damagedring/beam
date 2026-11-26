@@ -1,0 +1,1350 @@
+/* Returns scanner, last-readout, recent activity, and comparison workbench. */
+@layer beam-console {
+ @media screen and (forced-colors:none) {
+  html[data-theme] #sheetWorkspace #beamTerminal :is(#scanbutton,#undo,#activityMinimize,#activityExpand,#reset,#asnPrevious,#asnNext,#overviewDetailsToggle){
+   background:var(--term-side)!important;color:var(--term-ink)!important;
+   border:0!important;border-radius:5px!important;box-shadow:none!important;
+   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+  }
+  html[data-theme] #sheetWorkspace #beamTerminal #scanbutton:not(:disabled){
+   background:var(--console-go)!important;color:var(--console-go-ink)!important;
+  }
+  html[data-theme] #sheetWorkspace #beamTerminal :is(#undo,#activityMinimize,#activityExpand,#reset,#asnPrevious,#asnNext,#overviewDetailsToggle):hover{
+   background:var(--term-select)!important;
+  }
+
+ }
+}
+@layer beam-console {
+ html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressBar::-webkit-progress-value {background:var(--excess-ink)!important}
+ html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressBar::-moz-progress-bar {background:var(--excess-ink)!important}
+ html[data-theme] body #asnProgress[data-phase="excess"] #asnProgressStatus {color:var(--excess-ink)!important}
+ html[data-theme] body #sheetWorkspace .activity-sheet .sheet-status[data-cell-state="unknown"] {background:var(--warning-bg)!important;color:var(--warning-ink)!important}
+ .beam-scan-sound {display:flex;align-items:center;gap:8px;font-size:.85rem;margin-block:8px}
+ .beam-scan-sound input {inline-size:auto;margin:0}
+}
+
+.scanresult{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:30px;align-items:center;min-height:266px;margin:16px -24px 0;padding:32px;background:#fff;border-top:1px solid #e5e5e5;border-bottom:1px solid #e5e5e5}
+.scanresult .eyebrow{margin-bottom:12px}
+.scanresult .sku{font-size:32px;line-height:1.3;font-weight:700;letter-spacing:-.7px;overflow-wrap:anywhere}
+.scanresult p{font-size:14px;max-width:570px;margin:10px 0}
+.remaining{border-left:1px solid #e4e4e4;text-align:center;min-width:0;padding-left:24px}
+.remaining b{display:block;font:600 88px/1.1 "Segoe UI",Arial,sans-serif;letter-spacing:-3px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.remaining span{font-size:12px;color:var(--muted)}
+#undo{border:0;padding-left:0;padding-right:0;background:none;font-size:12px;color:var(--muted)}
+#undo:hover{color:var(--ink);text-decoration:underline}
+@media(max-width:1000px){
+.scanresult{grid-template-columns:minmax(0,1fr) 160px;gap:20px;padding:28px}
+.remaining b{font-size:70px}
+.scanresult .sku{font-size:26px}
+}
+@media(max-width:760px){
+.scanresult{margin-inline:-18px;padding:24px 18px;gap:16px;grid-template-columns:minmax(0,1fr) 130px;min-height:220px}
+.remaining{padding-left:16px}
+.remaining b{font-size:60px}
+.scanresult .sku{font-size:23px}
+}
+@media(max-width:480px){
+.scanresult{grid-template-columns:minmax(0,1fr) 100px}
+.remaining b{font-size:48px}
+}
+#scanbutton{background:#202020;border-color:#202020;color:#fff;font-size:12px;font-weight:500}
+#scanbutton:hover{background:#333;border-color:#333;box-shadow:none}
+.scanresult{grid-template-columns:minmax(0,1fr) 190px;gap:32px;min-height:250px;padding:32px 28px;margin:12px -20px 0;border-color:#ededed;background:#fff}
+.scanresult .eyebrow{font-size:10px;letter-spacing:.3px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.scanresult .eyebrow::before{content:"";width:5px;height:5px;border-radius:50%;background:#D7FEFF;flex:none}
+.scanresult .sku{font-size:29px;line-height:1.35;font-weight:600;letter-spacing:-.6px}
+.scanresult p{font-size:13px;color:#656565;margin:8px 0 12px;max-width:500px}
+.scanresult p:empty{display:none}
+#lastbarcode{font-size:11px;color:#707070;overflow-wrap:anywhere}
+.remaining{padding-left:28px;border-color:#ededed}
+.remaining b{font-size:80px;font-weight:500;letter-spacing:-3px;line-height:1.15}
+.remaining span{font-size:11px;color:#666}
+#lastcount{display:inline-block;margin-top:5px}
+#undo{margin-top:10px!important;min-height:28px;font-size:11px;box-shadow:none;color:#707070}
+@media(max-width:1100px){
+.scanresult{grid-template-columns:minmax(0,1fr) 160px;padding:28px 24px;gap:24px}
+.remaining{padding-left:24px}
+.remaining b{font-size:68px}
+.scanresult .sku{font-size:25px}
+}
+@media(max-width:760px){
+.scanresult{margin-inline:-18px;grid-template-columns:minmax(0,1fr) 135px;min-height:220px;padding:24px 20px;gap:18px}
+.remaining{padding-left:18px}
+.remaining b{font-size:60px}
+.scanresult .sku{font-size:23px}
+}
+@media(max-width:480px){
+.scanresult{grid-template-columns:minmax(0,1fr) 100px;padding:22px 18px;gap:12px}
+.remaining{padding-left:12px}
+.remaining b{font-size:48px}
+.scanresult .sku{font-size:21px}
+}
+@media(pointer:coarse){
+#undo{min-height:44px}
+}
+html[data-theme="dark"] .scanresult{border-top-color:#303030;border-bottom-color:#303030}
+html[data-theme="dark"] #scanbutton{background:#e5e5e5;color:#171717;border-color:#e5e5e5}
+html[data-theme="dark"] #scanbutton:hover{background:#fff;border-color:#fff}
+html[data-theme="dark"] .scanresult p,html[data-theme="dark"] #lastbarcode,html[data-theme="dark"] .remaining span{color:#aaa}
+html[data-theme="dark"] #laststatus{color:#d0d0d0}
+html[data-theme="dark"] .remaining{border-color:#333}
+html[data-theme="dark"] #undo{background:none;color:#aaa;box-shadow:none}
+html[data-theme="dark"] #undo:hover{color:#fff}
+.remaining b{font-size:88px;font-weight:600}
+html[data-theme="dark"] #lastname{color:#e8e8e8}
+@media(max-width:760px){
+.remaining b{font-size:64px}
+}
+@media(max-width:480px){
+.remaining b{font-size:48px}
+}
+/* v0.47 inspection-first hierarchy: verdict before product identity. */
+.scanresult{grid-template-columns:minmax(0,1fr) 210px;align-items:start;gap:24px;padding:28px;min-height:300px}
+.compare,#lastcount{display:block;font-size:20px;font-weight:600;margin-top:16px;color:var(--ink)}
+#itemdelta{margin-top:5px}
+.inspected-product #lastname{font-size:17px;font-weight:600;margin:0 0 5px}
+.remaining{align-self:center}
+.remaining span{font-weight:600}
+html[data-theme="dark"] #laststatus{color:#e8e8e8}
+html[data-theme="dark"] #lastcount{color:#e8e8e8}
+@media(max-width:760px){
+.scanresult{grid-template-columns:minmax(0,1fr) 130px;padding:24px 18px;gap:18px}
+#lastcount{font-size:17px}
+}
+@media(max-width:480px){
+.scanresult{grid-template-columns:minmax(0,1fr) 100px;gap:14px}
+}
+.scanresult:is(.state-progress,.state-complete,.state-warning,.state-excess){border-top:3px solid var(--state-ink);padding-top:26px}
+.scanresult:is(.state-progress,.state-complete,.state-warning,.state-excess) #laststatus{color:var(--state-ink)}
+.scanresult:is(.state-progress,.state-complete,.state-warning,.state-excess) .remaining{background:var(--state-bg);border-left:0;border-radius:8px}
+.scanresult:is(.state-progress,.state-complete,.state-warning,.state-excess) .remaining b,.scanresult:is(.state-progress,.state-complete,.state-warning,.state-excess) .remaining span{color:var(--state-ink)}
+@media print{.scanresult{--state-ink:#202020!important;--state-bg:#fff!important}}
+#laststatus,.remaining b{font-weight:700}
+#undo{font-size:25px;line-height:1;min-width:40px;min-height:40px;padding:6px 8px!important;border:1px solid var(--line);border-radius:5px;margin-top:12px!important}
+#undo:hover{text-decoration:none;background:#f5f5f5}
+html[data-theme="dark"] #undo:hover{background:#292929}
+@media(pointer:coarse){#undo{min-width:44px;min-height:44px}}
+#scanform{display:flex;align-items:center;gap:8px}
+#scanform #barcode{min-width:0;flex:1}
+#scanform #undo{margin-top:0!important;flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px}
+#scanform #scanbutton{flex:0 0 auto}
+@media screen{
+.scanresult{margin:12px -2px 0;padding:24px 8px!important;border-radius:8px}
+.scanresult .remaining{background:var(--surface-raised)!important;border-radius:10px}
+.scanresult .remaining b,.scanresult .remaining span{color:var(--ink)!important}
+.state-excess #laststatus{background:var(--excess-bg);color:var(--excess-ink)!important}
+#scanbutton{background:var(--ink)!important;color:var(--surface-panel)!important}
+#undo,html[data-theme="dark"] #undo{background:var(--surface-raised)!important;color:var(--ink)!important}
+@media(max-width:480px){
+.scanresult{padding:20px 0!important;gap:14px}
+}
+}
+@media screen{
+.scan-activity{margin:12px 0 4px;min-width:0}
+.scan-activity ol{list-style:none;padding:0;margin:0}
+@media(prefers-reduced-motion:reduce){.scan-activity *{animation:none!important;transition:none!important}}
+}
+@media print{.scan-activity{display:none!important}}
+@media screen{#activityExpand{padding:0;min-width:32px;min-height:32px;font-size:18px;line-height:1}#scanActivityViewport{min-width:0;overscroll-behavior:contain;scrollbar-gutter:stable}.scan-activity.is-expanded #scanActivityViewport{max-height:min(555px,60vh);overflow-y:auto}.scan-activity:not(.is-expanded) #scanActivityViewport{overflow:visible}.scan-activity-head #activityExpand{margin-left:auto}}
+@media screen{
+#activityDialog{width:min(720px,calc(100vw - 24px));max-height:90vh;overflow:hidden}
+#activityHistoryViewport{max-height:min(555px,65vh);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+#activityDialog .activity-time{font-size:11px}
+}
+@media screen{#activityExpand{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}}
+@media screen{#activityMinimize{padding:0;min-width:32px;min-height:32px;font-size:18px;line-height:1;margin-left:auto}.scan-activity-head #activityExpand{margin-left:0}#scanActivityViewport[hidden]{display:none!important}}
+@media screen{.scan form #undo{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;min-width:44px;min-height:44px;padding:0;font-size:0;line-height:1}#undo .undo-icon{display:block;flex:none;width:20px;height:20px;overflow:visible;pointer-events:none}}
+@media screen{
+ #scanform{display:grid;grid-template-columns:minmax(0,1fr) auto var(--ui-target);gap:var(--ui-space-2);align-items:center}
+ #scanform #barcode{width:100%;min-width:0;height:var(--ui-target);font-size:var(--ui-text-input)}
+ #scanform #scanbutton{height:var(--ui-target);min-height:var(--ui-target);font-size:var(--ui-text-label);padding:var(--ui-space-2) var(--ui-space-3)}
+ #scanform #undo{padding:0!important;align-self:center}
+ .scan-activity{margin-top:var(--ui-space-2)}
+ #activityMinimize,#activityExpand{width:var(--ui-target);min-width:var(--ui-target);height:var(--ui-target);min-height:var(--ui-target)}
+ .scanresult{margin:var(--ui-space-3) 0 0;grid-template-columns:minmax(0,1fr) minmax(100px,160px);gap:var(--ui-space-4);min-height:0;padding:var(--ui-space-4) 0!important}
+ .scanresult>div{min-width:0}
+ .scanresult .remaining{padding:var(--ui-space-3) var(--ui-space-4)}
+ .remaining b{font-size:var(--ui-quantity);letter-spacing:-1px}
+ .remaining span,#lastbarcode,#lastcount{font-size:var(--ui-text-label);line-height:var(--ui-line);overflow-wrap:anywhere}
+ .inspected-product #lastname{font-size:var(--ui-text-title);line-height:1.45;overflow-wrap:anywhere}
+ #activityDialog{display:flex;flex-direction:column;max-height:calc(100dvh - 24px)}
+ #activityDialog:not([open]){display:none}
+ #activityHistoryViewport{min-height:0;max-height:min(555px,65dvh);flex:1 1 auto}
+@media(max-width:600px){
+  .scanresult{grid-template-columns:minmax(0,1fr) 100px;gap:var(--ui-space-3)}
+  .scanresult .remaining{padding:var(--ui-space-2)}
+}
+@media(max-width:360px){
+  #scanform{gap:var(--ui-space-2)}
+#scanform #scanbutton{padding-inline:var(--ui-space-2)}
+  .scanresult{grid-template-columns:minmax(0,1fr) 82px}
+}
+}
+/* Highlight abnormal quantity with the existing state palette, not color alone. */
+@media screen{
+ .scanresult.state-warning .remaining{background:var(--warning-bg)!important}
+ .scanresult.state-warning .remaining :is(b,span){color:var(--warning-ink)!important}
+ .scanresult.state-excess .remaining{background:var(--excess-bg)!important}
+ .scanresult.state-excess .remaining :is(b,span){color:var(--excess-ink)!important}
+ @media(forced-colors:active){
+  .scanresult:is(.state-warning,.state-excess) .remaining{background:Canvas!important;outline:1px solid CanvasText}
+  .scanresult:is(.state-warning,.state-excess) .remaining :is(b,span){color:CanvasText!important}
+ }
+}
+@media screen{
+ .scanresult[data-quantity-state="shortage"] .remaining,
+ .scanresult[data-quantity-state="shortage"] #laststatus{background:var(--shortage-bg)!important;color:var(--shortage-ink)!important}
+ .scanresult[data-quantity-state="shortage"] .remaining :is(b,span){color:var(--shortage-ink)!important}
+ #rows tr[data-quantity-state="shortage"] .badge{background:var(--shortage-bg);color:var(--shortage-ink)}
+ #rows tr[data-quantity-state="excess"] .badge{background:var(--excess-bg);color:var(--excess-ink)}
+ @media(forced-colors:active){
+  .scanresult[data-quantity-state="shortage"] .remaining,.scanresult[data-quantity-state="shortage"] #laststatus{background:Canvas!important;color:CanvasText!important;outline:1px solid CanvasText}
+  .scanresult[data-quantity-state="shortage"] .remaining :is(b,span){color:CanvasText!important}
+ }
+}
+@media screen{
+ #scanActivitySection .scan-activity-head{display:grid;grid-template-columns:minmax(0,1fr) var(--ui-target) var(--ui-target);align-items:center;gap:var(--ui-space-1);margin:0}
+ #scanActivityTitle{font-size:var(--ui-text-label);font-weight:600;color:var(--ink)}
+ #scanActivitySection :is(#activityMinimize,#activityExpand){display:inline-flex;align-items:center;justify-content:center;width:var(--ui-target);height:var(--ui-target);min-width:var(--ui-target);min-height:var(--ui-target);margin:0;padding:0;border:0!important;background:transparent!important;box-shadow:none!important;color:var(--muted)!important;font-size:var(--ui-text-input);line-height:1}
+ #scanActivitySection :is(#activityMinimize,#activityExpand):hover{color:var(--ink)!important}
+ #scanActivitySection #activityExpand svg{width:14px;height:14px}
+ #scanActivityViewport:not([hidden]){margin-top:var(--ui-space-2)}
+ #scanActivitySection .scan-activity-empty{padding:var(--ui-space-2) 0}
+ @media(max-width:600px){#scanActivitySection{padding:var(--ui-space-2) var(--ui-space-3)}}
+ @media(forced-colors:active){#scanActivitySection{background:Canvas;border-color:CanvasText}#scanActivitySection :is(#activityMinimize,#activityExpand){color:ButtonText!important}}
+}
+@media screen{
+ #overviewStatus{display:grid;grid-template-columns:var(--ui-target) minmax(0,1fr) var(--ui-target);align-items:center;gap:var(--ui-space-1);min-width:0}
+ #overviewStatus>.overview-arrow{display:inline-flex;align-items:center;justify-content:center;width:var(--ui-target);height:var(--ui-target);min-width:var(--ui-target);min-height:var(--ui-target);margin:0;padding:0;border:0!important;background:transparent!important;box-shadow:none!important;color:var(--muted)!important;font-size:var(--ui-text-title);line-height:1}
+ #overviewStatus>.overview-arrow:hover:not(:disabled){color:var(--ink)!important}
+ #overviewStatus .overview-asn{margin-bottom:var(--ui-space-2)}
+ #overviewStatus #asnProgress{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
+ #overviewStatus .asn-progress-row{padding-top:var(--ui-space-2);border-top:1px solid var(--line)}
+ @media(forced-colors:active){#overviewStatus>.overview-arrow{color:ButtonText!important}}
+}
+/* Legacy last-input render target remains internal; history and table are the visible source. */
+#scanresult[hidden]{display:none!important}
+@media screen and (min-width:1024px){
+ #overviewStatus .asn-progress-row{gap:var(--ui-space-2);padding-top:var(--ui-space-2)}
+ #scanform{gap:var(--ui-space-2)}
+ #scanActivitySection{margin-top:var(--ui-panel-gap);padding:var(--ui-space-2) var(--ui-panel-inset)}
+}
+@media screen and (min-width:1024px){
+ #overviewStatus .asn-progress-row{grid-template-columns:minmax(0,1fr) auto;align-items:start}
+ #overviewStatus #asnProgress{display:flex;flex-direction:column;align-items:stretch;gap:var(--ui-space-1)}
+ #overviewStatus .asn-numbers{text-align:left;display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--ui-space-2)}
+ #overviewStatus .asn-numbers b{font-size:var(--ui-text-title);line-height:var(--ui-line)}
+ #overviewStatus .asn-coverage{margin:0;gap:var(--ui-space-2)}
+ #overviewStatus .asn-coverage span{font-size:var(--ui-text-meta)}
+ #overviewStatus #confirmInspection{max-width:none;min-width:var(--ui-target);align-self:start;padding:var(--ui-space-2) var(--ui-space-3)}
+ #overviewStatus #confirmHint{margin:0}
+}
+@media screen{
+ #overviewStatus .receipt-entry #receipt{min-width:0;width:100%;min-height:var(--ui-target);height:auto;padding-inline:var(--ui-space-3);background:transparent;border-radius:var(--ui-space-2) 0 0 var(--ui-space-2)}
+ #overviewStatus .asn-progress-row{align-items:start}
+ #overviewStatus #asnProgress{display:flex;flex-direction:column;gap:var(--ui-space-2);min-width:0;padding:0;margin:0}
+ #overviewStatus .asn-numbers{display:flex;flex-wrap:wrap;align-items:center;min-height:var(--ui-target);gap:var(--ui-space-2);text-align:start}
+ #overviewStatus .asn-coverage{margin:0;gap:var(--ui-space-2);min-width:0}
+ #overviewStatus #confirmInspection{align-self:start;min-height:var(--ui-target);margin:0}
+ #overviewStatus #confirmHint{grid-column:1 / -1;margin:0}
+}
+@media screen{
+ #overviewStatus{display:grid!important;grid-template-columns:var(--ui-target) minmax(0,1fr) var(--ui-target);gap:0;padding:0!important;border:0!important;background:transparent!important}
+ #overviewStatus .overview-content{display:grid;grid-template-columns:minmax(180px,1.05fr) minmax(180px,.95fr) minmax(240px,1.9fr) minmax(84px,auto);grid-template-rows:auto auto auto;column-gap:var(--overview-column-gap);row-gap:24px;min-width:0;align-items:start}
+ #overviewStatus .overview-asn{grid-column:1;grid-row:1;min-width:0;padding:0!important}
+ #overviewStatus .overview-asn-heading{margin:0;min-height:0}
+ #overviewStatus .asn-key-label{font-size:11px;line-height:18px;margin:0 0 10px;min-height:18px}
+ #overviewStatus .receipt-entry #receipt{font-size:14px;min-height:46px}
+ #overviewStatus .receipt-title{display:none}
+ #overviewStatus .asn-progress-row,#overviewStatus #asnProgress{display:contents}
+ #overviewStatus .asn-numbers{grid-column:3;grid-row:1;min-height:44px;align-items:center;padding-top:8px}
+ #overviewStatus .asn-numbers b{font-size:20px;font-weight:400}
+ #overviewStatus #asnBatchCount{font-size:11px}
+ #overviewStatus .asn-coverage{grid-column:3;grid-row:1;align-self:end;display:flex;align-items:center;gap:12px;margin-top:56px;min-width:0}
+ #overviewStatus .asn-coverage progress{height:4px;min-width:0;flex:1;width:auto}
+ #overviewStatus #asnCoverage{font-size:11px;white-space:normal}
+ #overviewStatus #confirmHint{grid-column:3;grid-row:2;font-size:11px;margin:0}
+ #overviewStatus #asnPosition{grid-column:4;grid-row:1;align-self:end;justify-self:center;font-size:12px;margin:0}
+ #overviewStatus #confirmInspection{grid-column:4;grid-row:2;justify-self:stretch;min-width:84px;max-width:none;padding:12px;font-size:12px}
+ #overviewStatus #directReport{grid-column:3 / 5;grid-row:3}
+ #overviewStatus .count-summary{grid-column:2;grid-row:1;display:block!important;background:transparent!important;padding:8px 0 0!important;margin:0!important;border:0!important}
+ #overviewStatus .normal-metric{display:flex;flex-direction:column;gap:10px;align-items:start;background:transparent!important;padding:0!important;border:0!important}
+ #overviewStatus .normal-value{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:flex-start;width:auto}
+ #overviewStatus .normal-total{display:flex;gap:4px;align-items:baseline;flex-wrap:wrap}
+ #overviewStatus #normal{font-size:12px!important;font-weight:400!important;line-height:18px!important}
+ #overviewStatus #normalTypes{font-size:13px}
+ #overviewStatus .normal-metric span{font-size:12px}
+ #overviewExtra{grid-column:1 / 3;grid-row:2 / 4;min-width:0}
+ #overviewStatus .count-exceptions{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:12px;margin:0!important;border:0!important;padding:0!important}
+ #overviewStatus .count-exceptions .metric{min-height:76px!important;padding:10px 12px!important;border:0!important;border-radius:8px;background:var(--surface-raised)!important;gap:10px!important;align-items:start}
+ #overviewStatus .count-exceptions .metric b{font-size:18px!important;line-height:27px!important;font-weight:500!important}
+ #overviewStatus .count-exceptions .metric[hidden]{display:none!important}
+ #overviewDetailsToggle{display:none}
+ #overviewStatus .overview-arrow{align-self:center;min-height:44px;padding:0}
+ @media(max-width:1000px){
+  #overviewStatus .overview-content{grid-template-columns:minmax(0,1fr) minmax(84px,auto);row-gap:20px;column-gap:12px}
+  #overviewStatus .overview-asn{grid-column:1 / -1;grid-row:1}
+  #overviewStatus .asn-key-label{padding-right:94px;font-size:10px}
+  #overviewStatus #asnPosition{grid-column:2;grid-row:1;align-self:start;justify-self:end}
+  #overviewStatus .asn-numbers{grid-column:1;grid-row:2;padding:0}
+  #overviewStatus #confirmInspection{grid-column:2;grid-row:2;min-width:76px}
+  #overviewStatus .count-summary{grid-column:1 / -1;grid-row:3;padding:0!important}
+  #overviewStatus .normal-metric{flex-direction:row;flex-wrap:wrap;align-items:baseline;justify-content:space-between}
+  #overviewStatus .normal-value{gap:12px;flex:1;justify-content:space-around}
+  #overviewStatus .asn-coverage{grid-column:1 / -1;grid-row:4;align-self:auto;margin:0;min-height:24px}
+  #overviewStatus #confirmHint{grid-column:1 / -1;grid-row:5}
+  #overviewStatus #directReport{grid-column:1 / -1;grid-row:6}
+  #overviewDetailsToggle{display:block;grid-column:1 / -1;grid-row:7;justify-self:start;font-size:12px;background:transparent}
+  #overviewExtra{grid-column:1 / -1;grid-row:8;display:none}
+  #overviewExtra.is-expanded{display:block}
+  #overviewStatus #asnBatchCount{display:none}
+  #overviewStatus .overview-arrow{align-self:start;margin-top:28px}
+ }
+@media(max-width:640px){
+  #overviewStatus{grid-template-columns:36px minmax(0,1fr) 36px}
+  #overviewStatus .overview-arrow{width:44px;min-width:44px;transform:translateX(-4px)}
+  #overviewStatus .overview-content{row-gap:16px}
+}
+}
+/* v1.10: recent scans as a compact, read-only worksheet. */
+@media screen{
+ #scanActivitySection{padding:0 0 8px;margin-top:16px}
+ #scanActivitySection .scan-activity-head{padding:0 0 8px}
+ #scanActivitySection #scanActivityViewport,#activityHistoryViewport{overflow:auto!important;scrollbar-gutter:auto;border:1px solid var(--sheet-line);border-radius:5px;background:var(--surface-input)}
+ #scanActivitySection,#activityDialog{--sheet-line:color-mix(in srgb,var(--muted) 26%,transparent);--sheet-head:color-mix(in srgb,var(--muted) 10%,var(--surface-input))}
+ .activity-sheet{border-collapse:separate;border-spacing:0;width:100%;min-width:860px;table-layout:fixed;font-size:12px;line-height:1.4;margin:0;color:var(--ink)}
+ .activity-sheet th,.activity-sheet td{box-sizing:border-box;padding:9px 12px;border:0;border-right:1px solid var(--sheet-line)!important;border-bottom:1px solid var(--sheet-line)!important;vertical-align:middle;text-align:left;background:none;box-shadow:none;white-space:normal;overflow-wrap:anywhere}
+ .activity-sheet th:last-child,.activity-sheet td:last-child{border-right:0!important}.activity-sheet tbody tr:last-child>*{border-bottom:0!important}
+ .activity-sheet thead th{position:sticky;top:0;z-index:1;background:var(--sheet-head);color:var(--muted);font-size:11px;font-weight:500;letter-spacing:.02em;padding-block:7px;white-space:nowrap}
+ .activity-sheet .sheet-col-0{width:38px;text-align:center}.activity-sheet .sheet-col-1{width:136px}.activity-sheet .sheet-col-2{width:auto}.activity-sheet .sheet-col-3{width:170px}.activity-sheet .sheet-col-4{width:74px;text-align:right}.activity-sheet .sheet-col-5{width:116px}.activity-sheet .sheet-col-6{width:140px}
+ .activity-sheet .sheet-index{text-align:center;font-size:10px;font-weight:400;color:var(--muted);background:var(--sheet-head);font-variant-numeric:tabular-nums}
+ .activity-sheet .sheet-time,.activity-sheet .sheet-code,.activity-sheet .sheet-asn,.activity-sheet .sheet-qty{font-variant-numeric:tabular-nums}
+ .activity-sheet .sheet-time small,.activity-sheet .sheet-asn small{display:block;font-size:10px;color:var(--muted);margin-top:2px}
+ .activity-sheet .sheet-name{font-weight:500}.activity-sheet .sheet-code{font-size:11px;color:var(--muted)}
+ .activity-sheet .sheet-qty{text-align:right;white-space:nowrap}.activity-sheet .sheet-qty b{font-size:13px;font-weight:600}.activity-sheet .sheet-qty small{font-size:9px;margin-left:5px;color:var(--muted)}
+ .activity-sheet .sheet-status{font-size:11px}.activity-sheet .sheet-status>span{display:inline-block;max-width:calc(100% - 32px);vertical-align:middle}
+ .activity-sheet .assign-entry{display:inline-flex;justify-content:center;align-items:center;min-width:28px;width:28px;min-height:28px;height:28px;margin-left:4px;padding:0;border:1px solid var(--sheet-line);border-radius:3px;vertical-align:middle;background:transparent;color:inherit;box-shadow:none}
+
+ .activity-sheet tbody tr:last-child td{background:color-mix(in srgb,var(--signature) 5%,transparent)}
+ .activity-sheet tbody tr:hover td{background:color-mix(in srgb,var(--muted) 8%,transparent)}
+ .activity-sheet tr[data-status="일치"] .sheet-status{color:var(--complete-ink)}
+ .activity-sheet tr:is([data-status="보류"],[data-status="정보 충돌"],[data-status="부족"]) .sheet-status{color:var(--warning-ink)}
+ .activity-sheet tr:is([data-status="초과"],[data-status="예정 외"]) .sheet-status{color:var(--excess-ink)}
+ .activity-sheet .sheet-empty{text-align:center;padding:28px 12px;color:var(--muted);font-size:12px}
+ #activityDialog{width:min(1100px,calc(100vw - 24px))}
+ @media(max-width:600px){.activity-sheet{min-width:860px;font-size:11px}.activity-sheet td,.activity-sheet th{padding:8px}.activity-sheet .sheet-col-1{width:124px}.activity-sheet .sheet-col-6{width:144px}.activity-sheet .assign-entry{width:32px;height:32px;min-width:32px;min-height:32px}.activity-sheet .sheet-status>span{max-width:calc(100% - 36px)}}
+}
+@media screen{
+ .activity-sheet .sheet-status{position:relative;text-align:center;font-size:20px;font-weight:650;padding:8px 36px;line-height:1.2}
+ .activity-sheet .sheet-status>span.status-symbol{display:inline;max-width:none;vertical-align:baseline}
+ .activity-sheet .sheet-status .assign-entry{position:absolute;right:5px;top:50%;transform:translateY(-50%);margin:0}
+ .activity-sheet .sheet-status[data-cell-state="complete"]{background:var(--complete-bg)!important;color:var(--complete-ink)!important}
+ .activity-sheet .sheet-status[data-cell-state="progress"]{background:var(--shortage-bg)!important;color:var(--shortage-ink)!important}
+ .activity-sheet .sheet-status[data-cell-state="excess"]{background:var(--excess-bg)!important;color:var(--excess-ink)!important}
+ .activity-sheet .sheet-status[data-cell-state="review"],.activity-sheet .sheet-status[data-cell-state="hold"]{background:var(--warning-bg)!important;color:var(--warning-ink)!important}
+ .activity-sheet .sheet-status[data-cell-state="waiting"]{background:var(--status-neutral-bg)!important;color:var(--status-neutral-ink)!important}
+ [data-theme="dark"] .activity-sheet .sheet-status[data-cell-state="complete"]{background:var(--complete-bg)!important;color:var(--complete-ink)!important}
+ [data-theme="dark"] .activity-sheet .sheet-status[data-cell-state="progress"]{background:#51431f!important;color:var(--shortage-ink)!important}
+ [data-theme="dark"] .activity-sheet .sheet-status[data-cell-state="excess"]{background:var(--excess-bg)!important;color:var(--excess-ink)!important}
+ [data-theme="dark"] .activity-sheet .sheet-status[data-cell-state="review"],[data-theme="dark"] .activity-sheet .sheet-status[data-cell-state="hold"]{background:var(--warning-bg)!important;color:var(--warning-ink)!important}
+ [data-theme="dark"] .activity-sheet .sheet-status[data-cell-state="waiting"]{background:var(--status-neutral-bg)!important;color:var(--status-neutral-ink)!important}
+@media(max-width:700px){
+.activity-sheet .sheet-status{font-size:20px}
+}
+}
+@media screen{
+ #asnProgress .last-scanned{margin:12px 0 16px;min-width:0;text-align:left;display:block}
+ #asnProgress .last-scanned[hidden]{display:none}
+ .last-scanned-label{display:block;font-size:10px;letter-spacing:.04em;color:var(--muted);margin-bottom:5px}
+ #lastScannedName{display:block;font-size:16px;line-height:1.4;font-weight:550;overflow-wrap:anywhere;color:var(--ink)}
+@media(max-width:700px){
+#lastScannedName{font-size:14px}
+#asnProgress .last-scanned{margin:10px 0 12px}
+}
+}
+@media screen{
+ #overviewStatus #lastScanned{grid-column:3;grid-row:1;align-self:start;margin:48px 0 38px}
+ @media(max-width:1000px){
+ #overviewStatus #lastScanned{grid-column:1 / -1;grid-row:3;margin:0}
+ #overviewStatus .count-summary{grid-row:4}#overviewStatus .asn-coverage{grid-row:5}#overviewStatus #confirmHint{grid-row:6}#overviewStatus #directReport{grid-row:7}#overviewDetailsToggle{grid-row:8}#overviewExtra{grid-row:9}
+ }
+}
+@media screen{
+ #lastScannedProgress{white-space:nowrap;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink)}
+ #lastScannedProgress[data-phase="progress"]{color:var(--shortage-ink)}
+[data-theme="dark"] #lastScannedProgress[data-phase="progress"]{color:var(--shortage-ink)}
+ #lastScannedProgress[data-phase="complete"]{color:var(--complete-ink)}
+#lastScannedProgress[data-phase="excess"]{color:var(--excess-ink)}
+ @media(min-width:1001px){
+  #overviewExtra{grid-column:3;grid-row:2;display:block;min-width:0}
+  #overviewStatus .count-exceptions{display:flex!important;flex-wrap:wrap;gap:8px!important;justify-content:flex-start}
+  #overviewStatus .count-exceptions .metric{display:flex!important;flex-direction:row;align-items:center!important;gap:8px!important;min-height:36px!important;padding:7px 10px!important;border-radius:4px;font-size:10px;flex:0 1 auto;white-space:normal}
+  #overviewStatus .count-exceptions .metric[hidden]{display:none!important}
+  #overviewStatus .count-exceptions .metric b{font-size:14px!important;line-height:20px!important;font-weight:600!important}
+  #overviewStatus .count-exceptions .metric .metric-quantity{gap:3px;display:inline-flex;align-items:baseline}
+  #overviewStatus .count-exceptions .metric .metric-unit{font-size:9px}
+  #overviewStatus #confirmHint{grid-column:3;grid-row:3}
+ }
+@media(max-width:640px){
+  #lastScannedProgress{font-size:13px}
+}
+}
+@media screen{
+ #overviewStatus .overview-content{grid-template-columns:minmax(160px,.85fr) minmax(180px,.95fr) minmax(240px,1.9fr) minmax(84px,auto)}
+ #overviewStatus .count-summary{grid-column:1 / 3}
+ #lastScannedBar{width:110px;min-width:70px;max-width:140px;flex:1 1 90px;height:5px;border:0;border-radius:2px;overflow:hidden;appearance:none;accent-color:#d8ae32}
+ #lastScannedBar::-webkit-progress-bar{background:color-mix(in srgb,var(--muted) 22%,transparent)}
+#lastScannedBar::-webkit-progress-value{background:var(--lemon-edge)}
+#lastScannedBar[data-phase="complete"]::-webkit-progress-value{background:var(--complete-ink)}
+#lastScannedBar[data-phase="excess"]::-webkit-progress-value{background:var(--excess-ink)}
+@media(max-width:1000px){
+#overviewStatus .overview-content{grid-template-columns:minmax(0,1fr) minmax(84px,auto)}
+#overviewStatus .count-summary{grid-column:1 / -1}
+}
+@media(max-width:640px){
+#lastScannedBar{flex:0 1 100px}
+}
+}
+@media screen and (max-width:1000px){
+ #overviewStatus .asn-numbers{grid-column:1;grid-row:1}
+ #overviewStatus #lastScanned{grid-column:1;grid-row:2}
+ #overviewStatus #confirmInspection{grid-column:2;grid-row:2}
+ #overviewStatus .count-summary{grid-row:3}
+ #overviewStatus .asn-coverage{grid-row:4}
+ #overviewStatus #confirmHint{grid-row:5}
+ #overviewStatus #directReport{grid-row:6}
+ #overviewDetailsToggle{grid-row:7}#overviewExtra{grid-row:8}
+}
+/* v1.10: verified totals belong directly beneath the ASN quantity summary. */
+@media screen and (min-width:1001px){
+ #overviewStatus .asn-numbers{grid-column:1 / 3;grid-row:1;margin:0;padding:0;align-self:start}
+ #overviewStatus .count-summary{grid-column:1 / 3;grid-row:2;align-self:start;padding:0!important}
+ #overviewStatus .count-summary .normal-metric{gap:4px;min-width:0}
+ #overviewStatus .count-summary .normal-value{justify-content:flex-start;gap:4px 14px;min-width:0}
+ #overviewStatus .asn-coverage{grid-column:1 / 3;grid-row:3;margin:0;align-self:start;min-height:20px}
+ #overviewStatus #lastScanned{grid-column:3;grid-row:1;margin:0;align-self:start}
+ #overviewStatus #confirmHint{grid-column:3;grid-row:3}
+ #overviewStatus #directReport{grid-column:3 / 5;grid-row:4}
+}
+@media screen and (max-width:1000px){
+ #overviewStatus .count-summary{grid-column:1 / -1;grid-row:2}
+ #overviewStatus #lastScanned{grid-column:1;grid-row:3;margin:0}
+ #overviewStatus #confirmInspection{grid-column:2;grid-row:3}
+ #overviewStatus .count-summary .normal-value{justify-content:flex-start;gap:4px 14px;flex-wrap:wrap}
+}
+/* v1.10: one Overview summary expands into the expected-SKU list. */
+@media screen{
+ #overviewStatus #skuQuest{grid-column:1 / 3;grid-row:2;min-width:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+ #overviewStatus #skuQuest>summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;min-height:44px;padding:0;cursor:pointer}
+ #overviewStatus #questTitle{font-size:12px;font-weight:600;color:var(--ink)}
+ #overviewStatus #skuQuest>summary .count-summary{flex:1 1 240px;margin:0!important;padding:0!important;min-width:0}
+ #overviewStatus #skuQuest .normal-metric>span:first-child{display:none}
+ #overviewStatus #skuQuest .normal-value{justify-content:flex-start;gap:4px 12px}
+ #overviewStatus #questSummary[hidden]{display:none!important}
+ #overviewStatus #skuQuest .quest-meta{margin-top:10px}
+ #overviewStatus #skuQuest #questList{max-height:min(42vh,360px);overflow:auto;overscroll-behavior:contain}
+ @media(max-width:1000px){#overviewStatus #skuQuest{grid-column:1 / -1;grid-row:2}#overviewStatus #skuQuest>summary .count-summary{flex-basis:100%}}
+}
+@media screen{
+ /* Overview alignment: scan and last item share the desktop top baseline. */
+ #overviewStatus .scan{grid-column:1 / 3;grid-row:1;align-self:start;width:100%;max-width:560px;min-width:0;margin:0!important;padding:0!important;border:0!important;background:transparent;box-shadow:none!important}
+ #overviewStatus .scan>label{display:block;margin:0 0 8px;font-size:11px;line-height:16px;color:var(--muted)}
+ #overviewStatus .scan #scanform{display:grid;grid-template-columns:minmax(0,1fr) auto 44px;gap:8px;width:100%;margin:0;align-items:center}
+ #overviewStatus .scan #barcode{width:100%;min-width:0;max-width:none;height:44px;font-size:16px}
+ #overviewStatus .scan #scanbutton,#overviewStatus .scan #undo{height:44px;min-height:44px;margin:0!important}
+ #overviewStatus .scan .feedback{margin:6px 0 0;min-height:0;font-size:11px}
+ #overviewStatus #lastScanned{grid-column:3;grid-row:1;align-self:start;margin:0}
+ #overviewStatus .asn-numbers{grid-column:1 / 3;grid-row:2;padding:0;min-height:0}
+ #overviewStatus #skuQuest{grid-column:1 / 3;grid-row:3}
+ #overviewStatus .asn-coverage{grid-column:1 / 3;grid-row:4}
+ @media(min-width:1201px){#overviewStatus .overview-content{grid-template-columns:minmax(220px,1.1fr) minmax(220px,1.1fr) minmax(240px,1.6fr) minmax(84px,auto)}}
+ @media(max-width:1200px){
+  #overviewStatus .overview-content{grid-template-columns:minmax(0,1fr) minmax(84px,auto)}
+  #overviewStatus .scan{grid-column:1 / -1;grid-row:1}#overviewStatus #lastScanned{grid-column:1;grid-row:2}#overviewStatus #confirmInspection{grid-column:2;grid-row:2}
+  #overviewStatus .asn-numbers{grid-column:1;grid-row:3}#overviewStatus #asnPosition{grid-column:2;grid-row:3}
+  #overviewStatus #skuQuest{grid-column:1 / -1;grid-row:4}#overviewStatus .asn-coverage{grid-column:1 / -1;grid-row:5}
+  #overviewStatus #confirmHint{grid-column:1 / -1;grid-row:6}#overviewStatus #directReport{grid-column:1 / -1;grid-row:7}#overviewDetailsToggle{grid-column:1 / -1;grid-row:8}#overviewExtra{grid-column:1 / -1;grid-row:9}
+ }
+ /* Two functional panels, using the v0.93 neutral surfaces and restrained density. */
+ .inspection-workbench{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:16px;align-items:start}
+ .inspection-workbench #scanActivitySection,.inspection-workbench #results{min-width:0;margin:0!important;padding:0!important;border:1px solid color-mix(in srgb,var(--muted) 26%,transparent)!important;border-radius:5px!important;background:var(--surface-input);box-shadow:none!important;overflow:hidden}
+ .inspection-workbench .scan-activity-head,.inspection-workbench #results>summary{display:flex;align-items:center;box-sizing:border-box;min-height:44px;margin:0!important;padding:6px 12px!important;border-bottom:1px solid color-mix(in srgb,var(--muted) 22%,transparent);border-radius:0;background:var(--surface-panel);font-size:12px;font-weight:500;gap:8px}
+ .inspection-workbench #scanActivityViewport{min-height:190px;max-height:440px;border:0!important;border-radius:0!important;overflow:auto!important}
+ .inspection-workbench :is(#activityMinimize,#activityExpand){display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;min-width:32px;min-height:32px;margin:0;padding:7px;border-radius:4px}
+ .inspection-workbench #activityExpand svg{width:16px;height:16px;stroke-width:1.7}
+ .inspection-workbench .activity-sheet{font-size:12px;line-height:1.45}
+.inspection-workbench .activity-sheet th,.inspection-workbench .activity-sheet td{padding:8px 10px;border-right:0!important}
+ .inspection-workbench .activity-sheet thead th{font-size:11px;font-weight:500;letter-spacing:0;color:var(--muted)}
+ .inspection-workbench #results .tablebar{min-height:36px;padding:6px 10px;margin:0;gap:8px;border-bottom:1px solid color-mix(in srgb,var(--muted) 20%,transparent);font-size:11px}
+ .inspection-workbench #results .tablebar strong{font-size:11px;font-weight:500}
+.inspection-workbench #filter{font-size:11px;min-height:28px;padding:4px 8px}
+ .inspection-workbench #results .tablewrap{min-height:154px;max-height:404px;overflow:auto;margin:0;border:0;border-radius:0}
+ .inspection-workbench #results table{width:100%;min-width:580px;font-size:11px;border-collapse:collapse;table-layout:auto}
+ .inspection-workbench #results th,.inspection-workbench #results td{padding:8px 10px;line-height:1.45;border-left:0;border-right:0;white-space:normal;overflow-wrap:anywhere}
+ .inspection-workbench #results th{font-size:10px;font-weight:500;position:sticky;top:0;z-index:1;background:var(--surface-panel)}
+ .inspection-workbench #results td:nth-child(2){font-family:var(--font-ui)}
+.inspection-workbench #results .badge{font-size:10px;padding:2px 5px;border-radius:3px}
+ #activityHistory .activity-sheet{min-width:850px}
+ .activity-sheet .original-input{display:block;font-size:10px;font-weight:400;color:var(--muted);overflow-wrap:anywhere;margin-top:3px}
+ @media(max-width:1100px){.inspection-workbench{grid-template-columns:minmax(0,1fr)}.inspection-workbench #scanActivityViewport{min-height:130px}.inspection-workbench #results .tablewrap{min-height:120px}}
+@media(max-width:640px){
+#overviewStatus .scan{max-width:none}
+}
+ @media(max-width:400px){#overviewStatus .scan #scanform{grid-template-columns:minmax(0,1fr) 44px}#overviewStatus .scan #barcode{grid-column:1 / -1}}
+ @media(pointer:coarse){.inspection-workbench :is(#activityMinimize,#activityExpand){width:44px;height:44px;min-width:44px;min-height:44px}}
+}
+/* One whole-order ratio; distinct SKU completion and percentage. */
+#overviewStatus #skuQuest>summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;min-height:48px;padding:10px 12px!important}
+#overviewStatus #skuQuest>summary #questTitle{margin:0;line-height:1.4}
+#overviewStatus #skuQuest>summary .count-summary{display:flex!important;align-items:center;padding:0!important;margin:0!important;min-height:0}
+#overviewStatus #skuQuest>summary .normal-metric{display:flex;flex-direction:row;align-items:center;gap:8px;margin:0;min-height:0}
+#overviewStatus #skuQuest>summary .normal-metric>span{display:none}
+#overviewStatus #skuQuest>summary .normal-value{align-items:center;gap:12px;line-height:1.4}
+#overviewStatus #skuQuest>summary .normal-total{align-items:center;font-size:11px;line-height:1.4}
+#overviewStatus #skuQuest>summary #normalTypes{font-size:12px;line-height:1.4}
+#overviewStatus .asn-coverage{margin-top:0;align-self:start}
+#overviewStatus .asn-numbers b{font-size:16px;line-height:1.4}
+@media(max-width:600px){
+#overviewStatus #skuQuest>summary{gap:8px}
+#overviewStatus #skuQuest>summary .count-summary{width:100%}
+}
+/* v1.10: Pretendard by default; terminal face only in the two workbench tables. */
+.inspection-workbench #scanActivity :is(.sheet-code,.sheet-qty,.sheet-time),
+.inspection-workbench #results tbody :is(td:nth-child(2),td.num){font-family:var(--font-terminal)!important;font-variant-numeric:tabular-nums}
+@media screen{
+html:not([data-theme="dark"]) .inspection-workbench :is(#scanActivitySection,#results){border-color:var(--line)!important}
+html:not([data-theme="dark"]) .inspection-workbench :is(.scan-activity-head,#results>summary,.activity-sheet thead th,#results th){background:#f6f8fa}
+html:not([data-theme="dark"]) .inspection-workbench #results tbody tr:nth-child(even){background:#f6f8fa}
+}
+#overviewStatus .overview-content{row-gap:16px;grid-template-rows:auto auto auto}
+#overviewStatus .asn-coverage{grid-column:1 / 3;grid-row:2;margin:0}
+#overviewStatus #confirmHint{grid-column:3;grid-row:2}
+#overviewStatus #directReport{grid-column:3 / 5;grid-row:3}
+#overviewDetailsToggle{grid-row:3}
+#overviewExtra{grid-column:1 / -1;grid-row:3}
+@media(min-width:1201px){#overviewStatus #confirmInspection{grid-column:4;grid-row:1;align-self:start}#overviewStatus #asnPosition{grid-column:4;grid-row:2}}
+#lastScannedName{font-size:22px;font-weight:800;line-height:1.35;white-space:normal;overflow-wrap:anywhere;min-width:0;max-width:100%}
+@media(max-width:1200px){#overviewStatus .asn-coverage{grid-column:1 / -1;grid-row:3}#overviewStatus #asnPosition{grid-column:2;grid-row:2;align-self:end}#overviewStatus #confirmHint{grid-column:1 / -1;grid-row:4}#overviewStatus #directReport{grid-column:1 / -1;grid-row:5}#overviewDetailsToggle{grid-row:5}#overviewExtra{grid-row:6}}
+@media(max-width:700px){
+#lastScannedName{font-size:19px;line-height:1.4}
+}
+/* Store-wide unknown product alert, distinct from a different order or identity conflict. */
+#lastScanned.store-unregistered{background:var(--lemon-alert)!important;color:var(--alert-ink)!important;padding:12px;border-radius:6px}
+#lastScanned.store-unregistered *{color:var(--alert-ink)!important}
+/* Focus hierarchy and latest-record marker from multi-pane terminal tools.
+   No new keymap, command prompt, graph decoration, or replacement of status-cell colors. */
+.inspection-workbench :is(#scanActivitySection,#results){border-radius:3px!important;border:1px solid var(--line)!important}
+.inspection-workbench :is(.scan-activity-head,#results>summary){min-height:40px;gap:8px;font-size:12px;font-weight:600}
+.inspection-workbench #scanActivity .sheet-row:last-child>td:not(.sheet-status){background:color-mix(in srgb,var(--muted) 7%,var(--surface-input))}
+.inspection-workbench #scanActivity .sheet-row:last-child>td:first-child{box-shadow:inset 2px 0 0 var(--muted)!important}
+.inspection-workbench :is(.activity-sheet,#results table){font-size:12px;line-height:1.45}
+.inspection-workbench :is(.activity-sheet thead th,#results th){font-size:11px;font-weight:500;padding-top:8px;padding-bottom:8px}
+.inspection-workbench :is(.sheet-qty,.sheet-time,#results td.num){font-variant-numeric:tabular-nums;white-space:nowrap}
+@media(pointer:coarse){.inspection-workbench :is(.scan-activity-head,#results>summary){min-height:44px}}
+#unassignedActivity{min-height:30px;padding:4px 7px;font-size:11px}
+#lastScannedPicking{flex:0 1 180px;display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%;margin:0;padding:0;border:0;max-height:none;overflow:visible}
+#lastScannedPicking[hidden]{display:none!important}
+#lastScannedPicking .picking-zone-group{flex:1 1 128px;min-width:0;max-width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;margin:0;padding:16px 12px;background:#121212;color:#fff;border:1px solid #333;border-radius:12px;text-align:center}
+#lastScanned.store-unregistered #lastScannedPicking .picking-zone-group strong{color:#fff!important}
+#lastScanned.store-unregistered #lastScannedPicking .picking-loc{color:#bdbdbd!important}
+#lastScannedPicking .picking-zone-group strong{font-family:var(--font-ui);font-size:clamp(28px,3vw,42px);font-weight:750;line-height:1.1;color:#fff;overflow-wrap:anywhere;max-width:100%}
+#lastScannedPicking .picking-loc{font-family:var(--font-ui);font-size:13px;font-weight:650;line-height:1.4;color:#bdbdbd;overflow-wrap:anywhere;max-width:100%}
+#lastScannedPicking .picking-note{flex-basis:100%;margin:0;font-size:11px;line-height:1.4;overflow-wrap:anywhere;color:var(--muted)}
+@media(max-width:600px){#lastScannedPicking{flex:1 1 100%;width:100%}#lastScannedPicking .picking-zone-group{flex:1 1 128px}#lastScannedPicking .picking-zone-group strong{font-size:32px}}
+/* v1.10 TUI workbench: pane hierarchy, not terminal decoration. */
+@media screen{
+ .inspection-workbench{--tui-edge:#b7c0c8;--tui-rule:#dce2e7;--tui-head:#eef2f5;--tui-surface:#fff;--tui-dim:#52606d;--tui-focus:#237d91;gap:12px;align-items:start}
+ html[data-theme="dark"] .inspection-workbench{--tui-edge:#4a535d;--tui-rule:#303941;--tui-head:#242c33;--tui-surface:#181d22;--tui-dim:#b8c3ce;--tui-focus:#7cc5d6}
+ .inspection-workbench :is(#scanActivitySection,#results){border:1px solid var(--tui-edge)!important;border-radius:3px!important;background:var(--tui-surface)!important;box-shadow:none!important}
+
+ .inspection-workbench :is(.scan-activity-head,#results>summary){min-height:44px;padding:4px 10px!important;gap:8px;border-bottom:1px solid var(--tui-edge);background:var(--tui-head);color:var(--ink);font:600 12px/1.4 var(--font-ui);letter-spacing:0}
+ .inspection-workbench .scan-activity-head h2{margin:0;font:inherit;min-width:0;overflow-wrap:anywhere}
+ .inspection-workbench :is(#activityMinimize,#activityExpand){width:32px;min-width:32px;height:32px;min-height:32px;padding:7px;margin:0;border:1px solid transparent;border-radius:2px;color:var(--tui-dim);background:transparent;box-shadow:none}
+ .inspection-workbench :is(#activityMinimize,#activityExpand):hover{border-color:var(--tui-edge);background:var(--tui-surface);color:var(--ink)}
+ .inspection-workbench :is(#activityMinimize,#activityExpand) svg{width:16px;height:16px;stroke-width:1.7;flex:none}
+ .inspection-workbench #results>summary::after{display:block;width:32px;height:32px;line-height:32px;text-align:center;flex:none;font-size:18px;color:var(--tui-dim)}
+ .inspection-workbench #results .tablebar{padding:6px 10px;gap:10px;border-bottom:1px solid var(--tui-rule);background:var(--tui-surface);color:var(--tui-dim);min-height:38px}
+ .inspection-workbench #filter{border:1px solid var(--tui-edge);border-radius:2px;background:var(--tui-surface);color:var(--ink);font:400 11px/1.4 var(--font-ui);min-height:28px}
+ .inspection-workbench :is(#scanActivityViewport,#results .tablewrap){background:var(--tui-surface);scrollbar-width:thin;scrollbar-color:var(--tui-edge) var(--tui-surface);overscroll-behavior:contain}
+ .inspection-workbench :is(.activity-sheet,#results table){font:400 12px/1.5 var(--font-ui);font-variant-numeric:tabular-nums}
+ .inspection-workbench :is(.activity-sheet th,#results th){background:var(--tui-head);color:var(--tui-dim);font:500 11px/1.4 var(--font-ui);padding:7px 10px;border-bottom:1px solid var(--tui-edge);white-space:nowrap}
+ .inspection-workbench :is(.activity-sheet td:not(.sheet-status),#results td){padding:9px 10px;border-bottom:1px solid var(--tui-rule);vertical-align:top}
+ .inspection-workbench :is(.activity-sheet tbody tr,#results tbody tr):hover>td{box-shadow:inset 0 1px 0 var(--tui-edge),inset 0 -1px 0 var(--tui-edge)}
+ .inspection-workbench :is(.sheet-code,.sheet-qty,.sheet-time,#results tbody td.num){font-family:var(--font-terminal);font-variant-numeric:tabular-nums}
+ .inspection-workbench :is(.sheet-name,#results td.name){font-family:var(--font-ui);font-weight:500;overflow-wrap:anywhere}
+ .inspection-workbench :is(.original-input,#results td.name .small){font-family:var(--font-ui);font-weight:400;font-size:11px;line-height:1.45;color:var(--tui-dim);margin-top:3px}
+ .inspection-workbench .sheet-time{font-size:11px;line-height:1.5}
+ .inspection-workbench .sheet-qty{white-space:nowrap;text-align:right}
+ .inspection-workbench #results .badge{border-radius:2px;font:600 11px/1.4 var(--font-ui);padding:3px 5px}
+
+ @media(max-width:1100px){.inspection-workbench{gap:12px}}
+ @media(max-width:600px){.inspection-workbench :is(.scan-activity-head,#results>summary){min-height:48px;padding-inline:8px!important}.inspection-workbench :is(#activityMinimize,#activityExpand){width:40px;min-width:40px;height:40px;min-height:40px}.inspection-workbench #filter{min-height:36px}.inspection-workbench :is(.activity-sheet td:not(.sheet-status),#results td){padding:9px 8px}.inspection-workbench :is(.activity-sheet th,#results th){padding:7px 8px}}
+ @media(forced-colors:active){.inspection-workbench{--tui-edge:CanvasText;--tui-rule:CanvasText;--tui-head:Canvas;--tui-surface:Canvas;--tui-dim:CanvasText;--tui-focus:Highlight}}
+}
+@media screen{
+ .inspection-workbench{--tui-edge:#8f947b;--tui-rule:#dce0ce;--tui-head:#f3f4e9;--tui-surface:#fbfcf5;--tui-dim:#60664c;--tui-focus:#626b20;--tui-selected:#e7ebbc;--tui-code:#426c72;grid-template-columns:minmax(0,0.9fr) minmax(0,1.2fr);gap:14px;padding-top:10px}
+ html[data-theme="dark"] .inspection-workbench{--tui-edge:#525646;--tui-rule:#2c3027;--tui-head:#11150f;--tui-surface:#0c100c;--tui-dim:#a0a68f;--tui-focus:#d3dc71;--tui-selected:#2d351c;--tui-code:#9cc7bd;color:#e1e6d9}
+ .inspection-workbench :is(#scanActivitySection,#results){position:relative;border-color:var(--tui-edge)!important;border-radius:0!important;padding-top:0;min-width:0;overflow:visible!important}
+ .inspection-workbench :is(.scan-activity-head,#results>summary){position:relative;margin:-11px 8px 0!important;padding:0 6px!important;min-height:29px!important;border:0!important;background:var(--tui-surface)!important;color:var(--tui-focus)!important;box-shadow:none!important;letter-spacing:.015em;width:fit-content;max-width:calc(100% - 16px)}
+ .inspection-workbench .scan-activity-head{width:calc(100% - 16px);justify-content:flex-end}
+ .inspection-workbench .activity-heading-text{margin-right:auto;flex:1;min-width:0}
+ .inspection-workbench #scanActivityTitle::before{content:'01 / ';font-family:var(--font-terminal);font-weight:500;opacity:.65}
+ .inspection-workbench #results>summary::before{content:'02 / ';font-family:var(--font-terminal);font-weight:500;opacity:.65;margin-right:7px}
+ .inspection-workbench :is(.activity-sheet th,#results th){background:var(--tui-head)!important;color:var(--tui-dim)!important;border-top:1px solid var(--tui-rule);border-bottom:1px dashed var(--tui-edge)!important;font-weight:500;padding:7px 9px!important}
+ .inspection-workbench :is(.activity-sheet td:not(.sheet-status),#results td){padding:8px 9px!important;border-bottom:1px solid var(--tui-rule)!important}
+ .inspection-workbench #results tbody tr:nth-child(even){background:transparent!important}
+ .inspection-workbench #scanActivity .sheet-row:last-child>td:not(.sheet-status){background:var(--tui-selected)!important}
+ .inspection-workbench #scanActivity .sheet-row:last-child>td:first-child{box-shadow:inset 3px 0 0 var(--tui-focus)!important}
+ .inspection-workbench :is(.sheet-code,#results tbody td:nth-child(2)){color:var(--tui-code)}
+ .inspection-workbench :is(.activity-sheet tbody tr,#results tbody tr):hover>td:not(.sheet-status){background:var(--tui-selected)!important;box-shadow:none}
+ .inspection-workbench :is(.sheet-status,.status-cell){border-radius:0!important}
+ .inspection-workbench #results .tablebar{background:var(--tui-surface);border-bottom:0;padding:3px 9px 8px;gap:6px}
+ .inspection-workbench #results .tablebar strong{display:none}
+ .inspection-workbench #rowcount{font-size:11px;margin:0;color:var(--tui-dim)}
+ .inspection-workbench #filter{border:1px solid var(--tui-edge)!important;background:var(--tui-head)!important;color:inherit;border-radius:0;min-height:29px}
+ .inspection-workbench :is(#scanActivityViewport,#results .tablewrap){max-height:420px;min-height:120px}
+ .inspection-workbench .empty{padding:36px 20px;background:transparent;color:var(--tui-dim)}
+ .inspection-workbench .data-pager{border-top:1px dashed var(--tui-edge);background:var(--tui-head)}
+ .inspection-workbench .data-pager button{border-radius:0;background:transparent;border:1px solid var(--tui-edge)}
+ #overviewStatus .count-exceptions{display:flex!important;flex-wrap:wrap;gap:8px!important}
+ #overviewStatus .count-exceptions .metric{flex:0 1 auto;min-width:108px}
+ #overviewStatus #otherAsnDetails{border:1px solid var(--line)!important}
+ #overviewStatus #otherAsnDetails[hidden]{display:none!important}
+ @media(max-width:1100px){.inspection-workbench{grid-template-columns:1fr;gap:22px}.inspection-workbench :is(#scanActivityViewport,#results .tablewrap){max-height:380px}}
+@media(max-width:600px){
+.inspection-workbench :is(.scan-activity-head,#results>summary){min-height:40px!important;margin-top:-15px!important}
+.inspection-workbench{padding-top:14px}
+.inspection-workbench #filter{min-height:36px}
+}
+ @media(forced-colors:active){.inspection-workbench{--tui-edge:CanvasText;--tui-rule:CanvasText;--tui-head:Canvas;--tui-surface:Canvas;--tui-dim:CanvasText;--tui-focus:Highlight;--tui-selected:Canvas;--tui-code:CanvasText}}
+}
+/* v1.15: scoped terminal accent and five columns that fit the recent panel. */
+@media screen{
+ .inspection-workbench{--tui-accent:#D7FEFF;--tui-focus:#465e16;--tui-selected:color-mix(in srgb,var(--tui-accent) 33%,var(--tui-surface))}
+ html[data-theme="dark"] .inspection-workbench{--tui-focus:var(--tui-accent);--tui-selected:color-mix(in srgb,var(--tui-accent) 14%,var(--tui-surface))}
+ .inspection-workbench :is(#scanActivityTitle,#results>summary)::before{background:var(--tui-accent);color:#202711;opacity:1;padding:0 4px;margin-right:5px}
+ #scanActivitySection #scanActivityViewport{container-type:inline-size;overflow-x:hidden!important;overflow-y:auto!important}
+ #scanActivitySection .compact-activity{width:100%;min-width:0;table-layout:fixed}
+ #scanActivitySection .compact-activity .compact-col-0{width:29%}
+ #scanActivitySection .compact-activity .compact-col-1{width:auto}
+ #scanActivitySection .compact-activity .compact-col-2{width:12%;text-align:right}
+ #scanActivitySection .compact-activity .compact-col-3{width:23%}
+ #scanActivitySection .compact-activity .compact-col-4{width:12%;text-align:center}
+ #scanActivitySection .compact-activity :is(th,td){white-space:normal;overflow-wrap:anywhere}
+ #scanActivitySection .activity-code-line{display:grid;grid-template-columns:4.6ch minmax(0,1fr);gap:5px;align-items:baseline}
+ #scanActivitySection .activity-code-line+ .activity-code-line{margin-top:3px}
+ #scanActivitySection .activity-code-line small{font:600 9px/1.2 var(--font-ui);letter-spacing:.015em;color:var(--tui-dim)}
+ #scanActivitySection .activity-code-line span{min-width:0;overflow-wrap:anywhere}
+ #scanActivitySection .compact-activity .sheet-qty small{display:block;margin-left:0}
+ #scanActivitySection .compact-activity .sheet-status>span{max-width:100%}
+ #scanActivitySection .compact-activity .assign-entry{display:flex;margin:3px auto 0;width:min(28px,100%);min-width:0}
+ @container(max-width:450px){
+  #scanActivitySection .compact-activity :is(th,td){padding-inline:5px!important}
+  #scanActivitySection .activity-code-line{display:block}
+  #scanActivitySection .activity-code-line small{display:block}
+ }
+ @media(forced-colors:active){
+  .inspection-workbench,html[data-theme="dark"] .inspection-workbench{--tui-focus:Highlight;--tui-selected:Canvas;--tui-accent:Highlight}
+  .inspection-workbench :is(#scanActivityTitle,#results>summary)::before{color:HighlightText}
+ }
+}
+@media screen{
+ #overviewStatus #overviewPutaway{grid-column:4;grid-row:1;align-self:start;min-width:0;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-panel);color:var(--ink)}
+ #overviewPutaway .putaway-label{display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.25}
+ #overviewPutaway .putaway-label svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;flex:none}
+ #overviewPutaway .last-scanned-picking{border-top:1px solid var(--line);margin-top:5px;padding-top:5px;max-height:102px}
+ #overviewPutaway .picking-zone-group{margin:0 0 4px}
+ #overviewPutaway .picking-note{margin:2px 0;font-size:11px}
+ #rows .comparison-held{display:block;font-size:10px;margin-top:2px}
+}
+@media screen and (max-width:1200px){#overviewStatus #overviewPutaway{grid-column:2;grid-row:2}#overviewStatus #asnPosition{grid-column:2;grid-row:4}}
+@media screen{
+ /* Last item and putaway travel together; the order counter has its own row. */
+ #overviewStatus #scanReadout{grid-column:3 / 5;grid-row:1;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:14px;min-width:0}
+ #overviewStatus #scanReadout:has(#lastScanned:not([hidden]) + #overviewPutaway:not([hidden])){grid-template-columns:minmax(0,1fr) minmax(136px,36%)}
+ #overviewStatus #scanReadout #lastScanned{grid-area:auto;min-width:0;margin:0}
+ #overviewStatus #scanReadout #overviewPutaway{grid-area:auto;align-self:start;min-width:0;max-width:100%;margin:0;padding:0 0 0 12px;border-radius:0;background:transparent;border-left:1px solid var(--line)!important}
+ #scanReadout .putaway-label{font:500 11px/16px var(--font-ui);color:var(--muted);margin:0 0 8px}
+ #scanReadout .putaway-label svg{width:14px;height:14px}
+ #scanReadout .last-scanned-label{line-height:16px}
+ #scanReadout #lastScannedPicking{display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:6px;max-height:144px;overflow:auto;margin:0;padding:0;border:0}
+ #scanReadout #lastScannedPicking .picking-zone-group{display:grid;justify-content:stretch;justify-items:start;gap:4px;flex:none;margin:0;padding:9px 10px;border-radius:5px;text-align:left;background:var(--surface-panel);border:1px solid var(--line);color:var(--ink)}
+ #scanReadout #lastScannedPicking .picking-zone-group strong{color:var(--ink);font-size:24px;line-height:1.1}
+ #scanReadout #lastScannedPicking .picking-loc{color:var(--muted);font-size:11px}
+ #scanReadout #lastScannedPicking .picking-note{flex:none;margin:0}
+ #overviewStatus{--asn-nav-size:52px;grid-template-columns:var(--asn-nav-size) minmax(0,1fr) var(--asn-nav-size)}
+ #overviewStatus>.overview-arrow{width:var(--asn-nav-size);height:var(--asn-nav-size);min-width:var(--asn-nav-size);min-height:var(--asn-nav-size);justify-self:center;transform:none}
+ #overviewStatus>.overview-arrow svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;width:27px;height:27px;flex:none}
+ #overviewStatus>.overview-arrow:not(:disabled){background:var(--surface-raised)!important;color:var(--ink)!important;border:1px solid var(--line)!important;border-radius:7px}
+ #overviewStatus>.overview-arrow:hover:not(:disabled){border-color:currentColor!important}
+ #overviewStatus>.overview-arrow:disabled{opacity:.3}
+ #overviewStatus #asnPosition{justify-self:end;white-space:nowrap;align-self:center}
+ @media(max-width:1200px){
+  #overviewStatus #scanReadout{grid-column:1 / -1;grid-row:2}
+  #overviewStatus .asn-coverage{grid-column:1;grid-row:3}
+  #overviewStatus #asnPosition{grid-column:2;grid-row:3}
+ }
+ @media(max-width:640px){
+  #overviewStatus{--asn-nav-size:44px}
+  #overviewStatus>.overview-arrow svg{width:24px;height:24px}
+  #overviewStatus #scanReadout:has(#lastScanned:not([hidden]) + #overviewPutaway:not([hidden])){grid-template-columns:minmax(0,1fr)}
+  #overviewStatus #scanReadout #overviewPutaway{padding:8px 0 0;border-left:0!important;border-top:1px solid var(--line)!important}
+  #overviewStatus .scan #scanform{gap:6px}
+ }
+ /* Recent entries inherit the current-order pane's terminal rhythm. */
+ #scanActivitySection .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+ .inspection-workbench #scanActivitySection .scan-activity-head{display:inline-flex;width:fit-content;justify-content:flex-start;min-height:32px!important}
+ .inspection-workbench #scanActivityTitle{font:inherit;color:var(--tui-focus);white-space:nowrap}
+ .inspection-workbench #scanActivityTitle::before{content:'01 /';display:inline-block;white-space:nowrap;margin-right:7px}
+ .inspection-workbench #scanActivitySection #activityMinimize{width:32px;min-width:32px;height:32px;min-height:32px;color:var(--tui-dim)!important}
+ .inspection-workbench :is(#results .tablebar,#recentActivityBar){display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:40px;padding:3px 9px 8px;margin:0;background:var(--tui-surface);color:var(--tui-dim);border:0!important;font-size:11px}
+ #recentActivityBar .recent-tools{display:flex;align-items:center;gap:5px;flex:none}
+ #recentActivityRef{min-width:0;overflow-wrap:anywhere}
+ #scanActivitySection #recentActivityBar :is(#activityExpand,#unassignedActivity){border:1px solid var(--tui-edge)!important;border-radius:0;background:var(--tui-head)!important;color:var(--ink)!important;min-height:29px;height:29px;margin:0}
+ #scanActivitySection #activityExpand{padding:5px;width:32px;min-width:32px}
+ #scanActivitySection #unassignedActivity{font-size:10px;padding:2px 5px;white-space:normal;width:auto;height:auto}
+ #scanActivitySection #unassignedActivity[hidden]{display:none!important}
+ #scanActivitySection #scanActivityViewport{margin:0;border:0;border-radius:0}
+ #scanActivitySection .compact-activity .compact-col-0{width:28%}
+ #scanActivitySection .compact-activity .compact-col-2{width:12%}
+ #scanActivitySection .compact-activity .compact-col-3{width:23%}
+ #scanActivitySection .compact-activity .compact-col-4{width:13%;text-align:left}
+ #scanActivitySection .compact-activity tbody tr>td{background:transparent!important;vertical-align:top;border-bottom:1px solid var(--tui-rule)!important;padding:8px 9px!important;box-shadow:none!important}
+ #scanActivitySection .compact-activity tbody tr:hover>td{background:var(--tui-selected)!important}
+ #scanActivitySection .compact-activity tbody tr:last-child>td:first-child{box-shadow:inset 2px 0 0 var(--tui-focus)!important}
+ #scanActivitySection .activity-code-pair{font-size:12px}
+ #scanActivitySection .activity-code-pair span{display:block;overflow-wrap:anywhere;line-height:1.5}
+ #scanActivitySection .activity-code-pair .secondary-code,#scanActivitySection .compact-activity .sheet-time small{font-size:11px;color:var(--tui-dim)}
+ #scanActivitySection .compact-activity .sheet-qty b{font:inherit}
+ #scanActivitySection .compact-activity .sheet-qty small{display:inline;margin-left:.3em;color:var(--tui-dim)}
+ #scanActivitySection .compact-activity td.sheet-status{text-align:left;position:static}
+ #scanActivitySection .compact-activity .status-symbol{display:inline-grid;place-items:center;padding:3px 5px;min-width:22px;border-radius:2px;font:600 11px/1.4 var(--font-ui);background:var(--warning-bg);color:var(--warning-ink)}
+ #scanActivitySection .compact-activity [data-cell-state="complete"] .status-symbol{background:var(--complete-bg);color:var(--complete-ink)}
+ #scanActivitySection .compact-activity [data-cell-state="excess"] .status-symbol{background:var(--shortage-bg);color:var(--shortage-ink)}
+ #scanActivitySection .compact-activity [data-cell-state="waiting"] .status-symbol{background:var(--tui-head);color:var(--tui-dim)}
+ #scanActivitySection .compact-activity .assign-entry{position:static;transform:none;margin:4px 0 0;color:var(--ink);max-width:100%}
+ #scanActivitySection .compact-activity .sheet-empty{text-align:center;padding:36px 12px!important}
+ @media(max-width:600px){
+  .inspection-workbench #scanActivitySection .scan-activity-head{min-height:40px!important}
+  #scanActivitySection #activityExpand{min-height:36px}
+  #scanActivitySection .compact-activity thead th,#scanActivitySection .compact-activity tbody tr>td{padding-inline:5px!important}
+  #scanActivitySection .compact-activity .sheet-qty small{display:block;margin:0}
+ }
+}
+@media screen{
+ #overviewStatus #scanReadout #overviewPutaway{display:block;min-height:0;height:auto}
+ #scanActivitySection #scanActivityViewport{background:var(--tui-surface)!important}
+ #scanActivitySection #scanActivity .compact-activity .sheet-row:last-child>td:not(.sheet-status){background:transparent!important}
+ #scanActivitySection #scanActivity .compact-activity .sheet-row:last-child:hover>td:not(.sheet-status){background:var(--tui-selected)!important}
+ .inspection-workbench :is(#scanActivitySection .scan-activity-head,#results>summary){margin-top:-11px!important;min-height:32px!important;vertical-align:top}
+ @media(max-width:600px){.inspection-workbench :is(#scanActivitySection .scan-activity-head,#results>summary){margin-top:-15px!important;min-height:40px!important}}
+}
+@media screen{
+ .inspection-workbench{--tui-accent:var(--signature);--tui-focus:var(--signature-ink);--tui-edge:#718d88;--tui-rule:#d6e3df;--tui-head:#edf7f4;--tui-surface:#f8fcfb;--tui-dim:#50645f;--tui-selected:#dff7f2;--tui-code:#295f5e}
+ html[data-theme="dark"] .inspection-workbench{--tui-edge:#3e5754;--tui-rule:#273a37;--tui-head:#10201e;--tui-surface:#0d1716;--tui-dim:#a5bbb6;--tui-focus:var(--signature);--tui-selected:#1e3531;--tui-code:#9fcdc5}
+@media(forced-colors:active){
+  .inspection-workbench,html[data-theme="dark"] .inspection-workbench{--tui-accent:Highlight;--tui-focus:Highlight;--tui-edge:CanvasText;--tui-rule:CanvasText;--tui-head:Canvas;--tui-surface:Canvas;--tui-dim:CanvasText;--tui-selected:Canvas;--tui-code:CanvasText}
+}
+}
+@media screen and (forced-colors:none){
+ .inspection-workbench{
+  --tui-edge:#738C91;--tui-rule:#D9E4E7;--tui-head:#F0F7F8;--tui-surface:#F8FCFC;
+  --tui-dim:#506268;--tui-selected:#E6F8F9;--tui-code:#275A61;
+ }
+ html[data-theme="dark"] .inspection-workbench{
+  --tui-edge:#456066;--tui-rule:#293F44;--tui-head:#142427;--tui-surface:#0F1A1C;
+  --tui-dim:#AFBEC0;--tui-selected:#20383D;--tui-code:#A8CED2;
+ }
+ #lastScanned.store-unregistered{background:var(--lemon-alert)!important;color:var(--alert-ink)!important}
+ :root .activity-sheet .sheet-status[data-cell-state="complete"]{background:var(--complete-bg)!important;color:var(--complete-ink)!important}
+ :root .activity-sheet .sheet-status:is([data-cell-state="progress"],[data-cell-state="review"],[data-cell-state="hold"]){background:var(--warning-bg)!important;color:var(--warning-ink)!important}
+ :root .activity-sheet .sheet-status[data-cell-state="excess"]{background:var(--excess-bg)!important;color:var(--excess-ink)!important}
+ #scanActivitySection .compact-activity [data-cell-state="excess"] .status-symbol{background:var(--excess-bg);color:var(--excess-ink)}
+ :root .activity-sheet tr[data-status="예정 외"] .sheet-status,
+ :root #scanActivitySection .compact-activity tr[data-status="예정 외"] .status-symbol{
+  background:var(--warning-bg)!important;color:var(--warning-ink)!important;
+ }
+ #rows tr[data-quantity-state="shortage"] .badge,
+ #rows tr[data-quantity-state="excess"] .badge.bad{background:var(--warning-bg)!important;color:var(--warning-ink)!important}
+ #rows tr[data-quantity-state="excess"] .badge:not(.bad){background:var(--excess-bg)!important;color:var(--excess-ink)!important}
+ #lastScannedBar[data-phase="progress"]{accent-color:var(--lemon-edge)}
+ #lastScannedBar[data-phase="progress"]::-webkit-progress-value{background:var(--lemon-edge)}
+ #lastScannedBar[data-phase="progress"]::-moz-progress-bar{background:var(--lemon-edge)}
+}
+@media screen and (forced-colors:none){
+ #sheetWorkspace #overviewStatus{
+  padding:var(--beam-space-4)!important;border:1px solid var(--beam-rule)!important;
+  border-radius:var(--beam-radius-paper);background:var(--beam-paper)!important;
+ }
+ #sheetWorkspace #scanform #barcode{min-height:var(--beam-control-height);border-radius:var(--beam-radius-pill)!important}
+ #sheetWorkspace #lastScanned:not(.store-unregistered){box-shadow:none}
+ #sheetWorkspace .inspection-workbench{
+  --tui-surface:var(--beam-terminal-fill);--tui-head:var(--beam-terminal-head);--tui-rule:var(--beam-terminal-rule);
+  --tui-edge:var(--beam-rule);grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--beam-space-4);padding-top:0;
+ }
+ #sheetWorkspace .inspection-workbench :is(#scanActivitySection,#results){
+  background:var(--beam-paper)!important;border-radius:var(--beam-radius-paper)!important;
+ }
+ #sheetWorkspace .inspection-workbench :is(.scan-activity-head,#results>summary){
+  background:var(--beam-paper)!important;color:var(--beam-type)!important;
+  margin:0 8px 0!important;min-height:40px!important;
+  border-bottom:1px solid var(--beam-terminal-rule)!important;
+ }
+ @media(max-width:1100px){#sheetWorkspace .inspection-workbench{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:650px){
+  #sheetWorkspace #overviewStatus{padding:6px 2px 10px!important}
+}
+}
+@media screen and (forced-colors:none){
+ html[data-theme="dark"] #sheetWorkspace .inspection-workbench{
+  --tui-accent:#D8D8D8;--tui-focus:#E0E0E0;--tui-edge:#262626;--tui-dim:#B7B7B7;
+  --tui-selected:#303030;--tui-code:#CCCCCC;color:var(--beam-type);
+ }
+ html[data-theme="dark"] #sheetWorkspace #scanform #barcode{
+  background:#262626!important;border-color:transparent!important;color:var(--beam-type);
+ }
+ html[data-theme="dark"] #sheetWorkspace #overviewStatus,
+ html[data-theme="dark"] #sheetWorkspace .inspection-workbench :is(#scanActivitySection,#results){
+  border-color:transparent!important;box-shadow:none!important;
+ }
+ html[data-theme="dark"] #sheetWorkspace .inspection-workbench :is(.scan-activity-head,#results>summary){
+  border-color:#262626!important;
+ }
+}
+@media screen {
+ #sheetWorkspace #overviewStatus .count-exceptions :is(#missingDetails:has(#missing:not(.quiet)),#outsideDetails:has(#unregistered:not(.quiet))){background:var(--warning-bg)!important;color:var(--warning-ink)!important}
+ #sheetWorkspace #overviewStatus .count-exceptions #excessDetails:has(#excess:not(.quiet)){background:var(--excess-bg)!important;color:var(--excess-ink)!important}
+ #sheetWorkspace #overviewStatus .count-exceptions button :is(b,.metric-unit){color:inherit!important}
+ #sheetWorkspace #overviewStatus{border:0!important;background:var(--beam-canvas)!important;box-shadow:none!important;border-radius:0!important}
+ #sheetWorkspace #overviewStatus .overview-content{row-gap:14px}
+ #sheetWorkspace #scanform{position:relative}
+ #sheetWorkspace #scanform .beam-scan-glyph{position:absolute;inset-inline-start:13px;top:12px;width:20px;height:20px;color:var(--beam-muted);pointer-events:none;z-index:1}
+ #sheetWorkspace #scanform #barcode{padding-inline-start:42px!important;background:var(--beam-field)!important;border-color:transparent!important;color:var(--beam-type)}
+ #sheetWorkspace #lastScannedName{font-size:clamp(23px,3.4vw,40px);letter-spacing:-.045em;line-height:1.1}
+ #sheetWorkspace #lastScanned:not(.store-unregistered){border:0!important;background:transparent!important}
+ #sheetWorkspace .inspection-workbench{padding-top:4px}
+ #sheetWorkspace .inspection-workbench :is(#scanActivitySection,#results){background:var(--beam-paper)!important;border:0!important;box-shadow:none!important;border-radius:7px!important;overflow:hidden}
+ #sheetWorkspace .inspection-workbench :is(#scanActivitySection .scan-activity-head,#results>summary){
+  width:auto!important;display:flex!important;justify-content:flex-start;align-items:center;gap:9px;margin:0!important;padding:5px 12px!important;min-height:40px!important;
+  background:var(--beam-level)!important;color:var(--beam-type)!important;border:0!important;box-shadow:none!important;font:720 14px/1.25 var(--font-ui);
+ }
+ #sheetWorkspace .inspection-workbench :is(#scanActivitySection .scan-activity-head,#results>summary){width:100%!important}
+ #sheetWorkspace .inspection-workbench #scanActivityTitle{color:inherit}
+ #sheetWorkspace .inspection-workbench :is(#scanActivityTitle,#results>summary)::before{font-family:var(--font-terminal);font-size:11px;opacity:.72}
+ #sheetWorkspace .inspection-workbench :is(.activity-sheet,#results table) tbody tr:nth-child(odd)>td{background:var(--beam-row)!important}
+ #sheetWorkspace .inspection-workbench :is(.activity-sheet,#results table) tbody tr>td{border-bottom-color:transparent!important}
+ #sheetWorkspace .inspection-workbench :is(.activity-sheet,#results table) tbody tr:hover>td{background:var(--beam-face)!important;box-shadow:none!important}
+ #sheetWorkspace .inspection-workbench #rows td:nth-child(3),#sheetWorkspace .inspection-workbench .sheet-product{font-family:var(--font-ui)}
+ #sheetWorkspace .inspection-workbench :is(.sheet-time,.sheet-code,.sheet-qty,#rows .num){font-family:var(--font-terminal);font-variant-numeric:tabular-nums}
+ @media(min-width:1000px){
+  #sheetWorkspace .inspection-workbench{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ }
+@media(max-width:650px){
+  #sheetWorkspace #lastScannedName{font-size:26px}
+}
+}
+@media screen and (forced-colors:none){
+  html[data-theme] #lastScannedBar[data-phase="complete"]::-webkit-progress-value{background:var(--complete-ink)}
+  html[data-theme] #lastScannedBar[data-phase="complete"]::-moz-progress-bar{background:var(--complete-ink)}
+}
+@media screen and (forced-colors:none){
+ html[data-theme] #lastScannedBar::-webkit-progress-value{background:var(--beam-selection)!important}
+ html[data-theme] #lastScannedBar::-moz-progress-bar{background:var(--beam-selection)!important}
+ html[data-theme] :is(#scanActivitySection .compact-activity,.activity-sheet) tr[data-status="예정 외"] :is(.status-symbol,.sheet-status){
+  background:var(--lemon-alert)!important;color:var(--alert-ink)!important;
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus #outsideDetails:has(#unregistered:not(.quiet)){
+  background:var(--lemon-alert)!important;color:var(--alert-ink)!important;
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus .count-exceptions
+ :is(#missingDetails:has(#missing:not(.quiet)),#excessDetails:has(#excess:not(.quiet)),#outsideDetails:has(#unregistered:not(.quiet)))
+ :is(span,b){color:inherit!important}
+ html[data-theme] #sheetWorkspace #overviewStatus .scan{
+  box-sizing:border-box;padding:10px 12px!important;background:var(--beam-scan-panel);border-radius:16px;
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus .scan>label{
+  margin:0 0 7px;padding-inline:3px;font-weight:650;color:var(--beam-muted);
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus .scan #scanform{
+  display:grid;grid-template-columns:minmax(0,1fr) 44px 44px;gap:6px;align-items:center;
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus .scan #barcode{
+  background:var(--beam-scan-idle)!important;min-height:44px;height:44px;padding-inline:36px 10px!important;
+  line-height:1.2;font-size:14px;
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus .scan #barcode::placeholder{color:var(--beam-muted);opacity:1}
+ html[data-theme] #sheetWorkspace #overviewStatus .scan #scanform .beam-scan-glyph{
+  left:11px;top:13px;width:18px;height:18px;
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus .scan #scanform :is(#scanbutton,#undo){
+  display:grid;place-items:center;width:44px;min-width:44px;height:44px;min-height:44px;box-sizing:border-box;
+  border-radius:50%!important;padding:0!important;border:0!important;line-height:1;font-weight:690;
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus .scan #scanbutton{
+  background:var(--beam-action)!important;color:var(--beam-action-ink)!important;
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus .scan #undo{
+  background:var(--beam-scan-idle)!important;color:var(--beam-type)!important;
+ }
+ html[data-theme] #sheetWorkspace #overviewStatus .scan #feedback:not(:empty){
+  margin:7px 0 0;padding-inline:3px;line-height:1.35;overflow-wrap:anywhere;
+ }
+ @media(max-width:390px){
+  html[data-theme] #sheetWorkspace #overviewStatus .scan{padding-inline:8px!important}
+  html[data-theme] #sheetWorkspace #overviewStatus .scan #scanform{gap:4px}
+ }
+}
+/* A matched record reads as a ledger cell, not a floating tag. */
+@media screen {
+ html[data-theme] #sheetWorkspace #scanActivitySection .compact-activity td.sheet-status[data-cell-state=complete]{
+  padding:0 4px!important;text-align:center;vertical-align:middle;
+  border-radius:0!important;box-shadow:none!important;
+ }
+ html[data-theme] #sheetWorkspace #scanActivitySection .compact-activity td.sheet-status[data-cell-state=complete]>.status-symbol{
+  display:inline!important;padding:0!important;margin:0!important;min-width:0!important;
+  border:0!important;border-radius:0!important;box-shadow:none!important;
+  font:750 clamp(19px,2.2vw,24px)/1 var(--font-ui)!important;
+  vertical-align:middle;background:transparent!important;color:inherit!important;
+ }
+}
+@media screen and (forced-colors:none){
+ html[data-theme] #sheetWorkspace #scanActivitySection .compact-activity td.sheet-status[data-cell-state=complete]{
+  background:var(--complete-bg)!important;color:var(--complete-ink)!important;
+ }
+}
+@media screen{
+/* One terminal surface: prompt and last scan on top, two split panes below. */
+ #beamTerminal{min-width:0;background:var(--term-bg);color:var(--term-ink);border:1px solid var(--term-edge);padding:0;margin:0;border-radius:1px;box-shadow:none;font-variant-numeric:tabular-nums}
+ .inspection-console .beam-term-bar{display:flex;align-items:center;justify-content:space-between;gap:10px 18px;min-height:33px;padding:3px 12px;background:var(--term-head);border-bottom:1px solid var(--term-edge);box-sizing:border-box;color:var(--term-dim);font:620 11px/1.3 var(--font-terminal)}
+ .inspection-console .beam-term-bar>strong{color:var(--term-ink);font-weight:710}
+ #beamTerminal .beam-term-bar>span{font-size:10px;letter-spacing:.015em}
+ html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus{--asn-nav-size:40px;margin:0;min-height:0;padding:12px 8px;gap:6px;background:none!important}
+ #beamTerminal #overviewStatus .overview-content{grid-template-columns:minmax(160px,.86fr) minmax(0,1.14fr);grid-template-rows:auto auto auto;column-gap:12px;row-gap:8px;align-items:start}
+ #beamTerminal #overviewStatus .receipt-title{display:none}
+ html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus .scan{grid-column:1;grid-row:1;width:100%;min-width:0;max-width:none;margin:0;padding:0!important;background:transparent!important;border-radius:0}
+ html[data-theme] #sheetWorkspace #beamTerminal .scan>label,
+ #beamTerminal :is(.last-scanned-label,.putaway-label){margin:0 0 5px;padding:0;color:var(--term-dim);font:650 11px/1.3 var(--font-terminal)}
+ html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform{grid-template-columns:minmax(0,1fr) 44px 37px;gap:3px}
+ html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus .scan #barcode{
+  background:var(--term-field)!important;color:var(--term-ink);border:1px solid var(--term-edge)!important;border-radius:0!important;
+  padding-inline:27px 7px!important;font:560 13px/1.2 var(--font-terminal);min-height:38px;height:38px;caret-color:var(--term-focus)
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus .scan #barcode::placeholder{color:var(--term-dim);font:500 11px/1.2 var(--font-ui)}
+ #beamTerminal #scanform::before{content:'>';position:absolute;z-index:2;left:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--term-focus);font:740 14px/1 var(--font-terminal)}
+ #beamTerminal #scanform .beam-scan-glyph{display:none}
+ html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus #scanform :is(#scanbutton,#undo){width:100%;min-width:0;min-height:38px;height:38px;border-radius:0!important;border:1px solid var(--term-edge)!important;background:var(--term-head)!important;color:var(--term-ink)!important;font:670 11px/1.15 var(--font-terminal)}
+ #beamTerminal #scanform :is(#scanbutton,#undo):not(:disabled):hover{filter:brightness(.91)}
+ #beamTerminal #scanform #undo svg{width:16px;height:16px}
+ html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus #scanReadout{grid-column:2;grid-row:1;gap:6px;min-width:0;border-left:1px solid var(--term-rule);padding-left:12px;min-height:55px;box-sizing:border-box}
+ #beamTerminal #overviewStatus #scanReadout:has(#lastScanned:not([hidden]) + #overviewPutaway:not([hidden])){grid-template-columns:minmax(0,1fr) minmax(115px,30%)}
+ #beamTerminal #lastScanned{padding:5px 7px;border-radius:0!important;min-height:0}
+ #beamTerminal #lastScannedName{font-size:clamp(17px,2vw,25px);line-height:1.18;letter-spacing:-.04em}
+ #beamTerminal #lastScannedProgress{font:700 14px/1.25 var(--font-terminal);white-space:nowrap}
+ #beamTerminal #lastScanned .last-scanned-codes{font:500 11px/1.4 var(--font-terminal);color:var(--term-dim)}
+ #beamTerminal #overviewStatus #scanReadout #overviewPutaway{padding:4px 0 4px 8px}
+ #beamTerminal #lastScannedPicking .picking-zone-group{background:var(--term-side);border:1px solid var(--term-rule);border-radius:0;padding:4px 6px}
+ #beamTerminal #lastScannedPicking .picking-zone-group strong{font:720 16px/1.15 var(--font-terminal)}
+ #beamTerminal #lastScannedPicking .picking-loc{font-size:10px;color:var(--term-dim)}
+ #beamTerminal #overviewStatus .asn-progress-row{display:contents}
+ #beamTerminal #overviewStatus #asnPosition{grid-column:2;grid-row:2;font:600 11px/1.4 var(--font-terminal);color:var(--term-dim)}
+ #beamTerminal #overviewStatus .asn-coverage{grid-column:1;grid-row:2;margin:2px 0;display:flex;align-items:center;gap:8px;min-width:0}
+ #beamTerminal #overviewStatus .asn-coverage progress{max-width:12rem;min-width:35px;height:4px;border-radius:0}
+ #beamTerminal #asnCoverage{font:600 11px/1.3 var(--font-terminal);white-space:nowrap}
+ #beamTerminal #overviewStatus #overviewExtra{grid-column:1/-1;grid-row:auto}
+ #beamTerminal #overviewStatus .count-exceptions{gap:3px!important}
+ #beamTerminal #overviewStatus .count-exceptions .metric{min-width:0;padding:3px 7px;min-height:28px;border-radius:0!important;box-shadow:none;border:1px solid var(--term-rule)!important;font-size:11px}
+ #beamTerminal #overviewStatus .count-exceptions .metric .metric-quantity b{font:720 13px/1.2 var(--font-terminal)}
+ #beamTerminal .inspection-workbench{--tui-dim:var(--term-dim);--tui-head:var(--term-head);--tui-edge:var(--term-edge);--tui-rule:var(--term-rule);--tui-surface:var(--term-bg);--tui-focus:var(--term-focus)}
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench{grid-template-columns:minmax(0,1fr) minmax(0,1.16fr);margin:0;padding:0;gap:1px;background:var(--term-edge);color:var(--term-ink);align-items:stretch;border-block:1px solid var(--term-edge);border-radius:0}
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(#scanActivitySection,#results){border:0!important;border-radius:0!important;background:var(--term-bg)!important;color:inherit;margin:0;min-width:0;padding:0}
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(#scanActivitySection .scan-activity-head,#results>summary){
+  color:var(--term-ink)!important;background:var(--term-head)!important;border-bottom:1px solid var(--term-edge)!important;
+  margin:0!important;padding:0 9px!important;max-width:none;min-height:31px!important;box-sizing:border-box;line-height:1.2;font:650 12px/1.3 var(--font-terminal)
+ }
+ #beamTerminal .inspection-workbench :is(#scanActivityTitle,#results>summary)::before{color:var(--term-dim);font-size:10px}
+ #beamTerminal .inspection-workbench :is(.tablebar,#scanActivityViewport,.tablewrap){border-radius:0;background:var(--term-bg)!important}
+ #beamTerminal .inspection-workbench :is(#scanActivityViewport,#results .tablewrap){min-height:126px;max-height:420px}
+ #beamTerminal .inspection-workbench :is(#activityMinimize,#activityExpand,#filter){border-radius:0!important;min-height:26px;background:var(--term-head)!important;color:var(--term-ink)!important}
+ #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet){font:500 11px/1.35 var(--font-terminal);color:var(--term-ink)}
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet) th{
+  padding:5px 6px!important;border-bottom:1px solid var(--term-edge)!important;background:var(--term-head)!important;color:var(--term-dim)!important;font:650 11px/1.2 var(--font-terminal)
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet) tbody tr>td:not(.sheet-status):not(.status-cell){
+  background:var(--term-bg)!important;color:var(--term-ink);border-bottom:1px solid var(--term-rule)!important;padding:5px 6px!important
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet) tbody tr:hover>td:not(.sheet-status):not(.status-cell){background:var(--term-select)!important}
+ #beamTerminal .inspection-workbench :is(.sheet-code,.sheet-time,.sheet-qty,.num,.status-cell,.sheet-status){font-family:var(--font-terminal);font-variant-numeric:tabular-nums}
+ #beamTerminal .inspection-workbench :is(.sheet-product,#rows td:nth-child(3)){font-family:var(--font-ui);overflow-wrap:anywhere}
+ #beamTerminal .inspection-workbench :is(#scanActivityTitle,.tablebar,.empty,.data-pager){color:var(--term-dim)}
+ #beamTerminal .output-tools{margin:0;padding:5px 9px;min-height:30px;background:var(--term-head);border:0;border-radius:0}
+ #beamTerminal .output-tools #reset{border-radius:0!important;min-height:28px;font:630 11px/1.2 var(--font-terminal)}
+ @media(max-width:1060px){
+  html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench{grid-template-columns:1fr}
+ }
+ @media(max-width:760px){
+  html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus{--asn-nav-size:30px;padding:7px 4px;gap:4px}
+  #beamTerminal #overviewStatus>.overview-arrow{width:30px;min-width:30px;height:36px;min-height:36px}
+  #beamTerminal #overviewStatus>.overview-arrow svg{width:20px;height:20px}
+  #beamTerminal #overviewStatus .overview-content{grid-template-columns:minmax(0,1fr) auto}
+  html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus .scan{grid-column:1/-1}
+  html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus #scanReadout{grid-column:1/-1;grid-row:2;padding:6px 0 0;border-left:0;border-top:1px solid var(--term-rule)}
+  #beamTerminal #overviewStatus #asnPosition,#beamTerminal #overviewStatus .asn-coverage{grid-row:3}
+  #beamTerminal #overviewStatus #scanReadout:has(#lastScanned:not([hidden]) + #overviewPutaway:not([hidden])){grid-template-columns:1fr}
+  #beamTerminal #overviewStatus #scanReadout #overviewPutaway{padding:5px 0 0}
+  #beamTerminal .beam-term-bar{padding-inline:8px}
+ }
+}
+@media screen{
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform :is(#scanbutton,#undo),
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .count-exceptions .metric,
+ html[data-theme] body #sheetWorkspace #beamTerminal .inspection-workbench :is(#activityMinimize,#activityExpand,#filter),
+ html[data-theme] body #sheetWorkspace #beamTerminal .output-tools #reset{
+  border-radius:0!important;box-shadow:none;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform :is(#scanbutton,#undo){min-height:38px;height:38px}
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .count-exceptions .metric{
+  padding:4px 8px!important;min-height:29px!important;align-items:center!important;gap:6px!important
+ }
+
+ #beamTerminal .inspection-workbench :is(.compact-activity,#results table){font-size:12px}
+ #beamTerminal #results .tablebar,#beamTerminal #recentActivityBar{min-height:35px;box-sizing:border-box}
+ #beamTerminal .beam-term-bar kbd{border:1px solid var(--term-edge);color:var(--term-ink);padding:1px 4px;font:inherit}
+ #beamTerminal .tablewrap,#beamTerminal #scanActivityViewport{scrollbar-color:var(--term-edge) var(--term-bg)}
+}
+@layer beam-action-shape{
+ @media screen{
+  #beamTerminal :is(#scanbutton,#undo,#activityMinimize,#activityExpand,#reset,.count-exceptions button){border-radius:5px!important}
+  #beamTerminal #undo{--beam-icon-size:37px}
+ }
+}
+@media screen{
+ html[data-theme] #sheetWorkspace #beamTerminal :is(#scanActivityTitle,#results>summary)::before{
+  background:none!important;color:var(--term-dim)!important;opacity:1
+ }
+ #beamTerminal #results .tablebar,#beamTerminal #recentActivityBar{height:auto;min-height:38px;padding-block:4px}
+ #beamTerminal #results #rows td:first-child:has(.badge){width:5.2em;text-align:left}
+ #beamTerminal #results #rows td:first-child .badge{font-size:11px;border-radius:0;padding:2px 4px}
+ #beamTerminal .output-tools #reset:not(:disabled){color:var(--term-ink);background:var(--term-side);border:1px solid var(--term-edge)}
+}
+@media screen and (forced-colors:none){
+ html[data-theme] body #lastScannedBar[data-phase=progress]::-webkit-progress-value{background:var(--lemon-edge)!important}
+ html[data-theme] body #lastScannedBar[data-phase=progress]::-moz-progress-bar{background:var(--lemon-edge)!important}
+ html[data-theme] body #lastScannedBar[data-phase=complete]::-webkit-progress-value{background:var(--complete-ink)!important}
+ html[data-theme] body #lastScannedBar[data-phase=complete]::-moz-progress-bar{background:var(--complete-ink)!important}
+}
+@media screen and (forced-colors:none){
+ html[data-theme] #sheetWorkspace #beamTerminal .compact-activity .sheet-status[data-cell-state=progress]{
+  color:var(--warning-ink)!important;background:var(--warning-bg)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .compact-activity .sheet-status[data-cell-state=excess]{
+  color:var(--excess-ink)!important;background:var(--excess-bg)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .compact-activity .sheet-status:is([data-cell-state=progress],[data-cell-state=excess])>.status-symbol{
+  background:transparent!important;color:inherit!important;
+ }
+}
+/* Matte inspection glass: one optical surface, with data rows etched into it. */
+@media screen and (forced-colors:none){
+ html[data-theme] #sheetWorkspace #beamTerminal{
+  --term-bg:#eeefeb;
+  --term-field:#ffffff53;
+  --term-head:#f8faf47a;
+  --console-sticky-head:#eaf0e8;
+  --term-ink:#222d29;
+  --term-dim:#4a5750;
+  --term-rule:#34463c18;
+  --term-edge:#34463c31;
+  --term-select:#667f7130;
+  --term-side:#ffffff38;
+  --term-focus:#346758;
+  --console-go:#303030;
+  --console-go-ink:#fff;
+  --console-blend:linear-gradient(148deg,#f5f4f0eb 0%,#e4e8e6cf 58%,#ece9e3df 100%);
+  --console-cast:#2c3e321c;
+  --console-inset:#ffffff9c;
+  background:var(--console-blend);border:0;border-radius:12px;
+  box-shadow:inset 0 1px 0 var(--console-inset),0 9px 27px var(--console-cast);
+ }
+ html[data-theme=dark] #sheetWorkspace #beamTerminal{
+  --term-bg:#262726;
+  --term-field:#0f181a46;
+  --term-head:#d5ddca0c;
+  --console-sticky-head:#353f37;
+  --term-ink:#edf2e9;
+  --term-dim:#bbc9bd;
+  --term-rule:#e1e9de18;
+  --term-edge:#e1e9de32;
+  --term-select:#819b8844;
+  --term-side:#e5ead917;
+  --term-focus:#b7dac6;
+  --console-go:#dedede;
+  --console-go-ink:#171717;
+  --console-blend:linear-gradient(148deg,#353736e8 0%,#262827ee 60%,#302e2bed 100%);
+  --console-cast:#0006;
+  --console-inset:#effbe525;
+ }
+ @supports (backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px)){
+  html[data-theme] #sheetWorkspace #beamTerminal{
+   -webkit-backdrop-filter:blur(20px) saturate(.72);
+   backdrop-filter:blur(20px) saturate(.72);
+  }
+ }
+ #beamTerminal .beam-term-bar{
+  border-radius:12px 12px 0 0;
+  border-bottom-color:var(--term-rule);
+ }
+ #beamTerminal .beam-term-bar kbd{
+  border:0;border-radius:3px;background:var(--term-side);
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #barcode{
+  background:var(--term-field)!important;border:0!important;border-radius:5px!important;
+ }
+
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform :is(#scanbutton,#undo),
+ html[data-theme] body #sheetWorkspace #beamTerminal .inspection-workbench :is(#activityMinimize,#activityExpand,#filter),
+ html[data-theme] body #sheetWorkspace #beamTerminal .output-tools #reset{
+  border:0!important;background:var(--term-side)!important;color:var(--term-ink)!important;
+  box-shadow:none!important;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #scanbutton:not(:disabled){
+  background:var(--console-go)!important;color:var(--console-go-ink)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal :is(#asnPrevious,#asnNext,#overviewDetailsToggle){
+  border:0!important;border-radius:5px!important;background:var(--term-side)!important;
+  color:var(--term-ink)!important;box-shadow:none!important;
+ }
+
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .count-exceptions .metric:not(:has(b:not(.quiet))){
+  border:0!important;background:var(--term-side)!important;color:var(--term-dim)!important;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .count-exceptions .metric{
+  border:0!important;box-shadow:none!important;
+ }
+ #beamTerminal #lastScannedPicking .picking-zone-group{
+  border:0;border-radius:4px;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench{
+  background:none;border:0;border-top:1px solid var(--term-rule);gap:0;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(#scanActivitySection,#results){
+  background:transparent!important;
+ }
+ @media(min-width:1061px){
+  html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #results{
+   border-inline-start:1px solid var(--term-rule)!important;
+  }
+ }
+ @media(max-width:1060px){
+  html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #results{
+   border-top:1px solid var(--term-rule)!important;
+  }
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(#scanActivitySection .scan-activity-head,#results>summary){
+  border-bottom-color:var(--term-rule)!important;
+ }
+ #beamTerminal .inspection-workbench :is(.tablebar,#scanActivityViewport,.tablewrap){
+  background:transparent!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet) th{
+  background:var(--console-sticky-head)!important;border-bottom-color:var(--term-rule)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet) tbody tr>td:not(.sheet-status):not(.status-cell){
+  background:transparent!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench :is(.compact-activity,#results table,.activity-sheet) tbody tr:hover>td:not(.sheet-status):not(.status-cell) {
+  background:var(--term-select)!important;
+ }
+ #beamTerminal .output-tools{border-radius:0 0 12px 12px}
+ #beamTerminal .tablewrap,#beamTerminal #scanActivityViewport{scrollbar-color:var(--term-edge) transparent}
+ @media(prefers-reduced-transparency:reduce){
+  html[data-theme] #sheetWorkspace #beamTerminal{
+   background:var(--term-bg);-webkit-backdrop-filter:none;backdrop-filter:none;
+  }
+ }
+}
+#beamTerminal #scanform::before{content:none}
+#beamTerminal #scanform .beam-scan-prompt{
+ position:absolute;z-index:2;inset-inline-start:7px;top:50%;width:16px;height:16px;
+ transform:translateY(-50%);color:var(--term-focus);
+}
+@media screen {
+ html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus{padding-block:7px;gap:5px}
+ #beamTerminal #overviewStatus .overview-content{row-gap:5px}
+ #beamTerminal #overviewStatus #scanReadout{align-items:start}
+ #beamTerminal #overviewStatus .asn-coverage{margin-block:0}
+ #beamTerminal #lastScanned .last-scanned-item-layout{min-width:0}
+ #beamTerminal #lastScanned .last-scanned-product-line{column-gap:8px}
+ #beamTerminal #overviewPutaway:has(.picking-note:only-child){align-self:center}
+ #beamTerminal #overviewPutaway .picking-note:only-child{margin-block:0}
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode{grid-column:1;grid-row:1}
+ #beamTerminal #scanform .beam-scan-prompt{
+  inset:auto;position:relative;grid-column:1;grid-row:1;align-self:center;justify-self:start;
+  margin-inline-start:7px;transform:none;pointer-events:none
+ }
+ @media(max-width:760px){
+  html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus{padding-block:6px}
+  html[data-theme] #sheetWorkspace #beamTerminal #overviewStatus #scanReadout{padding-block-start:5px}
+  #beamTerminal #lastScanned .last-scanned-product-line{column-gap:6px}
+ }
+}
+/* Keep warning artwork as prominent as the ledger's large O, without taller rows. */
+@media screen{
+ html[data-theme] #scanActivitySection .compact-activity td.sheet-status:has(>.status-warning){
+  padding-block:0!important;text-align:center;vertical-align:middle;
+ }
+ html[data-theme] .activity-sheet td.sheet-status>.status-warning{
+  display:inline-grid!important;place-items:center;padding:0!important;margin:0!important;min-width:0!important;
+  line-height:1;vertical-align:middle;background:none!important;color:inherit!important;box-shadow:none!important
+ }
+ .activity-sheet .sheet-status>.status-warning .beam-ui-icon{
+  display:block;width:clamp(20px,2.1vw,26px);height:clamp(20px,2.1vw,26px)
+ }
+}
+/* Inspection glass: neutral outer material, recessed scanner, dark scan ledger.
+   The sampled phosphor colors carry information, never the window chrome. */
+@media screen and (forced-colors:none){
+ html[data-theme] .inspection-console{
+
+  --scan-well:#151515;--scan-well-active:#1c1c1c;--scan-text:#f5f5f5;--scan-hint:#bcbcbc;
+  --recent-surface:#f4f4f4;--recent-sticky:#eaeaea;
+  --term-bg:#f4f4f4;--term-ink:#272727;--term-dim:#505050;--term-head:#00000005;
+
+
+
+
+  --console-blend:linear-gradient(148deg,#fafafae8,#eeeeeee8);
+  --console-cast:#1717171a;--console-inset:#fff9;
+ }
+ html[data-theme=dark] .inspection-console{
+  --recent-surface:#222222;--recent-sticky:#2a2a2a;
+  --term-bg:#252525;--term-head:#ffffff09;--term-ink:#efefef;--term-dim:#bdbdbd;
+  --term-rule:#ffffff19;--term-edge:#ffffff2d;--term-select:#ffffff14;--term-side:#ffffff12;
+  --console-sticky-head:#2b2b2b;--console-go:#dedede;--console-go-ink:#171717;
+  --console-blend:linear-gradient(148deg,#353535e8,#242424eb);
+  --console-inset:#fff2;--console-cast:#0006;
+ }
+
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode{
+  background:var(--scan-well)!important;color:var(--scan-text)!important;caret-color:var(--status-info);
+  border-radius:8px!important;box-shadow:inset 0 1px 0 #ffffff13,inset 0 2px 6px #0005!important;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode::placeholder{color:var(--scan-hint)!important;opacity:1}
+
+ #beamTerminal #scanform .beam-scan-prompt{color:var(--status-info)}
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #scanActivitySection{
+  --tui-dim:var(--term-dim);--muted:var(--term-dim);--tui-surface:var(--recent-surface);
+
+
+
+  background:var(--recent-surface)!important;color:var(--term-ink);
+ }
+ html[data-theme=dark] #sheetWorkspace #beamTerminal .inspection-workbench #scanActivitySection{
+  --term-ink:#efefef;--term-dim:#bdbdbd;--term-head:#ffffff09;--term-rule:#ffffff19;
+  --term-edge:#ffffff2d;--term-select:#ffffff12;--term-side:#ffffff12;
+ }
+ #beamTerminal #scanActivitySection #recentActivityRef{color:var(--term-dim)}
+ html[data-theme] #sheetWorkspace #beamTerminal #scanActivitySection .compact-activity td.sheet-status[data-cell-state=accepted]{
+  background:var(--recent-surface)!important;color:var(--complete-ink)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal #scanActivitySection .compact-activity tr:hover td.sheet-status[data-cell-state=accepted]{
+  background:var(--recent-sticky)!important;
+ }
+ html[data-theme] #sheetWorkspace #beamTerminal .inspection-workbench #scanActivitySection .compact-activity th{
+  background:var(--recent-sticky)!important;color:var(--term-dim)!important;
+ }
+
+}
+/* A ledger row marks one accepted scan, not a reconciled order quantity. */
+@media screen{
+ html[data-theme] #sheetWorkspace #scanActivitySection .compact-activity td.sheet-status[data-cell-state=accepted]{
+  text-align:center;vertical-align:middle;padding-block:0!important;
+ }
+ html[data-theme] .activity-sheet td.sheet-status[data-cell-state=accepted]{
+  color:var(--complete-ink)!important;background:transparent!important;
+ }
+ html[data-theme] .activity-sheet td.sheet-status>.status-accepted{
+  display:inline-grid!important;place-items:center;padding:0!important;min-width:0!important;
+  vertical-align:middle;line-height:1;background:none!important;color:inherit!important;box-shadow:none!important;
+ }
+ .activity-sheet .sheet-status>.status-accepted .beam-ui-icon{width:16px;height:16px}
+}
+@media screen and (forced-colors:active){
+ html[data-theme] .activity-sheet td.sheet-status[data-cell-state=accepted]{color:CanvasText!important}
+}
+/* The last item's quantity owns the emphasis previously given to scan log marks. */
+@media screen{
+ #beamTerminal .last-scanned-progress-group[hidden]{display:none!important}
+ #beamTerminal .last-scanned-progress-group{
+  display:inline-grid;grid-template-columns:auto minmax(50px,104px);align-items:center;
+  gap:3px 11px;max-inline-size:100%;min-inline-size:0;margin-block:3px;
+  padding:5px 9px 6px;border-radius:6px;color:var(--term-ink);background:var(--term-side);
+ }
+ #beamTerminal .last-scanned-progress-group[data-phase=progress]{color:var(--warning-ink);background:var(--warning-bg)}
+ #beamTerminal .last-scanned-progress-group[data-phase=complete]{color:var(--complete-ink);background:var(--complete-bg)}
+ #beamTerminal .last-scanned-progress-group[data-phase=excess]{color:var(--excess-ink);background:var(--excess-bg)}
+ #beamTerminal .last-scanned-progress-group #lastScannedProgress{
+  align-self:center;font:790 clamp(18px,1.6vw,23px)/1.08 var(--font-terminal);color:inherit;
+ }
+ #beamTerminal #lastScannedRemaining{
+  grid-column:1 / -1;grid-row:2;color:inherit;font:660 12px/1.25 var(--font-ui);
+ }
+ #beamTerminal .last-scanned-progress-group #lastScannedBar{
+  grid-column:2;grid-row:1;min-width:0;max-width:none;width:100%;height:6px;border-radius:9px;
+  background:transparent;accent-color:currentColor;color:inherit;
+ }
+ #beamTerminal #lastScannedBar::-webkit-progress-bar{background:color-mix(in srgb,currentColor 26%,transparent);border-radius:9px}
+ html[data-theme] body #beamTerminal #lastScannedBar[data-phase]::-webkit-progress-value{background:currentColor!important;border-radius:9px}
+ html[data-theme] body #beamTerminal #lastScannedBar[data-phase]::-moz-progress-bar{background:currentColor!important;border-radius:9px}
+}
+@media screen{
+ html[data-theme] #sheetWorkspace #inspectionOrderSurface #beamTerminal{
+  background:none;border:0;border-radius:0 0 var(--sheet-radius) var(--sheet-radius);
+  box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;
+ }
+}
+@media screen and (max-width:760px){
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform{
+  grid-template-columns:minmax(0,1fr) auto 44px;gap:5px;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode{
+  font-size:16px!important;min-block-size:44px;line-height:1.25;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode::placeholder{font-size:14px}
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform :is(#scanbutton,#undo){
+  min-height:44px!important;height:44px!important;padding-inline:8px!important;white-space:nowrap;
+ }
+ #beamTerminal #scanform #undo{--beam-icon-size:44px}
+ #beamTerminal .beam-term-bar>span{display:none}
+}
+@media screen and (max-width:360px){
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform{
+  grid-template-columns:minmax(0,1fr) 44px;
+ }
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode{grid-column:1 / -1}
+}
+
+@media screen{
+ #beamTerminal #overviewStatus #scanReadout #overviewPutaway:not([hidden]){
+  display:grid;align-content:start;gap:7px;padding:11px 13px 12px;
+  border:0!important;border-radius:12px;background:color-mix(in srgb,var(--term-ink) 7%,var(--term-bg));box-shadow:inset 0 0 0 1px var(--term-rule);
+ }
+ #beamTerminal #overviewPutaway .putaway-label{margin:0;letter-spacing:.02em}
+ #beamTerminal #overviewPutaway #lastScannedPicking{padding:0;margin:0;border:0}
+ #beamTerminal #overviewPutaway #lastScannedPicking .picking-zone-group{
+  gap:3px;padding:0;background:none;border:0;border-radius:0;
+ }
+ #beamTerminal #overviewPutaway #lastScannedPicking .picking-zone-group strong{
+  color:var(--term-ink);font:750 25px/1 var(--font-ui);letter-spacing:-.03em;
+ }
+ #beamTerminal #overviewPutaway .picking-loc{color:var(--term-ink);background:none;padding:0;font-size:12px}
+ #beamTerminal :is(.sheet-code,.sheet-time,.sheet-qty,#scanform #barcode,#results td:nth-last-child(-n+3),.picking-loc){
+  font-variant-numeric:tabular-nums slashed-zero;letter-spacing:.005em;
+ }
+ #beamTerminal :is(.sheet-name,#results td.name){font-family:var(--font-ui);letter-spacing:-.01em}
+}
+
+@media screen{
+ #beamTerminal{--font-terminal:var(--font-console-mono)}
+ html[data-theme] body #sheetWorkspace #beamTerminal #overviewStatus .scan #scanform #barcode{font-family:var(--font-console-mono)}
+}

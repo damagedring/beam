@@ -2,6 +2,7 @@ import {lstat,mkdtemp,readFile,rename,rm,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {copyBeamLicense} from './copy-license.mjs';
 
 function origin(text){
  try{const u=new URL(text);if(u.protocol==='https:'&&u.origin===text&&/^https:\/\/[A-Za-z0-9.-]+(?::\d+)?$/.test(text))return text;}catch{}
@@ -43,6 +44,7 @@ try{
  await writeFile(join(stage,'msal-browser.mjs'),sdk);
  await writeFile(join(stage,'msal-redirect-bridge.mjs'),bridge);
  await writeFile(join(stage,'.nojekyll'),'');
+ await copyBeamLicense(stage);
  await rm(target,{force:true,recursive:true});await rename(stage,target);
  console.log('Built isolated OneDrive exporter. Do not deploy on the Beam or Google Drive origin.');
 }finally{await rm(stage,{force:true,recursive:true});}
