@@ -118,6 +118,89 @@ test('Cry Later downloads preserve the supplied files and reconnect in the norma
   await scanCryLaterOrder(page, { tracking: '0003-0001-7001', code: 'CLB00602', progress: /1\s*\/\s*6/ });
 });
 
+test('explicit Settings reconnect accepts new case mapping after the last Outbound scan is undone', async ({ beam: page }) => {
+  const order = 'CL-OB-DEMO-TRY';
+  const raw = {
+    name: 'Cry-Later-Demo.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: await readFile(new URL('../../src/features/examples/cry-later-demo.xlsx', import.meta.url)),
+  };
+  const profile = {
+    name: 'Cry-Later-Profile.json',
+    mimeType: 'application/json',
+    buffer: await readFile(new URL('../../src/features/examples/cry-later-profile.json', import.meta.url)),
+  };
+  const earlier = JSON.parse(profile.buffer);
+  const mapping = earlier.profiles[earlier.active];
+  mapping.name = 'Fictional earlier mapping';
+  for (const field of ['verificationUnit', 'unitsPerCase', 'caseBarcode']) delete mapping.cartonMappings.outbound.headers[field];
+  delete mapping.file.sku.headerNames.unitsPerCase;
+
+  async function loadProfile(dialog, file) {
+    const confirmed = page.waitForEvent('dialog').then(async prompt => {
+      const message = prompt.message();
+      await prompt.accept();
+      return message;
+    });
+    await chooseReference(page, dialog, file);
+    const message = await confirmed;
+    await expect(dialog.locator('.profile-storage-note')).toContainText('프로필 적용 완료');
+    return message;
+  }
+  async function openOrderCarton(box) {
+    await page.locator('#beamHomeBack').click();
+    await openCartons(page, 'Outbound');
+    await chooseOutboundCarton(page, order, box);
+  }
+
+  let reference = await openReference(page);
+  await loadProfile(reference, { ...profile, name: 'earlier-mapping.json', buffer: Buffer.from(JSON.stringify(earlier)) });
+  await chooseReference(page, reference, raw);
+  const status = page.locator('#beamRawAnnounce');
+  await expect(status).toHaveText(/^RAW 연결 완료 · 반품 예정 571행(?:$| · )/);
+  await expect(status).not.toContainText('출고 이전 기준 유지');
+  await openOrderCarton('TRY-01');
+  const scan = page.locator('#cartonScan');
+  const count = page.locator('#cartonCount');
+  const fullCase = page.locator('#cartonScanCase');
+  const unitNote = page.locator('#cartonScanUnitNote');
+  await enterScan(scan, 'CLB00101');
+  await expect(count).toContainText('정상 1 / 전체 예정 5');
+
+  reference = await openReference(page);
+  expect(await loadProfile(reference, profile)).toContain('RAW를 다시 연결');
+  const retry = reference.getByRole('button', { name: '이 프로필로 다시 연결: Cry-Later-Demo.xlsx' });
+  await retry.click();
+  await expect(status).toContainText('출고 이전 기준 유지');
+  await openOrderCarton('TRY-02');
+  await expect(scan).toBeEnabled();
+  await expect(fullCase).toBeDisabled();
+  await expect(unitNote).toContainText('이전 출고 기준');
+
+  await page.locator('#cartonBack').click();
+  await page.locator('.outbound-carton[title="TRY-01"]').click();
+  await expect(count).toContainText('정상 1 / 전체 예정 5');
+  await page.locator('#cartonUndo').click();
+  await expect(count).toContainText('정상 0 / 전체 예정 5');
+  await openReference(page);
+  await expect(retry).toBeVisible();
+  await retry.click();
+  await expect(status).toHaveText(/^RAW 연결 완료 · 반품 예정 571행(?:$| · )/);
+  await expect(status).not.toContainText('출고 이전 기준 유지');
+
+  await openOrderCarton('TRY-02');
+  await expect(fullCase).toBeEnabled();
+  await fullCase.click();
+  await enterScan(scan, 'CLCASE00110');
+  await expect(count).toContainText('정상 10 / 전체 예정 10');
+  await expect(page.locator('#cartonHistory [data-result]')).toHaveCount(1);
+  await page.locator('#cartonBack').click();
+  await page.locator('.outbound-carton[title="TRY-03"]').click();
+  await expect(scan).toBeEnabled();
+  await expect(fullCase).toBeDisabled();
+  await expect(unitNote).toHaveText('FULL 박스 정보 없음');
+});
+
 test('Cry Later Help guides piece, full-case, and unmapped carton scans', async ({ beam: page }) => {
   const help = await openHelp(page);
   const exercise = help.locator('#cryLaterCaseExercise');

@@ -446,7 +446,10 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   $('cartonScanCase').disabled=$('cartonScan').disabled||!sizes.length;
   $('cartonScanEach').setAttribute('aria-pressed',String(scanUnit==='each'));
   $('cartonScanCase').setAttribute('aria-pressed',String(scanUnit==='case'));
-  $('cartonScanUnitNote').textContent=!sizes.length?l('FULL 박스 정보 없음','No verified full case'):
+  const unavailable=combinedStatus.get(mode)==='preserved'?
+   l('기존 검수 기록을 유지해 이전 출고 기준을 사용 중이에요.','The previous Outbound reference is still in use to preserve inspection records.'):
+   l('FULL 박스 정보 없음','No verified full case');
+  $('cartonScanUnitNote').textContent=!sizes.length?unavailable:
    scanUnit==='each'?l('1회 = 1 EA','1 scan = 1 EA'):
    sizes.length===1?l('1박스 = '+sizes[0]+' EA','1 case = '+sizes[0]+' EA'):l('입수: '+sizes.join(' / ')+' EA','Case sizes: '+sizes.join(' / ')+' EA');
   if(scanUnit==='case')$('cartonScan').placeholder=l('FULL 박스 겉면 바코드','Full-case barcode');

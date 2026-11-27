@@ -133,6 +133,7 @@ export function createCartonWork(now = Date.now, newEventId = () => crypto.rando
       current.totals.unknown.clear();
       for (const entry of current.events) if (entry.key === null) tally(current.totals, entry, 1);
     }
+    if (!current.events.length && !current.done.size && !current.reviewed.size) sources.get(mode).jobs.delete(group.id);
     return true;
   }
   function completionSnapshot(mode, group, box) {

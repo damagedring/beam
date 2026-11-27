@@ -803,8 +803,8 @@ const MappingUI=(()=>{
    busy=true;storageNote=t('프로필 JSON 확인 중…','Reading profile JSON…');refresh();
    let applied=false;
    try{
-    const incoming=await readProfileFile(f);
-    if(!uiConfirm(t('현재 프로필 목록을 가져온 목록으로 바꿀까요? 검수 데이터는 바뀌지 않아요.','Replace the current profile list with the imported list? Inspection data stays unchanged.'))){
+    const incoming=await readProfileFile(f),reconnect=lastWorkbook?t(' 새 프로필을 사용하려면 기준 데이터에서 RAW를 다시 연결하세요.',' Reconnect the workbook in Reference Data to use the new profile.'):'';
+    if(!uiConfirm(t('현재 프로필 목록을 가져온 목록으로 바꿀까요? 검수 데이터는 바뀌지 않아요.','Replace the current profile list with the imported list? Inspection data stays unchanged.')+reconnect)){
      storageNote=t('가져오기를 취소했어요. 기존 프로필을 유지합니다.','Import cancelled. Existing profiles retained.');return;
     }
     forgetSources();offerWorkbookRetry();applied=true;
@@ -2754,8 +2754,9 @@ async function runCombinedWorkbook(file,{retry=false}={}){
   let referenceSummary='';
   await applyMappedResult(parsed,file.name,parsed.headerOnlyKinds||[],message=>{referenceSummary=message;});
   tx.commit({file,activeRaw:state.data.raw===parsed.raw?parsed.raw:null});
-  const cartonContext=cartonWorkspace.connectionContext(),retained=cartonWorkspace.applyCombined(await prepareCartonReferences(file,MappingUI.cartonProfile().mappings,readSpreadsheet,{Engine,language,productCatalog:parsed.sku}),cartonContext);
-  const n=parsed.raw?.length||0;
+  const cartonContext=cartonWorkspace.connectionContext(),cartons=await prepareCartonReferences(file,MappingUI.cartonProfile().mappings,readSpreadsheet,{Engine,language,productCatalog:parsed.sku});
+  const retained=cartonWorkspace.applyCombined(cartons,cartonContext),n=parsed.raw?.length||0;
+  if(retained.includes('outbound')&&cartons.results.outbound?.status==='ready'){MappingUI.offerWorkbookRetry();MappingUI.refresh();}
   const connected=n?l('RAW 연결 완료 · 반품 예정 '+n.toLocaleString()+'행','RAW connected · '+n.toLocaleString()+' return rows'):l('선택한 연결 저장 완료 · 기존 반품 예정 자료 유지','Selected mappings saved · existing return data retained');
   const retainedNames=retained.map(kind=>kind==='outbound'?l('출고','Outbound'):l('재고','Inventory')).join(' / ');
   beamRawStatus('done',connected+(retainedNames?' · '+retainedNames+l(' 이전 기준 유지',' kept on previous reference'):'')+(referenceSummary?' · '+tr(referenceSummary):''));
@@ -2786,7 +2787,6 @@ $('file').onchange=async e=>{
  try{tx=await MappingUI.begin(kind,'file',{autoProfile:kind==='raw'});const parsed=await readWorkbook(file,kind,showImportProgress,tx.hooks);tx.prepareProfile(file,!!parsed.raw?.length);await applyMappedResult(parsed,file.name,parsed.headerOnlyKinds||[]);tx.commit({file,activeRaw:state.data.raw===parsed.raw?parsed.raw:null});finishDataImport(kind,false);}
  catch(error){tx?.abort();dataImportError(error.message);}finally{e.target.value='';mappingBusyUI(false);}
 };
-
 MappingUI.init((message,tone,announce=false)=>showImportNotice(message,tone,announce));
 PhoneOrderUI.init({getContext:()=>({data:state.data.raw,raw:state.data.raw,batch:state.currentBatch,b2c:isB2C(),receipt:state.receipt,store:JSON.stringify([state.store||'',state.storeSelection||null])}),getRows:rawRows,isEnglish:()=>language==='en',parseDelimited:Engine.parseDelimited,readWorkbook});
 {const button=$('phoneLookupLauncher'),dialog=$('phoneLookupSettings'),open=button.onclick;button.onclick=()=>{closeFileMenu(true);open();};dialog.addEventListener('close',()=>$('fileMenuButton').focus());}
