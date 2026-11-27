@@ -9,10 +9,10 @@
 /** @typedef {{id: string, revision: string, completedAt: string, outcome: 'matched' | 'difference', events: InspectionEvent[]}} InspectionCompletion */
 /** @typedef {InspectionCompletion & {schemaVersion: 2, key: string, status: 'complete'}} CompletionRecord */
 /** @typedef {{schemaVersion: 2, key: string, groupId: string, box: string | null, revision: string, completedAt: string, progress: InspectionProgress}} CompletionSummary */
-/** @typedef {{key: string, box: string | null, eventPrefix: string}} LegacyScope */
+/** @typedef {{key: string, box: string | null, referenceId: string, eventPrefix: string}} LegacyScope */
 /** @typedef {{status: 'missing'} | {status: 'unsupported'} | {status: 'ready', completion: InspectionCompletion}} DecodedCompletion */
 /** @typedef {{record: CompletionRecord | null, summaries: CompletionSummary[], issue: 'stale' | 'invalid' | null}} InspectionRead */
-/** @typedef {{resume(reference: InspectionReference): Promise<InspectionRun>, startNewRun(run: InspectionRun): Promise<InspectionRun | null>, legacyKeys(scope: InspectionScope): Promise<string[]>, inspect(scope: InspectionScope, legacy?: LegacyScope[], project?: (box: string | null, events: InspectionEvent[]) => InspectionProgress | null): Promise<InspectionRead>, summaries(run: InspectionRun): Promise<CompletionSummary[]>, readHistorical(scope: InspectionScope): Promise<CompletionRecord | null>, commit(scope: InspectionScope, completion: InspectionCompletion, progress: InspectionProgress): Promise<'saved' | 'scope-conflict' | 'method-conflict' | 'stale'>, prune(): Promise<void>, clear(): Promise<void>}} InspectionCompletionRepository */
+/** @typedef {{resume(reference: InspectionReference): Promise<InspectionRun>, startNewRun(run: InspectionRun): Promise<InspectionRun | null>, legacyKeys(scope: InspectionScope): Promise<string[]>, inspect(scope: InspectionScope, legacy?: LegacyScope[], project?: (box: string | null, events: InspectionEvent[]) => InspectionProgress | null): Promise<InspectionRead>, summaries(run: InspectionRun): Promise<CompletionSummary[]>, readHistorical(scope: InspectionScope, legacy?: LegacyScope[]): Promise<CompletionRecord | null>, commit(scope: InspectionScope, completion: InspectionCompletion, progress: InspectionProgress): Promise<'saved' | 'scope-conflict' | 'method-conflict' | 'stale'>, prune(): Promise<void>, clear(): Promise<void>}} InspectionCompletionRepository */
 
 export const defaultInspectionWorkspace = '43fb3e9a-d22f-4d47-a697-975c28a30ff4';
 export const completionSchemaVersion = 2;

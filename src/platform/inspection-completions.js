@@ -102,7 +102,8 @@ export function createInspectionCompletionStore({
       apply(records.get(key), existing => {
         if (existing?.run?.generation !== previous.generation) { finish(null); return; }
         const run = createRun(previous, false);
-        records.put({ key, kind: 'run', run });
+        const legacyGeneration = previous.legacy ? previous.generation : existing.legacyGeneration;
+        records.put({ key, kind: 'run', run, legacyGeneration });
         finish(run);
       });
     });
@@ -128,12 +129,54 @@ export function createInspectionCompletionStore({
     return store.transact('readonly', (records, finish) => listSummaries(records, run, expirationCheck(), finish));
   }
 
-  /** @param {InspectionScope} scope @returns {ReturnType<InspectionCompletionRepository['readHistorical']>} */
-  function readHistorical(scope) {
+  /** @param {InspectionScope} scope @param {LegacyScope} candidate */
+  function matchesLegacyReference(scope, candidate) {
+    if (candidate.referenceId !== scope.referenceId) return false;
+    try {
+      const key = JSON.parse(candidate.key);
+      return Array.isArray(key) && key.length === 6 && key[0] === 'v1' && key[1] === scope.workflow &&
+        key[2] === scope.workbookId && key[3] === scope.groupId && key[4] === candidate.box &&
+        typeof key[5] === 'string' && /^[0-9a-f]{64}$/.test(key[5]);
+    } catch {
+      return false;
+    }
+  }
+
+  /** @param {InspectionScope} scope @param {LegacyScope[]} [candidates] @returns {ReturnType<InspectionCompletionRepository['readHistorical']>} */
+  function readHistorical(scope, candidates = []) {
     const expired = expirationCheck();
+    const key = scopeKey('inspection-record', scope);
     return store.transact('readonly', (records, finish) => {
-      apply(records.get(scopeKey('inspection-record', scope)), record => {
-        finish(record && !expired(record) && decodeInspectionCompletion(record, scope.workflow).status === 'ready' ? record : null);
+      function readRecord() {
+        apply(records.get(key), record => {
+          if (record) {
+            finish(!expired(record) && decodeInspectionCompletion(record, scope.workflow).status === 'ready' ? record : null);
+            return;
+          }
+          const candidate = scope.legacy && candidates.find(entry => entry.box === scope.box && matchesLegacyReference(scope, entry));
+          if (!candidate) { finish(null); return; }
+          apply(records.get(migrationKey(candidate.key)), marker => {
+            if (marker) { finish(null); return; }
+            apply(records.get(candidate.key), source => {
+              if (!source || expired(source)) { finish(null); return; }
+              const decoded = decodeInspectionCompletion(source, scope.workflow, candidate.eventPrefix);
+              finish(decoded.status === 'ready' ? encodeInspectionCompletion(key, decoded.completion) : null);
+            });
+          });
+        });
+      }
+
+      if (!scope.legacy) { readRecord(); return; }
+      if (scope.workspaceId !== defaultInspectionWorkspace || scope.runId !== 'legacy:' + scope.referenceId) {
+        finish(null);
+        return;
+      }
+      apply(records.get(runKey(scope)), current => {
+        // Switching runs preserves the legacy generation. Clearing the store
+        // removes it, so an old scope cannot read a new generation's records.
+        const generation = current?.run?.legacy ? current.run.generation : current?.legacyGeneration;
+        if (generation === scope.generation) readRecord();
+        else finish(null);
       });
     });
   }
@@ -148,6 +191,8 @@ export function createInspectionCompletionStore({
 
   /** @param {InspectionScope} scope @param {LegacyScope[]} [candidates] @param {(box: string | null, events: InspectionEvent[]) => InspectionProgress | null} [project] @returns {Promise<InspectionRead>} */
   function inspect(scope, candidates = [], project = () => null) {
+    const legacy = scope.legacy && scope.workspaceId === defaultInspectionWorkspace ?
+      candidates.filter(candidate => matchesLegacyReference(scope, candidate)) : [];
     return store.transact('readwrite', (records, finish) => {
       const expired = expirationCheck();
       apply(records.get(runKey(scope)), current => {
@@ -161,7 +206,7 @@ export function createInspectionCompletionStore({
         // only a set of candidates and cannot re-create missing records.
         /** @param {number} index */
         function migrate(index) {
-          if (index >= candidates.length) {
+          if (index >= legacy.length) {
             apply(records.get(selectedKey), entry => {
               const record = entry && !expired(entry) ? entry : null;
               if (record && decodeInspectionCompletion(record, scope.workflow).status !== 'ready') invalid = true;
@@ -172,7 +217,7 @@ export function createInspectionCompletionStore({
             });
             return;
           }
-          const candidate = candidates[index];
+          const candidate = legacy[index];
           const next = () => migrate(index + 1);
           const destination = { ...scope, box: candidate.box };
           const markerKey = migrationKey(candidate.key);

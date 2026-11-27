@@ -148,7 +148,7 @@ export function createCartonReferenceIdentity(hash = hexSha256) {
           row.verification?.caseBarcode ?
             [itemKey, row.expected, row.verification.caseBarcode, row.verification.unitsPerCase] : [itemKey, row.expected]);
         if (await hashValue(legacyManifest) === parts[5]) {
-          candidates.push({ key, box, eventPrefix: 'legacy:' + await hashValue(key) });
+          candidates.push({ key, box, referenceId: scope.referenceId, eventPrefix: 'legacy:' + await hashValue(key) });
         }
       }
       return candidates;

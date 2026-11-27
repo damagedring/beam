@@ -30,10 +30,10 @@ test('legacy migration, saved summaries, and clear share one IndexedDB transacti
     const [run, matching] = await Promise.all([first.resume(reference), second.resume(reference)]);
     const scope = { ...run, groupId: 'LOCATION', box: null };
     const otherScope = { ...scope, box: 'CARTON' };
-    const legacyKey = JSON.stringify(['v1','inventory','workbook','LOCATION',null,'manifest']);
+    const legacyKey = JSON.stringify(['v1','inventory','workbook','LOCATION',null,'0'.repeat(64)]);
     const legacy = { key: legacyKey, revision: 'v1', status: 'complete', completedAt, outcome: 'matched',
       events: [{ value: '00123', at: initial }, { value: '00123', at: initial }] };
-    const candidates = [{ key: legacyKey, box: null, eventPrefix: 'legacy:scope' }];
+    const candidates = [{ key: legacyKey, box: null, referenceId: reference.referenceId, eventPrefix: 'legacy:scope' }];
     const progress = { covered: 0, excess: 0, unverified: 0 };
     const project = () => progress;
     const newCompletion = { id: 'completion:synthetic-event', revision: 'synthetic-result', completedAt, outcome: 'matched',
@@ -164,4 +164,82 @@ test('a rejected Finish keeps its scans and can be retried without a duplicate r
   await chooseCarton(page, 'BOX-1');
   await expect(page.locator('#cartonCount')).toContainText('3 / 3');
   await expect(page.locator('#cartonFeedback')).toHaveText('검수를 완료했어요.');
+});
+
+
+test('starting a new run keeps an unvisited legacy scope readable until expiration or clear', async ({ beam: page }) => {
+  const actual = await page.evaluate(async () => {
+    const module = path => import(new URL(path, document.baseURI));
+    const { createIndexedRecoveryStore } = await module('platform/indexed-recovery.js');
+    const { createInspectionCompletionStore, completionRetentionMs } = await module('platform/inspection-completions.js');
+    const { defaultInspectionWorkspace } = await module('platform/inspection-completion-record.js');
+    const { createCartonReferenceIdentity } = await module('features/cartons/reference.js');
+    const { createCartonIndex } = await module('domain/carton-verification.js');
+
+    let now = Date.parse('2026-04-19T01:00:00Z');
+    const completedAt = new Date(now).toISOString(), at = now - 5000;
+    const source = { index: createCartonIndex([
+      { group: 'ORDER', box: 'BOX', barcode: 'ITEM', sku: 'SKU', name: 'Example', qty: 12, verification: { unit: 'case', caseBarcode: 'CASE', unitsPerCase: 6 } },
+    ]) };
+    const raw = createIndexedRecoveryStore(undefined, 'completion-history-test-' + crypto.randomUUID());
+    const repo = createInspectionCompletionStore({ store: raw, now: () => now });
+    const identity = createCartonReferenceIdentity();
+    identity.associate(source, new File(['Synthetic reference bytes'], 'example.xlsx'));
+    const reference = { workspaceId: defaultInspectionWorkspace, workflow: 'outbound', ...await identity.reference(source) };
+    const group = source.index.groups.get('ORDER');
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([[JSON.stringify(['SKU', 'ITEM']), 12, 'CASE', 6]])));
+    const manifest = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    const key = JSON.stringify(['v1', 'outbound', reference.workbookId, group.id, 'BOX', manifest]);
+    const record = { key, revision: 'v1', status: 'complete', completedAt, outcome: 'matched',
+      events: [{ value: 'CASE', unit: 'case', at }, { value: 'CASE', unit: 'case', at }] };
+    await raw.write(record, null);
+
+    const old = await repo.resume(reference);
+    const scope = { ...old, groupId: group.id, box: 'BOX' };
+    const next = await repo.startNewRun(old);
+    const current = { ...next, groupId: scope.groupId, box: scope.box };
+    const unrelated = await repo.resume({ ...reference, workspaceId: 'other-test-workspace' });
+    const isolated = { ...unrelated, groupId: scope.groupId, box: scope.box };
+
+    const candidates = await identity.legacyScopes(scope, group, await repo.legacyKeys(scope));
+    const keys = () => raw.transact('readonly', (records, finish) => {
+      const request = records.getAllKeys();
+      request.onsuccess = () => finish(request.result);
+    });
+    const keysBefore = await keys();
+    const saved = await repo.readHistorical(scope, candidates);
+    const wrongRevision = await repo.readHistorical(scope, candidates.map(candidate => ({ ...candidate, referenceId: 'another-interpretation' })));
+    const isolatedHistory = await repo.readHistorical(isolated, candidates);
+    const currentInspection = await repo.inspect(current, candidates, () => ({ covered: 12, excess: 0, unverified: 0 }));
+    const historicalSummaries = await repo.summaries(old);
+    const sourceAfter = await raw.read(key);
+    const keysAfter = await keys();
+
+    now = Date.parse(completedAt) + completionRetentionMs;
+    const expired = await repo.readHistorical(scope, candidates);
+    now = Date.parse(completedAt);
+    await repo.clear();
+    const cleared = await repo.readHistorical(scope, candidates);
+    const recreated = await repo.resume(reference);
+    await raw.write(record, null);
+    const oldGeneration = await repo.readHistorical(scope, candidates);
+    return {
+      sameBytes: JSON.stringify(record) === JSON.stringify(sourceAfter),
+      noWrites: JSON.stringify(keysBefore) === JSON.stringify(keysAfter),
+      differentRun: old.runId !== next.runId,
+      differentGeneration: recreated.generation !== old.generation,
+      historical: { completedAt: saved?.completedAt, events: saved?.events, distinctIds: saved?.events[0].id !== saved?.events[1].id },
+      currentInspection, isolatedHistory, historicalSummaries, wrongRevision, expired, cleared, oldGeneration,
+    };
+  });
+  expect(actual).toMatchObject({
+    sameBytes: true, noWrites: true, differentRun: true, differentGeneration: true,
+    historical: {
+      completedAt: '2026-04-19T01:00:00.000Z', distinctIds: true,
+      events: [{ value: 'CASE', unit: 'case', at: Date.parse('2026-04-19T00:59:55Z') },
+        { value: 'CASE', unit: 'case', at: Date.parse('2026-04-19T00:59:55Z') }],
+    },
+    currentInspection: { record: null, summaries: [], issue: null },
+    isolatedHistory: null, historicalSummaries: [], wrongRevision: null, expired: null, cleared: null, oldGeneration: null,
+  });
 });

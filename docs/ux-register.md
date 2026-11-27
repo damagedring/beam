@@ -65,7 +65,7 @@ Picking profiles can optionally map `Verification Unit`, `Units per Case` and `C
 
 Grouped piece verification records are scoped to one outbound carton and use only surviving, accepted scans on explicitly each-verified lines. Returning to an already seen SKU is observable; physical grouping, effort and causes of shipment errors are not proven by scan order. These signals are not scores and are not sent or used for worker evaluation.
 
-Completed Outbound cartons and Inventory scopes save the selected scope in the active local run. Reconnect the exact workbook and its mapped interpretation to reopen it. The order total and carton markers include saved sibling completions, while details load only for the opened scope. In Inventory, finishing saves the Location counting method with the scope in one write. If older records contain both methods, the Location opens read-only with a conflict message and keeps the original records. Failed writes retain in-tab scans. Unfinished Outbound and Inventory scans remain in the current tab.
+Completed Outbound cartons and Inventory scopes save the selected scope in the active local run. Reconnect the exact workbook and its mapped interpretation to reopen it. The order total and carton markers include saved sibling completions, while details load only for the opened scope. A saved carton contributes once even when a different tab still holds its unfinished scans. In Inventory, finishing saves the Location counting method with the scope in one write. If older records contain both methods, the Location opens read-only with a conflict message and keeps the original records. Failed writes retain in-tab scans. Unfinished Outbound and Inventory scans remain in the current tab.
 
 ### Local completion retention
 

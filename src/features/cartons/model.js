@@ -10,8 +10,8 @@ const emptyJob = box => ({ method: methodFor(box), scopes: new Map(), events: []
 const noMarkers = [];
 const totalProgress = progress => progress.covered + progress.excess + progress.unverified;
 
-function addProgress(target, contribution) {
-  for (const key of Object.keys(target)) target[key] += contribution[key];
+function addProgress(target, contribution, direction = 1) {
+  for (const key of Object.keys(target)) target[key] += direction * contribution[key];
 }
 
 function tallyProgress(progress, event, delta) {
@@ -173,7 +173,9 @@ export function createCartonWork(now = Date.now, newEventId = () => crypto.rando
   function outboundOrderProgress(group, saved = []) {
     const current = job('outbound', group), progress = { ...(current?.progress || emptyProgress()) };
     for (const summary of saved) {
-      if (!current?.scopes.get(summary.box)?.events.length) addProgress(progress, summary.progress);
+      const local = current?.scopes.get(summary.box)?.progress;
+      if (local) addProgress(progress, local, -1);
+      addProgress(progress, summary.progress);
     }
     return progress;
   }

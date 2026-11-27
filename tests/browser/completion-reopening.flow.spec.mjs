@@ -113,3 +113,28 @@ test('clearing a migrated legacy inspection preserves open scans and removes the
   await expect(page.locator('#cartonCount')).toContainText('0 / 3');
   await scanAndFinish(page, 3);
 });
+
+
+test('a saved Outbound carton contributes once and keeps another tab’s local draft', async ({ beam: page, context }) => {
+  const other = await context.newPage();
+  await other.clock.setFixedTime(new Date('2026-04-20T02:30:00Z'));
+  await other.goto(page.url());
+  await loadCartons(page, 'Outbound');
+  await loadCartons(other, 'Outbound');
+  await chooseOutboundCarton(other, 'OUT-1', 'BOX-2');
+  await enterScan(other.locator('#cartonScan'), barcode);
+  await expect(other.locator('#cartonPercent')).toHaveText('50%');
+
+  await chooseOutboundCarton(page, 'OUT-1', 'BOX-2');
+  await scanAndFinish(page, 2);
+  await other.locator('#cartonBack').click();
+  await other.locator('.outbound-carton[title="BOX-1"]').click();
+  await expect(other.locator('#outboundOrderPercent')).toHaveText('40%');
+  await expect(other.locator('#cartonPercent')).toHaveText('0%');
+
+  await other.locator('#cartonBack').click();
+  await other.getByRole('button', { name: /BOX-2.*완료/ }).click();
+  await expect(other.locator('#cartonPercent')).toHaveText('50%');
+  await expect(other.locator('#cartonHistory [data-result]')).toHaveCount(1);
+  await expect(other.locator('#outboundOrderPercent')).toHaveText('40%');
+});
