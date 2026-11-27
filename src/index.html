@@ -231,11 +231,6 @@
     <button id="cartonFinish" type="button" data-ko="검수 완료" data-en="Finish inspection">검수 완료</button>
    </div>
   </header>
-  <section id="outboundOrderCoverage" class="beam-coverage carton-order-coverage" aria-labelledby="outboundOrderCoverageLabel" hidden>
-   <div class="beam-coverage-head" aria-live="polite" aria-atomic="true"><span id="outboundOrderCoverageLabel" class="beam-coverage-title" data-ko="오더 전체 진행 · 이 브라우저" data-en="Order progress · This browser">오더 전체 진행 · 이 브라우저</span><strong id="outboundOrderQuantity" class="beam-coverage-quantity"></strong><strong id="outboundOrderPercent" class="beam-coverage-percent"></strong></div>
-   <progress id="outboundOrderMeter" class="beam-coverage-meter" value="0" max="100" aria-labelledby="outboundOrderCoverageLabel"></progress>
-   <span id="outboundOrderDetails" class="beam-coverage-details"></span>
-  </section>
   <section class="carton-coverage" aria-labelledby="cartonCoverageLabel">
    <div class="beam-coverage-head" aria-live="polite" aria-atomic="true"><span id="cartonCoverageLabel" class="beam-coverage-title"></span><strong id="cartonCount" class="beam-coverage-quantity"></strong><strong id="cartonPercent" class="beam-coverage-percent" hidden></strong></div>
    <div id="cartonProgressTrack" class="beam-progress-track">
@@ -245,6 +240,14 @@
    </div>
    <span id="cartonCoverageDetails" class="beam-coverage-details"></span>
   </section>
+  <details id="outboundOrderCoverage" class="carton-order-coverage" hidden>
+   <summary><span id="outboundOrderCoverageLabel" data-ko="오더 전체 진행 · 이 브라우저" data-en="Order progress · This browser">오더 전체 진행 · 이 브라우저</span><svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-chevron-down"/></svg></summary>
+   <div id="outboundOrderBreakdown" class="beam-coverage" hidden>
+    <div class="beam-coverage-head" aria-live="polite" aria-atomic="true"><strong id="outboundOrderQuantity" class="beam-coverage-quantity"></strong><strong id="outboundOrderPercent" class="beam-coverage-percent"></strong></div>
+    <progress id="outboundOrderMeter" class="beam-coverage-meter" value="0" max="100" aria-labelledby="outboundOrderCoverageLabel"></progress>
+    <span id="outboundOrderDetails" class="beam-coverage-details"></span>
+   </div>
+  </details>
   <div class="beam-term-bar"><strong data-ko="검수 콘솔" data-en="INSPECTION CONSOLE">검수 콘솔</strong></div>
   <div class="carton-overview">
   <form id="cartonScanForm" class="carton-action-row">

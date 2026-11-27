@@ -217,16 +217,26 @@ test('Cry Later Help guides piece, full-case, and unmapped carton scans', async 
   const each = page.locator('#cartonScanEach');
   const fullCase = page.locator('#cartonScanCase');
   const count = page.locator('#cartonCount');
+  const details = page.locator('#outboundOrderCoverage');
+  const orderTotal = page.locator('#outboundOrderQuantity');
   await chooseOutboundCarton(page, 'CL-OB-DEMO-TRY', 'TRY-01');
+  await expect(details).not.toHaveAttribute('open');
+  await expect(orderTotal).toBeHidden();
+  await details.locator('summary').press('Space');
+  await expect(orderTotal).toBeVisible();
   await expect(each).toHaveAttribute('aria-pressed', 'true');
   await expect(fullCase).toBeDisabled();
   await enterScan(field, 'CLB00101');
   await expect(count).toContainText('정상 1 / 전체 예정 5');
   await enterScan(field, 'CLB00201');
   await expect(count).toContainText('정상 2 / 전체 예정 5');
+  await expect(orderTotal).toContainText('정상 2 / 전체 예정 17');
 
   await page.locator('#cartonBack').click();
   await page.locator('.outbound-carton[title="TRY-02"]').click();
+  await expect(details).not.toHaveAttribute('open');
+  await expect(orderTotal).toBeHidden();
+  await details.locator('summary').press('Enter');
   await expect(fullCase).toBeEnabled();
   await enterScan(field, 'CLCASE00110');
   await expect(page.locator('#cartonFeedback')).toContainText('FULL 박스 모드로 바꿔');
@@ -236,6 +246,7 @@ test('Cry Later Help guides piece, full-case, and unmapped carton scans', async 
   await expect(count).toContainText('정상 0 / 전체 예정 10');
   await enterScan(field, 'CLCASE00110');
   await expect(count).toContainText('정상 10 / 전체 예정 10');
+  await expect(orderTotal).toContainText('정상 12 / 전체 예정 17');
   await expect(page.locator('#cartonHistory [data-result]')).toHaveCount(1);
   await page.locator('#cartonUndo').click();
   await expect(count).toContainText('정상 0 / 전체 예정 10');

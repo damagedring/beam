@@ -5,6 +5,16 @@ import { chooseCarton, chooseOutboundCarton, enterScan, loadCartons, test } from
 
 const barcode = '0001234567890';
 
+async function openOrderProgress(page) {
+  const details = page.locator('#outboundOrderCoverage');
+  await expect(details).not.toHaveAttribute('open');
+  await expect(page.locator('#outboundOrderMeter')).toBeHidden();
+  await expect(page.locator('#cartonMeter')).toBeVisible();
+  await details.locator('summary').press('Enter');
+  await expect(details).toHaveAttribute('open', '');
+  await expect(page.locator('#outboundOrderMeter')).toBeVisible();
+}
+
 async function scanAndFinish(page, quantity) {
   const scan = page.locator('#cartonScan');
   for (let i = 0; i < quantity; i++) await enterScan(scan, barcode);
@@ -44,6 +54,7 @@ test('Outbound shows saved sibling totals and carton markers after opening one c
   await loadCartons(page, 'Outbound');
   await chooseOutboundCarton(page, 'OUT-1', 'BOX-1');
   await expect(page.locator('#cartonFeedback')).toHaveText('검수를 완료했어요.');
+  await openOrderProgress(page);
   await expect(page.locator('#outboundOrderPercent')).toHaveText('100%');
   await expect(page.locator('#cartonPercent')).toHaveText('100%');
   await page.locator('#cartonBack').click();
@@ -52,6 +63,7 @@ test('Outbound shows saved sibling totals and carton markers after opening one c
   });
   await expect(receipt.getByRole('button', { name: /BOX-2.*완료/ })).toBeVisible();
   await receipt.getByRole('button', { name: /BOX-1.*완료/ }).click();
+  await openOrderProgress(page);
   await expect(page.locator('#outboundOrderPercent')).toHaveText('100%');
 });
 
@@ -129,6 +141,7 @@ test('a saved Outbound carton contributes once and keeps another tab’s local d
   await scanAndFinish(page, 2);
   await other.locator('#cartonBack').click();
   await other.locator('.outbound-carton[title="BOX-1"]').click();
+  await openOrderProgress(other);
   await expect(other.locator('#outboundOrderPercent')).toHaveText('40%');
   await expect(other.locator('#cartonPercent')).toHaveText('0%');
 
@@ -136,5 +149,42 @@ test('a saved Outbound carton contributes once and keeps another tab’s local d
   await other.getByRole('button', { name: /BOX-2.*완료/ }).click();
   await expect(other.locator('#cartonPercent')).toHaveText('50%');
   await expect(other.locator('#cartonHistory [data-result]')).toHaveCount(1);
+  await openOrderProgress(other);
   await expect(other.locator('#outboundOrderPercent')).toHaveText('40%');
+});
+
+
+test.describe('touch Outbound progress disclosure', () => {
+  test.use({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
+  test('order progress remains independently operable at phone widths in both themes', async ({ beam: page }) => {
+    await loadCartons(page, 'Outbound');
+    await chooseOutboundCarton(page, 'OUT-1', 'BOX-1');
+    const details = page.locator('#outboundOrderCoverage');
+    const summary = details.locator('summary');
+    const total = page.locator('#outboundOrderMeter');
+    const carton = page.locator('#cartonMeter');
+    await expect(details).not.toHaveAttribute('open');
+    expect(await summary.evaluate(element => getComputedStyle(element, '::after').content)).toBe('none');
+    await expect(page.locator('#cartonAdd')).toHaveCSS('border-radius', '5px');
+    await expect(page.locator('#cartonUndo')).toHaveCSS('border-radius', '5px');
+    await expect(total).toBeHidden();
+    await expect(carton).toBeVisible();
+    await summary.tap();
+    await expect(details).toHaveAttribute('open', '');
+    await enterScan(page.locator('#cartonScan'), barcode);
+    await expect(page.locator('#outboundOrderPercent')).toHaveText('20%');
+    for (const theme of ['light', 'dark']) {
+      if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('#theme').tap();
+      for (const width of [320, 375, 390]) {
+        await page.setViewportSize({ width, height: 844 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+        expect((await summary.boundingBox()).height).toBeGreaterThanOrEqual(44);
+        await expect(carton).toBeVisible();
+        await expect(total).toBeVisible();
+      }
+    }
+    await summary.tap();
+    await expect(total).toBeHidden();
+    await expect(carton).toBeVisible();
+  });
 });

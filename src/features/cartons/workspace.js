@@ -297,7 +297,10 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   }
  }
  function select(g,boxMatch){
-  if(mode==='outbound'&&(!boxMatch||!g.boxes.has(boxMatch)))return;
+  if(mode==='outbound'){
+   if(!boxMatch||!g.boxes.has(boxMatch))return;
+   $('outboundOrderCoverage').open=false;
+  }
   invalidateSelection();group=g;box=boxMatch??null;
   const s=selection();statusCheck=s;
   showStage('inspection');void checkCompletion(s);
@@ -378,7 +381,8 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    scopes.append(button);
   }
   const verifying=!!statusCheck&&matchesSelection(statusCheck);
-  $('outboundOrderCoverage').hidden=!outbound||!ready||verifying;
+  $('outboundOrderCoverage').hidden=!outbound||!ready;
+  $('outboundOrderBreakdown').hidden=verifying;
   $('cartonPercent').hidden=!outbound;
   $('cartonMeter').classList.toggle('beam-coverage-meter',outbound);
   $('cartonMeter').closest('.carton-coverage').classList.toggle('beam-coverage',outbound);
