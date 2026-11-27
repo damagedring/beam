@@ -79,6 +79,13 @@ test('no runtime network submissions, private branding, or external resource lin
   for(const notice of files.filter(name=>name.startsWith('assets/OFL-')))assert.match(await read(notice),/SIL OPEN FONT LICENSE/);
 });
 
+test('the static entry point exposes the packaged Beam release version', async () => {
+  const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const html = await read('index.html');
+  assert.ok(html.includes(`<meta name="beam-version" content="${version}">`));
+  assert.ok(html.includes(`<title>Beam ${version.split('.').slice(0, 2).join('.')}</title>`));
+});
+
 test('style URL changes with the deployed CSS bytes', async () => {
   const css=await read('app.css');
   const revision=createHash('sha256').update(css).digest('hex').slice(0,12);

@@ -7,6 +7,8 @@ import { checkStyleReferences } from './style-metrics.mjs';
 import { copyBeamLicense } from './copy-license.mjs';
 
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
+const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version)) throw Error('Invalid Beam release version');
 const source = join(root, 'src');
 const destination = join(root, 'dist');
 const exampleModule = 'features/examples/cry-later-assets.js';
@@ -61,6 +63,10 @@ try {
   const stylesheet = Buffer.concat(css.flatMap((data) => [data, Buffer.from('\n')]));
   const revision = createHash('sha256').update(stylesheet).digest('hex').slice(0, 12);
   let markup = (await readSource('index.html')).toString('utf8');
+  const versionMarker = '<meta name="beam-version" content="">';
+  if (!markup.includes(versionMarker) || !markup.includes('<title>Beam</title>')) throw Error('Missing Beam release markup');
+  markup = markup.replace(versionMarker, `<meta name="beam-version" content="${version}">`)
+    .replace('<title>Beam</title>', `<title>Beam ${version.slice(0, version.lastIndexOf('.'))}</title>`);
   const entryScript='src="./app.js"';
   if(!markup.includes(entryScript))throw Error('Missing Beam entry script');
   markup=markup.replace(entryScript,`src="./app.js?v=${moduleRevision}"`);
