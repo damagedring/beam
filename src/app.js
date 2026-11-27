@@ -11,7 +11,7 @@ import { createReturnsScanCommands } from './features/returns/scan-commands.js';
 import { mergeProductBrands, optionalBrandColumn, scannedProductLabel } from "./domain/product-identity.js";
 import { productIdentityMarkup } from "./components/product-identity/view.js";
 import { attachCartonWorkspace } from "./features/cartons/workspace.js";
-import { validateCartonMappings, prepareCartonReferences } from "./features/cartons/reference.js";
+import { validateCartonMappings, prepareCartonReferences, createCartonReferenceIdentity, createCartonProfileNamespaces } from "./features/cartons/reference.js";
 import { validateLabelPapers } from "./domain/product-labels.js";
 import { attachProductLabels } from "./components/product-labels/view.js";
 import { latestScanEvent, recentScanEvents, scanHistoryPage } from "./domain/scan-history.js";
@@ -28,7 +28,8 @@ import { dispatchFields, validateDispatchProfile } from './domain/carton-verific
 import { renderInspectionHeader, renderInspectionReport, renderOutboundDispatch } from "./components/print/inspection-report.js";
 import { trackingExactKey, trackingKey, trackingNumericCore, looksLikeTracking, beamInitialKey } from "./domain/search-keys.js";
 import { translations } from "./ui/translations.js";
-
+import { createInspectionCompletionStore } from './platform/inspection-completions.js';
+import { defaultInspectionWorkspace } from './platform/inspection-completion-record.js';
 'use strict';
 // Three repeats of the complete word share a single cylindrical surface.
 {
@@ -45,9 +46,7 @@ import { translations } from "./ui/translations.js";
  }
  drum.append(surface);drum.hidden=false;
 }
-
-Object.assign(translations,{'OneDrive에 검수 기록 저장':'Save inspection records to OneDrive','OneDrive 저장':'OneDrive export'});
-Object.assign(translations,{'바코드 / SKU':'Barcode / SKU','바코드 또는 SKU 입력':'Enter a barcode or SKU','최근 스캔 상품 검수 진행률':'Last scanned item progress','피킹 위치 안내':'Picking location information','검수 시작':'Start inspection'});
+Object.assign(translations,{'OneDrive에 검수 기록 저장':'Save inspection records to OneDrive','OneDrive 저장':'OneDrive export'},{'바코드 / SKU':'Barcode / SKU','바코드 또는 SKU 입력':'Enter a barcode or SKU','최근 스캔 상품 검수 진행률':'Last scanned item progress','피킹 위치 안내':'Picking location information','검수 시작':'Start inspection'});
 const ReferenceFingerprint = createReferenceFingerprint({
  currentData: () => state.data,
  getIndex,
@@ -300,6 +299,7 @@ let language='ko';try{language=localStorage.getItem('returns-app-language')==='e
 /* Local mapping preferences are intentionally separate from work state/JSON. */
 // The component owns meaning and accessibility; the sprite owns artwork.
 function beamIcon(role){return '<svg class="beam-ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#beam-glyph-'+role+'"/></svg>';}
+const cartonProfiles=createCartonProfileNamespaces();
 const MappingUI=(()=>{
  const KEY='logistics-local-mapping-v1',kinds=['raw','sku','loc','phoneOrders'];
  // Mapping profiles are local operator inputs, not bundled warehouse presets.
@@ -372,13 +372,15 @@ const MappingUI=(()=>{
   }catch(e){if(e.name!=='AbortError'){storageNote=e.message;refresh();}}
  }
  function dispatchProfile(){return {id:db.active,...validateDispatchProfile(db.profiles[db.active]?.dispatchProfile)};}
- function cartonProfile(){
+ function cartonProfile(workspaceId=defaultInspectionWorkspace){
+  if(workspaceId!==defaultInspectionWorkspace)return {id:db.active,mappings:cartonProfiles.mappings(workspaceId,db.active)};
   const current=db.profiles[db.active];
   const legacy=dispatchProfile().mapping;
   return {id:db.active,mappings:{...(legacy?{outbound:legacy}:{}),...current?.cartonMappings}};
  }
- function saveCartonMapping(active,mode,mapping){
+ function saveCartonMapping(active,mode,mapping,workspaceId=defaultInspectionWorkspace){
   if(db.active!==active||busy)return;
+  if(workspaceId!==defaultInspectionWorkspace){cartonProfiles.save(workspaceId,active,mode,mapping);return;}
   const next=copy(db),profile=next.profiles[active];
   profile.cartonMappings=validateCartonMappings({...profile.cartonMappings,[mode]:mapping});
   if(mode==='outbound')profile.dispatchProfile=validateDispatchProfile({fields:dispatchProfile().fields,mapping:{sheet:mapping.sheet,headers:mapping.headers}});
@@ -1765,8 +1767,7 @@ function openPrintDocument(kind){
   beforePrint:()=>notice(printL('인쇄 창에서 PDF로 저장을 선택하세요.','Choose Save as PDF in the print dialog.')),
  });
 }
-function printProductLabelDocument(target){
- printSession.open({paper:'product-label',markup:target.markup},{
+function printProductLabelDocument(target){ printSession.open({paper:'product-label',markup:target.markup},{
   title:'Beam · '+target.title,size:target,defer:false,onError:error=>notice(error.message,'error'),
  });
 }
@@ -1774,13 +1775,12 @@ const productLabels=attachProductLabels({
  getContext:source=>source.id==='productLabelTrigger'?(state.receipt?{key:state.receipt,external:rawRows(state.receipt)[0]?.external||'',rows:reconcileView(state.data,state.receipt,state.scans)}:null):cartonWorkspace.labelContext(),
  getPapers:MappingUI.labelPapers,print:printProductLabelDocument,isEnglish:()=>language==='en',escape:esc
 });
-function openCartonPrint(target,orderId){
- printSession.open(target,{title:'Beam · '+target.title+' · '+orderId,onError:error=>notice(error.message,'error')});
+function openCartonPrint(target,orderId,stillCurrent){ printSession.open(target,{stillCurrent,title:'Beam · '+target.title+' · '+orderId,onError:error=>notice(error.message,'error')});
 }
 const inspectionInput = createInspectionInput(document, window);
-const cartonWorkspace=attachCartonWorkspace({clearScanner:inspectionInput.clearCartons,readWorkbook:readSpreadsheet,engine:Engine,isEnglish:()=>language==='en',openLabels:source=>productLabels.open(source),
- openReport:context=>openCartonPrint(renderInspectionReport(context),context.orderId),
- openDispatch:context=>openCartonPrint(renderOutboundDispatch(context),context.orderId),
+const cartonWorkspace=attachCartonWorkspace({completions:createInspectionCompletionStore(),referenceIdentity:createCartonReferenceIdentity(),workspaceId:defaultInspectionWorkspace,clearScanner:inspectionInput.clearCartons,readWorkbook:readSpreadsheet,engine:Engine,isEnglish:()=>language==='en',openLabels:source=>productLabels.open(source),
+ openReport:(context,stillCurrent)=>openCartonPrint(renderInspectionReport(context),context.orderId,stillCurrent),
+ openDispatch:(context,stillCurrent)=>openCartonPrint(renderOutboundDispatch(context),context.orderId,stillCurrent),
  dispatchProfile:MappingUI.dispatchProfile,cartonProfile:MappingUI.cartonProfile,saveCartonMapping:MappingUI.saveCartonMapping,
  showHome:()=>beamShowHome(),notice:showImportNotice,
  renderActivity:entries=>activityMarkup(entries,true),quantityLabel:lastScannedCountLabel,audio:scanAudio.play,
@@ -2754,7 +2754,7 @@ async function runCombinedWorkbook(file,{retry=false}={}){
   let referenceSummary='';
   await applyMappedResult(parsed,file.name,parsed.headerOnlyKinds||[],message=>{referenceSummary=message;});
   tx.commit({file,activeRaw:state.data.raw===parsed.raw?parsed.raw:null});
-  const retained=cartonWorkspace.applyCombined(await prepareCartonReferences(file,MappingUI.cartonProfile().mappings,readSpreadsheet,{Engine,language,productCatalog:parsed.sku}));
+  const cartonContext=cartonWorkspace.connectionContext(),retained=cartonWorkspace.applyCombined(await prepareCartonReferences(file,MappingUI.cartonProfile().mappings,readSpreadsheet,{Engine,language,productCatalog:parsed.sku}),cartonContext);
   const n=parsed.raw?.length||0;
   const connected=n?l('RAW 연결 완료 · 반품 예정 '+n.toLocaleString()+'행','RAW connected · '+n.toLocaleString()+' return rows'):l('선택한 연결 저장 완료 · 기존 반품 예정 자료 유지','Selected mappings saved · existing return data retained');
   const retainedNames=retained.map(kind=>kind==='outbound'?l('출고','Outbound'):l('재고','Inventory')).join(' / ');

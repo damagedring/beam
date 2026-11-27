@@ -29,6 +29,7 @@ export function createIndexedRecoveryStore(getIndexedDB=()=>globalThis.indexedDB
   });
  }
  return {
+  transact:operate,
   read:key=>operate('readonly',(s,finish)=>{const req=s.get(key);req.onsuccess=()=>finish(req.result??null);}),
   readCurrent:(key,expired)=>operate('readwrite',(s,finish)=>{
    const req=s.get(key);req.onsuccess=()=>{

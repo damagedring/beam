@@ -27,7 +27,7 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 | UX-14 | Accepted, excess and unknown scans have their respective sounds, and scans still record when audio is unavailable. |
 | UX-15 | Returns offers recovery only for matching reference and customer lookup data, and a newer draft takes precedence over a stale tab’s write. |
 | UX-16 | Returns restores valid drafts and compatible saved work and keeps the active session usable if browser storage fails. |
-| UX-17 | Outbound and Inventory keep separate work when switching workflows within a tab, and completed carton inspections can be reopened after reconnecting the exact same workbook. |
+| UX-17 | Outbound and Inventory keep separate work when switching workflows within a tab, and completed carton inspections can be reopened after reconnecting the exact same workbook and interpretation for the active local run. |
 
 ## Workflow and presentation
 
@@ -35,7 +35,7 @@ Use these stable IDs when reviewing changes to observable behavior. Check the af
 | --- | --- |
 | UX-18 | Outbound search keeps orders, cartons, DAS groups and mapped destinations distinct and leaves ambiguous carton matches for selection. |
 | UX-19 | An outbound inspection shows only the selected carton and preserves its counts across navigation. Completion never locks another carton. |
-| UX-20 | Inventory counts by Location or by carton, with the alternate scope view-only until scans in the current scope are undone. |
+| UX-20 | Inventory counts by Location or by carton, with the alternate scope view-only while the first method has in-tab scans or retained saved completions in this run. |
 | UX-21 | Label previews group products with remaining units, and printing keeps the corresponding copy counts, batch boundaries and mapped barcodes. |
 | UX-22 | Known brands appear in the badge, and the displayed name drops only a delimited leading prefix that matches the mapped brand. |
 | UX-23 | Label previews page by keyboard or touch, return focus on close and block printing if the work scope has changed. |
@@ -65,8 +65,8 @@ Picking profiles can optionally map `Verification Unit`, `Units per Case` and `C
 
 Grouped piece verification records are scoped to one outbound carton and use only surviving, accepted scans on explicitly each-verified lines. Returning to an already seen SKU is observable; physical grouping, effort and causes of shipment errors are not proven by scan order. These signals are not scores and are not sent or used for worker evaluation.
 
-Completed outbound cartons and inventory scopes write a per-scope completion record with the scan replay to Beam's IndexedDB. The exact workbook and mapped scope must match to reopen it. Opening a scope reads but never creates a completion record. Concurrent windows cannot replace an already saved completion, and failure to save does not mark work complete. No WMS or Drive updates are part of this path.
+Completed Outbound cartons and Inventory scopes save the selected scope in the active local run. Reconnect the exact workbook and its mapped interpretation to reopen it. The order total and carton markers include saved sibling completions, while details load only for the opened scope. In Inventory, finishing saves the Location counting method with the scope in one write. If older records contain both methods, the Location opens read-only with a conflict message and keeps the original records. Failed writes retain in-tab scans. Unfinished Outbound and Inventory scans remain in the current tab.
 
 ### Local completion retention
 
-Outbound carton and Inventory completion records stay in the current browser for up to 30 days. Beam removes expired entries when opened, when it returns to the foreground (periodic cleanup), or when that record is read. Settings → Saved inspection completions clears this browser's saved Outbound and Inventory completions after confirmation. It does not clear Returns recovery drafts, saved profiles, downloaded files, or scans already open in the current tab. It does not change the warehouse system.
+Outbound carton and Inventory completion records stay in the current browser for up to 30 days. Reads omit expired entries. Beam prunes them periodically when opened or returned to the foreground. Settings → Saved inspection completions clears this browser's saved Outbound and Inventory records, run pointers, and derived summaries after confirmation. It does not clear Returns recovery drafts, saved profiles, downloaded files, or scans already open in the current tab. It does not change the warehouse system.

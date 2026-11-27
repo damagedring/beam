@@ -13,8 +13,8 @@ export function createPrintSession({ browser, document, root, nativeTarget }) {
     active = undefined;
   }
 
-  function open(target, { title, size, defer = true, beforePrint, onError }) {
-    if (active) return;
+  function open(target, { title, size, defer = true, beforePrint, onError, stillCurrent = () => true }) {
+    if (active || !stillCurrent()) return;
     let page;
     if (size) {
       page = document.createElement('style');
@@ -28,6 +28,7 @@ export function createPrintSession({ browser, document, root, nativeTarget }) {
     beforePrint?.();
     const print = () => {
       if (active !== session) return;
+      if (!stillCurrent()) { reset(); return; }
       try { browser.print(); }
       catch (error) { reset(); onError?.(error); }
     };

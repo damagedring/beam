@@ -50,18 +50,25 @@ export function createOutboundCartons({l,onChoose,onDispatch,isComplete,onExpand
   const items=document.createDocumentFragment();
   byKey=new Map(keys.map((key,i)=>{
    const li=make('li'),b=make('button','outbound-carton'),top=make('span','outbound-carton-top');
-   const done=isComplete(order,key);
    let qty=0;for(const row of order.boxes.get(key).values())qty+=row.expected;
-   top.append(make('span','',String(i+1).padStart(2,'0')),make('span','',done?'✓':'↓'));
+   top.append(make('span','',String(i+1).padStart(2,'0')),make('span','','↓'));
    b.type='button';
    const orderPrefix=(order.external||order.id)+' ';
    const label=key.startsWith(orderPrefix)?key.slice(orderPrefix.length):key;
-   b.setAttribute('aria-label',key+' · '+qty.toLocaleString()+' EA'+(done?' · '+l('완료','Complete'):''));
+   b.setAttribute('aria-label',key+' · '+qty.toLocaleString()+' EA');
    b.title=key;
    b.append(top,make('strong','',label),make('span','outbound-carton-quantity',qty.toLocaleString()+' EA'));
    b.onclick=()=>open(key,b);li.append(b);items.append(li);return [key,b];
   }));
   list.replaceChildren(items);
+  refreshCompletionMarks();
+ }
+ function refreshCompletionMarks(){
+  for(const [key,b] of byKey){
+   const done=isComplete(order,key),label=key+' · '+b.lastElementChild.textContent;
+   b.firstElementChild.lastElementChild.textContent=done?'✓':'↓';
+   b.setAttribute('aria-label',label+(done?' · '+l('완료','Complete'):''));
+  }
  }
  function focus({box,first=false,scroll}={}){
   if(root.hidden)return;
@@ -69,5 +76,5 @@ export function createOutboundCartons({l,onChoose,onDispatch,isComplete,onExpand
   if(previous){previous.focus({preventScroll:true});if(scroll)previous.scrollIntoView({block:'nearest'});return;}
   if(scroll)root.scrollIntoView({block:'nearest'});
  }
- return {root,update,focus};
+ return {root,update,focus,refreshCompletionMarks};
 }

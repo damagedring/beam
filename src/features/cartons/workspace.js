@@ -1,13 +1,13 @@
-import { createInspectionCompletionStore } from '../../platform/inspection-completions.js';
+import { completionRetentionMs, completionSummary, maxCompletionEvents, savedInventoryMethod } from '../../platform/inspection-completion-record.js';
 import { attachProgressMarkers, coverageReadout } from '../../components/inspection-progress/view.js';
 import { inspectionCoverage } from '../../domain/reconcile.js';
-import { createCartonWork } from './model.js';
+import { createCartonWork, projectCartonCompletion } from './model.js';
 import { createOutboundReceipts } from './outbound-receipts.js';
 import { productIdentityMarkup } from '../../components/product-identity/view.js';
 import { scannedProductLabel } from '../../domain/product-identity.js';
 import { cartonAdapter, cartonQuantityAliases, cartonSearch, codeKey, createCartonIndex, fields, aliases, cartonCaseSizes, cartonVerificationPlan, outboundCandidates, outboundDispatch, outboundSearchScope } from '../../domain/carton-verification.js';
 
-export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglish,openLabels,openReport,openDispatch,dispatchProfile,cartonProfile,saveCartonMapping,showHome,notice,renderActivity,quantityLabel,audio,locationFor,syncLocation,progressIcon}){
+export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglish,openLabels,openReport,openDispatch,dispatchProfile,cartonProfile,saveCartonMapping,showHome,notice,renderActivity,quantityLabel,audio,locationFor,syncLocation,progressIcon,completions,referenceIdentity,workspaceId}){
  const $=id=>document.getElementById(id), root=$('cartonWorkspace'), l=(ko,en)=>isEnglish()?en:ko;
  const work=createCartonWork(),combinedStatus=new Map();
  const markers=attachProgressMarkers(document,isEnglish,progressIcon,{track:'cartonProgressTrack',markers:'cartonProgressMarkers',note:'cartonProgressNote'});
@@ -19,7 +19,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   meter.setAttribute('aria-valuetext',[value.quantity,value.percent,value.details].filter(Boolean).join(' · '));
  }
  function drawOutboundProgress(boxCoverage,rows){
-  const {covered,excess,unverified}=work.outboundOrderProgress(group);
+  const {covered,excess,unverified}=work.outboundOrderProgress(group,savedFor(view(),group));
   const expected=group.qty,remaining=Math.max(0,expected-covered),actual=covered+excess;
   const order={expected,covered,excess,remaining,phase:unverified?'warning':'progress',
    percent:expected?(actual>expected?Math.max(101,Math.floor(actual/expected*100)):Math.floor(covered/expected*100)):null};
@@ -28,7 +28,6 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   writeCoverage(['cartonCount','cartonPercent','cartonMeter','cartonCoverageDetails'],boxCoverage,{unverified:unknown,locked:locked()});
   markers.update(scopeKey(),{events:work.outboundOverages(group,box),expected:boxCoverage.expected});
  }
- const completions=createInspectionCompletionStore();
  let lastSweep=-Infinity;
  function sweepCompletions(){
   const now=Date.now();if(now>=lastSweep&&now-lastSweep<86_400_000)return;
@@ -42,6 +41,11 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   button.disabled=true;
   try{
    await completions.clear();
+   clearGeneration++;invalidateSelection();
+   savedBySource=new WeakMap();runsBySource=new WeakMap();
+   work.clearSavedCompletions();
+   receiptPicker.refreshCompletionMarks();
+   if(inspectionActive())render();
    $('clearCompletionsDialog').close();
    notice(l('이 브라우저의 검수 완료 기록을 지웠어요.','Saved inspection completions were cleared from this browser.'));
   }catch{
@@ -49,43 +53,93 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   }finally{button.disabled=false;}
  };
  $('clearCompletionsLauncher').addEventListener('click',()=>{$('clearCompletionsStatus').textContent='';});
- const workbookFingerprints=new WeakMap(),sourceFiles=new WeakMap();
- let statusCheck=null,statusSave=null,loadedStatus=null;
- const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',value)),b=>b.toString(16).padStart(2,'0')).join('');
- async function completionKey(source,kind,g,carton){
-  const file=sourceFiles.get(source);
-  if(!file||!globalThis.crypto?.subtle)throw Error('No completion fingerprint');
-  if(!workbookFingerprints.has(file))workbookFingerprints.set(file,file.arrayBuffer().then(digest));
-  const manifest=JSON.stringify([...((carton===null?g.totals:g.boxes.get(carton))||[])].map(([key,r])=>
-   r.verification?.caseBarcode?[key,r.expected,r.verification.caseBarcode,r.verification.unitsPerCase]:[key,r.expected]));
-  return JSON.stringify(['v1',kind,await workbookFingerprints.get(file),g.id,carton,await digest(new TextEncoder().encode(manifest))]);
+ let selectionVersion=0, statusCheck=null, statusSave=null, loadedStatus=null;
+ let savedBySource=new WeakMap(),runsBySource=new WeakMap(),clearGeneration=0;
+ const savedFor=(source,g)=>(savedBySource.get(source)?.get(g?.id)||[]).filter(summary=>Date.parse(summary.completedAt)>Date.now()-completionRetentionMs);
+ const isSaved=(kind,g,carton)=>savedFor(work.reference(kind),g).some(summary=>summary.box===carton);
+ function applySummaries(source, groupId, summaries, updateView=true){
+  if(!savedBySource.has(source))savedBySource.set(source,new Map());
+  savedBySource.get(source).set(groupId,summaries);
+  if(updateView)receiptPicker.refreshCompletionMarks();
  }
- function selection(){return {mode,group,box,source:view()};}
- const matchesSelection=s=>s.mode===mode&&s.group===group&&s.box===box&&s.source===view()&&inspectionActive();
- async function checkCompletion(){
-  const s=selection();
-  if(!s.group||locked())return;
-  statusCheck=s;loadedStatus=null;render();
+ function rememberRun(source,summaries){
+  const groups=new Map();
+  for(const summary of summaries){
+   if(!groups.has(summary.groupId))groups.set(summary.groupId,[]);
+   groups.get(summary.groupId).push(summary);
+  }
+  for(const [groupId,entries] of savedBySource.get(source)||[])groups.set(groupId,entries);
+  savedBySource.set(source,groups);
+  receiptPicker.refreshCompletionMarks();
+ }
+ function connect(kind,file,index){
+  work.connect(kind,file.name,index);
+  const source=work.reference(kind),generation=clearGeneration;
+  const current=()=>source===work.reference(kind)&&generation===clearGeneration;
+  referenceIdentity.associate(source,file);
+  // Load the lightweight persisted marks without replaying any carton events.
+  void referenceIdentity.reference(source).then(reference=>{
+   if(!current())return null;
+   return completions.resume({workspaceId,workflow:kind,...reference});
+  }).then(async run=>{
+   if(!run||!current())return;
+   const summaries=await completions.summaries(run),active=runsBySource.get(source);
+   if(current()&&(!active||active.generation===run.generation))rememberRun(source,summaries);
+  }).catch(()=>{});
+ }
+ function invalidateSelection(){
+  selectionVersion++;
+  statusCheck=null;
+  statusSave=null;
+  loadedStatus=null;
+ }
+ function selection(){return {version:selectionVersion,clearGeneration,mode,group,box,source:view()};}
+ const matchesSelection=s=>s.version===selectionVersion&&s.mode===mode&&s.group===group&&s.box===box&&s.source===view()&&inspectionActive();
+ async function readSelection(s){
+  const reference=await referenceIdentity.reference(s.source);
+  if(!matchesSelection(s))return null;
+  const run=await completions.resume({workspaceId,workflow:s.mode,...reference});
+  if(!matchesSelection(s))return null;
+  const previous=runsBySource.get(s.source);
+  if(previous&&previous.generation!==run.generation&&work.hasJobs(s.mode))return {scope:null,record:null,summaries:[],issue:'stale'};
+  runsBySource.set(s.source,run);
+  const scope={...run,groupId:s.group.id,box:s.box};
+  const keys=await completions.legacyKeys(scope);
+  const legacy=await referenceIdentity.legacyScopes(scope,s.group,keys);
+  if(!matchesSelection(s))return null;
+  const result=await completions.inspect(scope,legacy,(carton,events)=>projectCartonCompletion(s.mode,s.group,carton,events));
+  return {scope,...result};
+ }
+ async function checkCompletion(s){
   try{
-   const key=await completionKey(s.source,s.mode,s.group,s.box);
-   const record=await completions.read(key);
-   if(statusCheck!==s||!matchesSelection(s))return;
-   loadedStatus={selection:s,key};
-   if(record?.status==='complete'&&!work.restoreCompletion(s.mode,s.group,s.box,record.events)&&!work.locked(s.mode,s.group,s.box)){
-    loadedStatus=null;
-    warn(l('저장된 완료 기록을 확인할 수 없어요.','The saved completion could not be verified.'));
+   const result=await readSelection(s);
+   if(!result||statusCheck!==s||!matchesSelection(s))return;
+   const {scope,record,summaries,issue}=result;
+   loadedStatus={selection:s,scope,issue};
+   const method=s.mode==='inventory'?savedInventoryMethod(summaries):null;
+   if(!issue&&record&&method!=='conflict'&&!locked()&&work.canScan(s.mode,s.group,s.box)){
+    const local=work.completionSnapshot(s.mode,s.group,s.box);
+    if(!local.length){
+     if(!work.restoreCompletion(s.mode,s.group,s.box,record.events))loadedStatus.issue='invalid';
+    }else if(local.length===record.events.length&&local.every((event,i)=>event.id===record.events[i].id)){
+     work.finish(s.mode,s.group,s.box);
+    }
    }
-  }catch{if(statusCheck===s&&matchesSelection(s))warn(l('완료 상태 저장소에 연결할 수 없어요.','Completion storage is unavailable.'));}
-  finally{if(statusCheck===s){
-   statusCheck=null;
-   if(matchesSelection(s)){
-    render();
-    if(!$('cartonScan').disabled&&matchMedia('(pointer:fine)').matches&&[document.body,$('cartonGroupTitle')].includes(document.activeElement))focusStage('cartonScan');
+   applySummaries(s.source,s.group.id,loadedStatus.issue==='invalid'?summaries.filter(row=>row.box!==s.box):summaries);
+  }catch{
+   if(statusCheck===s&&matchesSelection(s))loadedStatus={selection:s,scope:null,issue:'unavailable'};
+  }finally{
+   if(statusCheck===s){
+    statusCheck=null;
+    if(matchesSelection(s)){
+     render();
+     if(!$('cartonScan').disabled&&matchMedia('(pointer:fine)').matches&&[document.body,$('cartonGroupTitle')].includes(document.activeElement))focusStage('cartonScan');
+    }
    }
-  }}
+  }
  }
  let combinedReference=null;
- const receiptPicker=createOutboundReceipts($('outboundReceiptHost'),{l,onChoose:select,onDispatch:g=>openDispatch(dispatchContext(g)),isComplete:(g,key)=>work.locked('outbound',g,key)});
+ const receiptPicker=createOutboundReceipts($('outboundReceiptHost'),{l,onChoose:select,onDispatch:printDispatch,isComplete:(g,key)=>isSaved('outbound',g,key)});
  let mode=null,group=null,box=null,loading=false,page=0,stage='search',outboundLocationOn=true,outboundKind='single',scanUnit='each';
  const locationMode=()=>!root.hidden&&mode==='outbound'?outboundLocationOn:null;
  const view=()=>work.reference(mode);
@@ -94,9 +148,14 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  const inspectionActive=()=>!root.hidden&&!!group&&(mode==='inventory'||(stage==='inspection'&&box!==null));
  const inspectionContext=()=>({mode:'outbound',orderId:group.id,externalId:group.external,work:'Carton: '+box,party:[...group.stores].join(' / '),partyLabel:'Destination Store',rows:rowList().map(r=>({...r,status:r.conflict?'conflict':r.unregistered?'unexpected':r.actual>r.expected?'excess':r.actual===r.expected?'matched':'short'}))});
  const dispatchContext=(g=group)=>({...outboundDispatch(g),fields:dispatchProfile().fields});
- const scopeKey=()=>JSON.stringify([group?.id,box]);
+ function printDispatch(order){
+  const source=view(),version=selectionVersion;
+  openDispatch(dispatchContext(order),()=>!root.hidden&&mode==='outbound'&&source===view()&&version===selectionVersion);
+ }
+ const scopeKey=()=>JSON.stringify([workspaceId,selectionVersion,group?.id,box]);
  const locked=()=>work.locked(mode,group,box);
- const scopeAllowed=()=>work.canScan(mode,group,box);
+ const savedMethod=()=>mode==='inventory'?savedInventoryMethod(savedFor(view(),group)):null;
+ const scopeAllowed=()=>{const method=savedMethod();return (!method||method===(box===null?'whole':'box'))&&work.canScan(mode,group,box);};
  const warn=value=>{$('cartonFeedback').textContent=value;};
  function localize(){
   const inventory=mode==='inventory';
@@ -159,11 +218,11 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  async function load(file,packs){
   if(loading||!file)return;
   if(work.hasJobs(mode)&&!window.confirm(l('이 업무의 기존 검수 기록이 바뀝니다. 새 자료를 연결할까요?','Loading a new reference replaces this mode’s inspection history. Continue?')))return;
-  loading=true;const target=mode,prefs=cartonProfile(),rememberedMapping=prefs.mappings[target];let separator='',savedMapping=null;localize();
+  loading=true;const target=mode,previous=view(),version=selectionVersion,prefs=cartonProfile(workspaceId),rememberedMapping=prefs.mappings[target];let separator='',savedMapping=null;localize();
   try{
    const adapter=cartonAdapter(target);
    const {cartonLines}=await readWorkbook(file,'cartonLines',p=>{
-    if(p.phase==='sheet')$('cartonSource').textContent=l('읽는 중 · ','Reading · ')+p.rowsProcessed.toLocaleString();
+    if(p.phase==='sheet'&&version===selectionVersion)$('cartonSource').textContent=l('읽는 중 · ','Reading · ')+p.rowsProcessed.toLocaleString();
    },{
     cartonAdapter:{validateColumns:adapter.validateColumns,table:(...args)=>cartonAdapter(target,separator,packs).table(...args)},
     selectSheets:({sheets})=>chooseSheet(target==='outbound'?l('피킹 결과 시트 연결','Connect picking results sheet'):l('검수 대상 시트 연결','Connect inspection sheet'),body=>{
@@ -219,8 +278,9 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    },{Engine:engine,language:isEnglish()?'en':'ko'});
    const index=createCartonIndex(cartonLines);
    if(!index.groups.size)throw Error(l('검수할 예정 수량이 없습니다.','There are no positive expected quantities.'));
-   work.connect(target,file.name,index);sourceFiles.set(work.reference(target),file);combinedStatus.set(target,'ready');if(mode===target){group=null;box=null;stage='search';$('cartonQuery').value='';render();}
-   if(savedMapping)saveCartonMapping(prefs.id,target,savedMapping);
+   if(version!==selectionVersion||target!==mode||previous!==view()||root.hidden)return;
+   invalidateSelection();connect(target,file,index);combinedStatus.set(target,'ready');if(mode===target){group=null;box=null;stage='search';$('cartonQuery').value='';render();}
+   if(savedMapping)saveCartonMapping(prefs.id,target,savedMapping,workspaceId);
    notice(l('검수 기준 연결 완료','Inspection reference connected'));
   }catch(e){if(e.name!=='AbortError')notice(e.message,'error');}
   finally{loading=false;localize();}
@@ -238,13 +298,14 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
  }
  function select(g,boxMatch){
   if(mode==='outbound'&&(!boxMatch||!g.boxes.has(boxMatch)))return;
-  group=g;box=boxMatch??null;
-  showStage('inspection');void checkCompletion();
+  invalidateSelection();group=g;box=boxMatch??null;
+  const s=selection();statusCheck=s;
+  showStage('inspection');void checkCompletion(s);
  }
  function back(){
   if(stage==='inspection'){
    const previousGroup=group,previousBox=box;
-   group=null;box=null;stage='search';page=0;clearScanner();warn('');$('cartonScan').value='';render();
+   invalidateSelection();group=null;box=null;stage='search';page=0;clearScanner();warn('');$('cartonScan').value='';render();
    if(mode==='outbound')receiptPicker.openCartons(previousGroup,{focus:false});
    receiptPicker.resume(previousBox);
    return;
@@ -308,14 +369,16 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    button.title=button.textContent;
    button.replaceChildren(make('span',button.title,{className:'scope-key'}));
    button.setAttribute('aria-pressed',String(choice===box));
-   if(work.locked(mode,group,choice))button.append(make('span',' ✓'));
+   if(isSaved(mode,group,choice))button.append(make('span',' ✓'));
    button.onclick=()=>{
-    box=choice;page=0;warn('');$('cartonScan').value='';render();void checkCompletion();
+    invalidateSelection();box=choice;page=0;warn('');clearScanner();$('cartonScan').value='';
+    const s=selection();statusCheck=s;render();void checkCompletion(s);
     if(!$('cartonScan').disabled&&matchMedia('(pointer:fine)').matches)focusStage('cartonScan');
    };
    scopes.append(button);
   }
-  $('outboundOrderCoverage').hidden=!outbound||!ready;
+  const verifying=!!statusCheck&&matchesSelection(statusCheck);
+  $('outboundOrderCoverage').hidden=!outbound||!ready||verifying;
   $('cartonPercent').hidden=!outbound;
   $('cartonMeter').classList.toggle('beam-coverage-meter',outbound);
   $('cartonMeter').closest('.carton-coverage').classList.toggle('beam-coverage',outbound);
@@ -328,7 +391,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    p.remaining?l(p.remaining.toLocaleString()+'개 남음',p.remaining.toLocaleString()+' remaining'):'',
    p.excess?l(p.excess.toLocaleString()+'개 초과',p.excess.toLocaleString()+' excess'):'',
    p.needsReview?l('확인 필요','Review needed'):'',
-   p.complete?l(locked()?'검수 완료':'수량 일치 · 완료 대기',locked()?'Complete':'Ready to confirm'):'',
+   p.complete?l(isSaved(mode,group,box)?'검수 완료':locked()?'현재 탭 기록':'수량 일치 · 완료 대기',isSaved(mode,group,box)?'Complete':locked()?'Scans in this tab':'Ready to confirm'):'',
   ].filter(Boolean).join(' · ');
   $('cartonCoverageLabel').textContent=box===null?l('Location 전체 진행','Location progress'):l('박스 전체 진행','Carton progress');
   if(outbound)drawOutboundProgress(p,rows);
@@ -370,10 +433,12 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    bar.value=Math.min(100,last.count/last.expected*100);
    bar.setAttribute('aria-valuetext',label.quantity+' · '+label.detail);
   }
-  const allowed=scopeAllowed(),verifying=!!statusCheck&&matchesSelection(statusCheck),saving=!!statusSave&&matchesSelection(statusSave);
+  const method=savedMethod(),allowed=scopeAllowed(),saving=!!statusSave&&matchesSelection(statusSave);
+  const issue=loadedStatus&&matchesSelection(loadedStatus.selection)?loadedStatus.issue:null;
+  root.dataset.persistence=verifying?'reading':saving?'saving':issue||'idle';
   for(const id of ['cartonScan','cartonAdd'])$(id).disabled=!allowed||locked()||verifying||saving;
   $('cartonUndo').disabled=!allowed||locked()||!last||verifying||saving;
-  $('cartonFinish').disabled=!allowed||locked()||!last||verifying||saving;
+  $('cartonFinish').disabled=!allowed||locked()||!last||verifying||saving||issue==='stale';
   const sizes=outbound?cartonCaseSizes(group,box):[];
   if(!sizes.length)scanUnit='each';
   $('cartonScanModes').hidden=!outbound;
@@ -388,8 +453,13 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   $('cartonScan').setAttribute('aria-label',$('cartonScan').placeholder);
 
   $('cartonLabelTrigger').hidden=mode==='inventory';$('cartonReport').hidden=mode==='inventory';
-  if(!allowed)warn(l('중복 집계를 막기 위해 먼저 시작한 실사 방식에서만 입력할 수 있어요. 그 스캔을 모두 취소하면 방식을 바꿀 수 있어요.','To prevent double counting, use the counting method already started. Undo its scans to switch methods.'));
-  else if(locked())warn(l('검수를 완료했어요.','Inspection complete.'));
+  if(method==='conflict')warn(l('저장된 실사 방식이 충돌합니다. 이 Location의 기록은 읽기 전용입니다.','Saved counting methods conflict. This Location is read-only.'));
+  else if(!allowed)warn(method?l('이 Location은 이미 다른 실사 방식으로 완료했어요.','This Location was completed using the other counting method.'):
+   l('중복 집계를 막기 위해 먼저 시작한 실사 방식에서만 입력할 수 있어요. 그 스캔을 모두 취소하면 방식을 바꿀 수 있어요.','To prevent double counting, use the counting method already started. Undo its scans to switch methods.'));
+  else if(locked())warn(isSaved(mode,group,box)?l('검수를 완료했어요.','Inspection complete.'):l('현재 탭의 검수 기록을 표시하고 있어요.','Showing inspection scans from this tab.'));
+  else if(issue==='invalid')warn(l('저장된 완료 기록을 확인할 수 없어요.','The saved completion could not be verified.'));
+  else if(issue==='stale')warn(l('다른 창에서 검수 회차를 변경했어요. 다시 연결하면 현재 회차를 열 수 있어요.','The inspection run changed in another tab. Reconnect to open the active run.'));
+  else if(issue==='unavailable')warn(l('완료 상태 저장소에 연결할 수 없어요.','Completion storage is unavailable.'));
   const body=$('cartonRows');body.replaceChildren();
   const recent=work.recent(mode,group,box).slice(0,5).reverse().map(e=>({
    ...e,scope:'carton',qty:e.qty,at:new Date(e.at).toISOString(),code:e.value,
@@ -453,7 +523,7 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   outboundKind=kind;$('cartonQuery').value='';render();
  };
  $('cartonBack').onclick=back;
- $('cartonDispatch').onclick=()=>{if(mode==='outbound'&&group)openDispatch(dispatchContext());};
+ $('cartonDispatch').onclick=()=>{if(mode==='outbound'&&group)printDispatch(group);};
  $('cartonQuery').onkeydown=e=>{if(!e.isComposing&&e.keyCode!==229&&e.key==='ArrowDown'){e.preventDefault();receiptPicker.focus();}};
  $('cartonQuery').oninput=renderSearch;
  for(const [id,unit] of [['cartonScanEach','each'],['cartonScanCase','case']]){
@@ -474,20 +544,48 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
   if($('cartonFinish').disabled||!inspectionActive())return;
   const s=selection(),rows=rowList(),hasDifference=rows.some(r=>r.conflict||r.expected!==r.actual);
   if(hasDifference&&!window.confirm(l('차이가 남아 있습니다. 이 범위의 검수를 완료할까요?','Differences remain. Finish inspection for this scope?')))return;
+  const events=work.completionSnapshot(s.mode,s.group,s.box);
+  const progress=work.scopeProgress(s.mode,s.group,s.box);
+  const completion={id:'completion:'+events.at(-1)?.id,revision:crypto.randomUUID(),completedAt:new Date().toISOString(),outcome:hasDifference?'difference':'matched',events};
   statusSave=s;render();
   try{
-   const key=loadedStatus&&matchesSelection(loadedStatus.selection)?loadedStatus.key:await completionKey(s.source,s.mode,s.group,s.box);
+   let scope=loadedStatus&&matchesSelection(loadedStatus.selection)?loadedStatus.scope:null;
+   if(!scope){
+    const result=await readSelection(s);
+    if(!result||!matchesSelection(s))return;
+    if(!result.scope||result.issue)throw Error('Cannot resolve the active inspection run');
+    scope=result.scope;
+   }
+   if(!events.length||events.length>maxCompletionEvents)throw Error('Unsupported completion size');
+   const committed=await completions.commit(scope,completion,progress);
+   if(committed==='saved'){
+    if(s.clearGeneration===clearGeneration&&s.source===work.reference(s.mode)&&runsBySource.get(s.source)?.generation===scope.generation){
+     work.finish(s.mode,s.group,s.box);
+     applySummaries(s.source,s.group.id,[
+      ...savedFor(s.source,s.group).filter(summary=>summary.box!==s.box),
+      completionSummary('',scope,completion,progress),
+     ],matchesSelection(s));
+    }
+    return;
+   }
    if(!matchesSelection(s))return;
-   const events=work.completionSnapshot(s.mode,s.group,s.box);
-   if(!events.length||events.length>200000)throw Error('Unsupported completion size');
-   const committed=await completions.write({key,revision:'v1',status:'complete',completedAt:new Date().toISOString(),outcome:hasDifference?'difference':'matched',events},null);
-   if(committed){if(s.source===work.reference(s.mode))work.finish(s.mode,s.group,s.box);}
-   else if(matchesSelection(s))warn(l('다른 창에서 이미 완료 상태를 저장했어요. 기록은 덮어쓰지 않았어요.','Another tab already saved completion. Nothing was overwritten.'));
-  }catch{if(matchesSelection(s))warn(l('완료 상태를 저장하지 못했어요. 검수 기록은 그대로예요.','Completion could not be saved. Your scans are unchanged.'));}
-  finally{if(statusSave===s)statusSave=null;if(matchesSelection(s))render();}
+   if(committed==='stale'){
+    loadedStatus=null;
+    warn(l('완료 기록이 변경됐어요. 다시 시도해 주세요.','Saved completion state changed. Try again.'));
+   }else{
+    warn(committed==='method-conflict'?
+     l('다른 창에서 반대 실사 방식을 완료했어요. 현재 스캔은 유지됩니다.','Another tab completed the other counting method. Your scans are kept.') :
+     l('다른 창에서 이미 완료 상태를 저장했어요. 기록은 덮어쓰지 않았어요.','Another tab already saved completion. Nothing was overwritten.'));
+   }
+  }catch{
+   if(matchesSelection(s))warn(l('완료 상태를 저장하지 못했어요. 검수 기록은 그대로예요.','Completion could not be saved. Your scans are unchanged.'));
+  }finally{
+   if(statusSave===s)statusSave=null;
+   if(matchesSelection(s))render();
+  }
  };
  $('cartonPrev').onclick=()=>{page--;render();};$('cartonNext').onclick=()=>{page++;render();};
- $('cartonReport').onclick=()=>{if(mode==='outbound'&&inspectionActive())openReport(inspectionContext());};
+ $('cartonReport').onclick=()=>{if(mode==='outbound'&&inspectionActive()){const s=selection();openReport(inspectionContext(),()=>matchesSelection(s));}};
  $('cartonLabelTrigger').onclick=e=>openLabels(e.currentTarget);
  window.addEventListener('beforeunload',e=>{if(work.hasScans()){e.preventDefault();e.returnValue='';}});
  return {
@@ -497,25 +595,41 @@ export function attachCartonWorkspace({clearScanner,readWorkbook,engine,isEnglis
    back:()=>{if(markers.dismiss())return true;if(loading)return false;back();return true;},
    scan:add,
   },
-  applyCombined({file,results,packs}){
+  connectionContext:()=>['outbound','inventory'].map(kind=>work.reference(kind)),
+  applyCombined({file,results,packs},previous){
    combinedReference={file,packs};
    const retained=[];
    for(const [kind,result] of Object.entries(results)){
+    if(previous&&work.reference(kind)!==previous[kind==='outbound'?0:1]){retained.push(kind);continue;}
     combinedStatus.set(kind,result.status);
     if(result.status!=='ready'){if(work.reference(kind))retained.push(kind);continue;}
     // A new combined workbook never implicitly discards this workflow's scans.
     if(work.hasJobs(kind)){combinedStatus.set(kind,'preserved');retained.push(kind);continue;}
-    work.connect(kind,file.name,result.index);sourceFiles.set(work.reference(kind),file);
-    if(mode===kind){group=null;box=null;stage='search';$('cartonQuery').value='';}
+    connect(kind,file,result.index);
+    if(mode===kind){invalidateSelection();group=null;box=null;stage='search';$('cartonQuery').value='';}
    }
    if(!root.hidden)render();
    return retained;
   },
-  open(newMode){mode=newMode;outboundKind='single';group=null;box=null;page=0;stage='search';warn('');$('cartonQuery').value='';receiptPicker.update(searchIndex(),'',null,{reset:true,mode:newMode});root.hidden=false;root.inert=false;render();
+  open(newMode){invalidateSelection();mode=newMode;outboundKind='single';group=null;box=null;page=0;stage='search';warn('');$('cartonQuery').value='';receiptPicker.update(searchIndex(),'',null,{reset:true,mode:newMode});root.hidden=false;root.inert=false;render();
    if(mode==='outbound'&&matchMedia('(any-pointer: fine)').matches)focusStage('cartonQuery');
    else root.focus({preventScroll:true});
   },
-  hide(){markers.dismiss();root.hidden=true;root.inert=true;syncLocation();},
+  hide(){invalidateSelection();markers.dismiss();root.hidden=true;root.inert=true;syncLocation();},
+  async startNewRun(){
+   const source=view(),kind=mode,version=selectionVersion;
+   const current=()=>version===selectionVersion&&source===view()&&kind===mode&&!root.hidden;
+   if(!source||!current())return false;
+   const reference=await referenceIdentity.reference(source);
+   if(!current())return false;
+   const run=await completions.resume({workspaceId,workflow:kind,...reference});
+   if(!current())return false;
+   const next=await completions.startNewRun(run);
+   if(!next||!current())return false;
+   invalidateSelection();runsBySource.set(source,next);savedBySource.delete(source);work.reset(kind);
+   group=null;box=null;receiptPicker.refreshCompletionMarks();showStage('search');
+   return true;
+  },
   locationMode,
   toggleLocation(){if(locationMode()===null)return false;outboundLocationOn=!outboundLocationOn;render();return true;},
   refresh(){if(!root.hidden)render();},

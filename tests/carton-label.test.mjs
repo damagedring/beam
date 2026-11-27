@@ -235,8 +235,24 @@ test('a full-case scan uses verified SKU pack size, keeps pieces separate, undoe
  assert.deepEqual(work.outboundOrderProgress(group),{covered:1,excess:0,unverified:0});
  work.undo('outbound',group,'A');assert.equal(scan('CASE-DEMO','case'),'accepted');
  const snap=work.completionSnapshot('outbound',group,'A');
- assert.deepEqual(snap,[{value:'CASE-DEMO',at:4200,unit:'case'}]);
+ assert.equal(typeof snap[0].id,'string');
+ assert.deepEqual(snap,[{id:snap[0].id,value:'CASE-DEMO',at:4200,unit:'case'}]);
  const next=createCartonWork();next.connect('outbound','same',index);
  assert.equal(next.restoreCompletion('outbound',group,'A',snap),true);
  assert.equal(next.rows('outbound',group,'A')[0].actual,10);
+});
+
+
+test('completion replay rejects an overflowing later case without importing its earlier scan', () => {
+ const qty=Number.MAX_SAFE_INTEGER-1;
+ const index=createCartonIndex([{group:'ORDER',box:'CARTON',sku:'SYNTHETIC',barcode:'ITEM',name:'Example',qty,
+  verification:{unit:'case',unitsPerCase:qty,caseBarcode:'CASE'}}]);
+ const group=index.groups.get('ORDER'),work=createCartonWork();
+ work.connect('outbound','sample',index);
+ const scans=[{id:'one',value:'CASE',at:10,unit:'case'},{id:'two',value:'CASE',at:10,unit:'case'}];
+ assert.equal(work.restoreCompletion('outbound',group,'CARTON',scans),false);
+ assert.equal(work.rows('outbound',group,'CARTON')[0].actual,0);
+ assert.equal(work.locked('outbound',group,'CARTON'),false);
+ assert.equal(work.restoreCompletion('outbound',group,'CARTON',scans.slice(0,1)),true);
+ assert.equal(work.rows('outbound',group,'CARTON')[0].actual,qty);
 });

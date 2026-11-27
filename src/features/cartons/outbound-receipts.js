@@ -269,7 +269,7 @@ export function createOutboundReceipts(host,{l,onChoose,onDispatch,isComplete}){
   if(Math.abs(dx)<34||Math.abs(dx)<Math.abs(dy)*1.3)return;
   suppressClick=performance.now()+350;(phase==='folder'&&!preview?stepFolder:stepOrder)(dx<0?1:-1);
  });
- return {
+ return {refreshCompletionMarks:()=>{for(const view of flyerViews.values())view.refreshCompletionMarks();},
   update(index,key,result,{reset=false,mode='outbound',das=false}={}){
    if(!index){folders=[];resultKey=null;phase='folder';render();return;}
    if(!reset&&resultKey?.index===index&&resultKey?.key===key&&resultKey?.mode===mode&&resultKey?.das===das){if(resultKey.lang!==l('ko','en')){resultKey.lang=l('ko','en');render();}return;}
