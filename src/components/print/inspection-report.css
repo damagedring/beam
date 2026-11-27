@@ -1,27 +1,27 @@
 #printReport{display:none}
-
 @page{size:A4;margin:13mm 12mm}
 @page beam-pda-wide {size:A4 landscape;margin:13mm 12mm}
 @media print{
  html,body{margin:0!important;background:#fff!important}
+ html:has(#printReport .pr-receipt){color-scheme:only light} /* Keep Chromium's page margins white. */
  body>*:not(#printReport){display:none!important}
  #printReport{--font-ui:var(--font-print);display:block!important;background:#fff!important;color:#111!important;font:9pt/1.42 var(--font-print);font-variant-numeric:tabular-nums;print-color-adjust:economy;-webkit-print-color-adjust:economy}
  #printReport[data-paper="landscape"] {page:beam-pda-wide}
- #printReport *{box-sizing:border-box}
  #printReport :where(h1,h2,p,dl,dd){margin:0}
  #printReport .pr-label{break-inside:avoid;break-after:avoid}
  #printReport .pr-brand{display:flex;justify-content:space-between;align-items:baseline;gap:8pt;padding:5pt 0;border-block:.45pt solid #666;color:#111;font-size:8pt;line-height:1.35}
  #printReport .pr-brand b{letter-spacing:.16em;font-weight:850}
- #printReport .pr-brand span{text-align:right;overflow-wrap:anywhere}
  #printReport .pr-label h1{max-width:24ch;margin:10pt 0;font-size:36pt;line-height:.99;letter-spacing:-.045em;font-weight:850}
- #printReport .pr-label-party{font-size:12pt;font-weight:750;overflow-wrap:anywhere}
- #printReport .pr-label-work{font-size:8.5pt;color:#444;overflow-wrap:anywhere}
- #printReport .pr-receipt .pr-brand{border-top:1.1pt solid #111}
- #printReport .pr-receipt h1{font-size:40pt;margin-block:12pt 15pt}
- #printReport .pr-reference{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14pt;border-top:.45pt solid #666;padding-block:7pt 9pt}
- #printReport .pr-reference dt,#printReport .pr-receipt .pr-pda b{font-size:7.5pt;font-weight:750;letter-spacing:.07em;text-transform:uppercase}
- #printReport .pr-reference dd{display:block;margin-top:2pt;font-size:12pt;font-weight:750;line-height:1.25;overflow-wrap:anywhere;white-space:normal}
- #printReport .pr-receipt .pr-pda{margin:0;padding-block:8pt 10pt;border-top:.45pt solid #666;border-bottom:.65pt dashed #666}
+ #printReport .pr-masthead{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:14pt;align-items:start;border-top:.55pt solid #111;padding:8pt 0 5pt}
+ #printReport .pr-wordmark{color:#111;font:820 44pt/.77 var(--font-display);letter-spacing:var(--beam-editorial-tracking);transform:scale(1.13,var(--beam-display-compression));transform-origin:left center}
+ #printReport .pr-receipt h1{max-width:none;margin:2pt 0 0;font-size:15pt;line-height:1.12;font-weight:730;letter-spacing:-.02em;overflow-wrap:anywhere}
+ #printReport .pr-identity-band dt,#printReport .pr-reference dt,#printReport .pr-receipt .pr-pda b{font:720 7.75pt/1.25 var(--font-print);letter-spacing:.055em;text-transform:uppercase}
+ #printReport .pr-identity-band{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:14pt;border-block:.45pt solid #666;padding:5pt 0}
+ #printReport .pr-identity-band dd{color:#111;margin-top:2pt;font-size:13pt;font-weight:730;line-height:1.2;overflow-wrap:anywhere}
+ #printReport .pr-reference{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:4pt 8pt;border-inline-start:.35pt solid #999;padding-inline-start:10pt;font-size:9.5pt;line-height:1.2}
+ #printReport .pr-reference dd{margin-top:1pt;font-weight:650;overflow-wrap:anywhere}
+ #printReport .pr-checked{grid-column:span 2;display:flex;align-items:baseline;justify-content:space-between;gap:8pt;border-top:.35pt solid #999;padding-top:2pt;font-size:15pt;line-height:1.05;letter-spacing:-.02em}
+ #printReport .pr-receipt .pr-pda{margin-top:0;border-block-start:0;padding-block:5pt 6pt}
  #printReport .pr-pda{margin-top:10pt;padding:6pt 0 8pt;border-block:.45pt solid #666;break-inside:avoid;print-color-adjust:exact;-webkit-print-color-adjust:exact}
  #printReport .pr-pda b,#printReport .pr-pda small,#printReport .pr-pda-value{display:block}
  #printReport .pr-pda b{font-size:8pt;font-weight:750}
