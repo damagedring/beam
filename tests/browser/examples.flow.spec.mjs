@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { buffer } from 'node:stream/consumers';
-import { enterScan, openCartons, returnsInspection, test } from './beam-fixture.mjs';
+import { chooseOutboundCarton, enterScan, openCartons, returnsInspection, test } from './beam-fixture.mjs';
 
 const demoAsset = '**/features/examples/cry-later-assets.js?*';
 const demoButtonName = 'Cry Later 예제 체험';
@@ -116,6 +116,62 @@ test('Cry Later downloads preserve the supplied files and reconnect in the norma
   await expect(page.locator('#beamRawAnnounce')).toHaveText(/^RAW 연결 완료 · 반품 예정 571행(?:$| · )/);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await scanCryLaterOrder(page, { tracking: '0003-0001-7001', code: 'CLB00602', progress: /1\s*\/\s*6/ });
+});
+
+test('Cry Later Help guides piece, full-case, and unmapped carton scans', async ({ beam: page }) => {
+  const help = await openHelp(page);
+  const exercise = help.locator('#cryLaterCaseExercise');
+  await exercise.getByText('출고 FULL 박스 연습', { exact: true }).click();
+  await expect(exercise).toContainText('CL-OB-DEMO-TRY');
+  await expect(exercise).toContainText('CLCASE00110');
+  await help.getByRole('button', { name: demoButtonName }).click();
+  await expect(help.getByRole('status')).toHaveText('Cry Later 예제를 불러왔습니다.');
+  await help.getByRole('button', { name: '닫기', exact: true }).click();
+  await page.locator('#beamHomeBack').click();
+  await openCartons(page, 'Outbound');
+
+  const field = page.locator('#cartonScan');
+  const each = page.locator('#cartonScanEach');
+  const fullCase = page.locator('#cartonScanCase');
+  const count = page.locator('#cartonCount');
+  await chooseOutboundCarton(page, 'CL-OB-DEMO-TRY', 'TRY-01');
+  await expect(each).toHaveAttribute('aria-pressed', 'true');
+  await expect(fullCase).toBeDisabled();
+  await enterScan(field, 'CLB00101');
+  await expect(count).toContainText('정상 1 / 전체 예정 5');
+  await enterScan(field, 'CLB00201');
+  await expect(count).toContainText('정상 2 / 전체 예정 5');
+
+  await page.locator('#cartonBack').click();
+  await page.locator('.outbound-carton[title="TRY-02"]').click();
+  await expect(fullCase).toBeEnabled();
+  await enterScan(field, 'CLCASE00110');
+  await expect(page.locator('#cartonFeedback')).toContainText('FULL 박스 모드로 바꿔');
+  await expect(count).toContainText('정상 0 / 전체 예정 10');
+  await fullCase.click();
+  await enterScan(field, 'CLB00101');
+  await expect(count).toContainText('정상 0 / 전체 예정 10');
+  await enterScan(field, 'CLCASE00110');
+  await expect(count).toContainText('정상 10 / 전체 예정 10');
+  await expect(page.locator('#cartonHistory [data-result]')).toHaveCount(1);
+  await page.locator('#cartonUndo').click();
+  await expect(count).toContainText('정상 0 / 전체 예정 10');
+  await expect(page.locator('#cartonHistory [data-result]')).toHaveCount(0);
+
+  await page.locator('#cartonBack').click();
+  await page.locator('.outbound-carton[title="TRY-03"]').click();
+  await expect(each).toHaveAttribute('aria-pressed', 'true');
+  await expect(fullCase).toBeDisabled();
+  await enterScan(field, 'CLB00101');
+  await expect(count).toContainText('정상 1 / 전체 예정 2');
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.locator('#language').click();
+  await page.locator('#helpLauncher').click();
+  const english = page.locator('#cryLaterCaseExercise');
+  await expect(english.getByText('Outbound full-case exercise')).toBeVisible();
+  await expect(english).toContainText('One scan adds 10 units');
+  await expect(english).toContainText('Full case is disabled');
 });
 
 test('Cry Later asset failure leaves existing work and mapping intact', async ({ beam: page }) => {
